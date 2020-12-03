@@ -3,10 +3,11 @@
 ## Register
 #### HTTP API v1
 POST /register
-Success response : 200 OK
+Success response : client_id, session_auth_token. Code : 200 OK
 #### API function(s)
     static register(
         url : Uri/String,
+        [clientName : String,]
         [actions : JordanActionsDefinition,]
         [password : String,]
     ) : JordanInstance
@@ -33,7 +34,7 @@ Passive Client sends status which might be considered as logs useful on Active C
 This can be performance, functional or whatever kind of information. It intends to be keys for decision-making. 
 #### HTTP API v1
 POST {taskId}/status
-Success response : 200 OK
+Success response : status_id. Code : 200 OK
 #### API function(s)
 from JordanInstance or JordanTask 
 
@@ -48,8 +49,7 @@ TBD
 Get action an Active Client commanded.
 #### HTTP API v1
 GET {taskId}/message
-Success response with message : 200 OK
-Success response with no message : 204 No Content
+Success response : JordanMessage or <empty>. Code : 200 OK if any, 204 No Content if no message
 #### API function(s)
 from JordanInstance or JordanTask 
 
@@ -202,7 +202,7 @@ TBD
 Program an action which will be executed by Passive Client.
 #### HTTP API v1
 POST {taskId}/message
-Success response : 201 CREATED
+Success response message_id. Code : 201 CREATED
 #### API function(s)
 from JordanClientTask 
 
@@ -224,12 +224,12 @@ List the sent messages and their workflow state.
 #### HTTP API v1
 GET {taskId}/messages
 GET {clientId}/messages
-Success response : 200 OK
+Success response : List<JordanMessage>. Code : 200 OK or 204 No Content if empty.
 #### API function(s)
 from JordanClientTask or JordanClientInstance
 
     get_messages(
-    ) : list<JordanMessages>
+    ) : list<JordanMessage>
 #### Authentication
 TBD
 
@@ -237,7 +237,7 @@ TBD
 Get last statuses sent by the client/task.
 #### HTTP API v1
 GET {taskId}/status
-Success response : 200 OK
+Success response : List<JordanStatus>. Code : 200 OK, or 204 No Content if empty.
 #### API function(s)
 from JordanClientTask or JordanClientInstance
 

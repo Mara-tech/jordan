@@ -6,10 +6,12 @@
 - complete()
 - readMessage()
 - taskId
+- name
 
 ### en plus dans JordanInstance
 - unregister()
 - clientId
+- name
 
 ## JordanActionDefinition
 - name
@@ -36,12 +38,9 @@
 - messageId
 - author
 - action : JordanAction
-- state : JordanMessageStateLog
+- stateAudit : list<JordanMessageState>
 - acknowledge()
 - processed()
-
-## JordanMessageStateLog
-list of JordanMessageState
 
 ## JordanMessageState
 - timestamp
@@ -58,10 +57,12 @@ ERROR_MESSAGE_NOT_DELIVERED, ERROR_CANNOT_PROCESS_MESSAGE, ERROR_MESSAGE_NOT_REC
 
 ## JordanClientInstance
 - clientId
+- name
 - state
 - tasks : list<JordanClientTask>
 
 ## JordanClientTask     (<- JordanClientInstance ? or common base class for some implementations)
 - taskId
+- name
 - state
 - actions : list<JordanActionDefinition>
