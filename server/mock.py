@@ -1,6 +1,7 @@
 import server.jordan_log as log
 import random
 from time import time
+from secrets import token_hex
 def mock_log(msg):
     log.info('[MOCK] ' + msg)
 
@@ -17,11 +18,16 @@ def generate_message_id():
 def generate_status_id():
     return random_int(0, 1000)
 
+def generate_task_id():
+    return random_int(0, 1000)
+
 
 def register_client(payload):
-    mock_log("register" + str(payload))
     client_id = generate_client_id()
-    return client_id
+    token = token_hex()
+    default_task_id = generate_task_id()
+    mock_log(f"register {str(payload)}. id={client_id}")
+    return {'client_id':client_id, 'auth_token':token, 'default_task_id':default_task_id}
 
 def list_clients(authentication_payload):
     mock_log("list clients")
@@ -88,7 +94,7 @@ def list_clients(authentication_payload):
 def post_status(task_id, payload):
     mock_log("post status " + str(payload))
     status_id = generate_status_id()
-    return status_id
+    return {'status_id': status_id}
 
 def read_status(task_id, line_count):
     mock_log(f"read {line_count} status(es) for task {task_id}" )
@@ -133,3 +139,8 @@ def read_message(task_id):
     else:
         mock_message_1 = {"message_id":4867468386, "author":"cpuyol", "action":{"action_name" : "goal", "placeholders" : {"body_part":"head", "side":"opponent"}}, "state_audit":[{"timestamp":int(time()), "state":"SERVER_RECEIVED"}]}
         return mock_message_1
+
+
+def unregister(client_id):
+    mock_log(f"unregister client {client_id}")
+    return None

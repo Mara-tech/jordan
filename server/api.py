@@ -35,7 +35,7 @@ admin_ns = api.namespace('admin', description='Admin-side operations')
 
 action_parameter_model = api.model('ActionParameter', {
     'name': fields.String(required=True, description='parameter name (e.g "e-mail", "threshold", etc.)', example='recipient'),
-    'type': fields.String(required=True, description='parameter type (e.g "string", "int", "float", etc. )', example='string')
+    'type': fields.String(required=True, description='parameter type ("string", "int", or "float")', example='string')
 })
 
 action_definition_model = api.model('ActionDefinition', {
@@ -59,8 +59,14 @@ client_model = api.model('Client', {
 
 client_registration_model = api.model('ClientRegistration', {
     'name': fields.String(required=False, description='Client name', example='IA Training Bot 01'),
-    'password' : fields.String(required=False, description='Access password', example='pwd'),
-    'actions' : fields.List(fields.Nested(action_definition_model), required=False, description='Available actions')
+    'password': fields.String(required=False, description='Access password', example='pwd'),
+    'actions': fields.List(fields.Nested(action_definition_model), required=False, description='Available actions')
+})
+
+client_registered_model = api.model('ClientRegistered', {
+    'client_id': fields.Integer(required=True, description='Client identifier', example=123456),
+    'auth_token': fields.String(required=True, description='Authentication key for future calls on this client', example='f9bf78b9a18ce6d46a0cd2b0b86df9da'),
+    'default_task_id': fields.Integer(required=True, description='Client identifier', example=123)
 })
 
 status_model = api.model('Status', {
@@ -68,6 +74,10 @@ status_model = api.model('Status', {
     'type': fields.String(required=True, description='status type', example='general'),
     'status': fields.String(required=True, description='status content, message', example='program still running'),
     'timestamp': fields.Integer(required=True, description='Seconds since 1970/1/1', example=int(time()))
+})
+
+status_sent_model = api.model('StatusSent', {
+    'status_id' : fields.Integer(required=True, description='status id in server database', example=123456),
 })
 
 #https://github.com/noirbizarre/flask-restplus/issues/172#issuecomment-277033144
@@ -98,22 +108,23 @@ message_model = api.model('Message', {
 #--------------------
 #---API ENDPOINTS----
 #--------------------
-@api.route('/hello/')
+@api.route('/hello')
 class HelloWorld(Resource):
     def get(self):
         return "Hello World " + str(time())
 
 
-@client_ns.route('/register/')
+@client_ns.route('/register')
 class Register(Resource):
 
     @client_ns.doc(description="Register Passive Client to the server",
                    responses={200: 'Registered'})
     @client_ns.expect(client_registration_model)
+    @client_ns.marshal_with(client_registered_model)
     def post(self):
         try:
-            client_id = register_client(api.payload)
-            return client_id, 200
+            client_registered = register_client(api.payload)
+            return client_registered, 200
         except:
             client_ns.abort(500, 'Could not register client')
 
@@ -125,14 +136,15 @@ class SendStatus(Resource):
     @client_ns.doc(description="Send a Status (may be considered as a log) of the Client to the Server",
                    responses={200: 'Status sent'})
     @client_ns.expect(status_model)
+    @client_ns.marshal_with(status_sent_model)
     def post(self, task_id):
         try:
-            status_id = post_status(task_id, api.payload)
-            return status_id, 200
+            status_sent = post_status(task_id, api.payload)
+            return status_sent, 200
         except:
             client_ns.abort(500, 'Could not receive status')
 
-@client_ns.route('/<int:task_id>/message/')
+@client_ns.route('/<int:task_id>/message')
 @client_ns.param('task_id', 'The task identifier', default=123)
 class ReadMessage(Resource):
 
@@ -162,6 +174,20 @@ class UpdateMessageState(Resource):
             return None, 202 if update_valid else 400
         except:
             client_ns.abort(500, 'Could not update state')
+
+@client_ns.route('/<int:client_id>/unregister')
+@client_ns.param('client_id', 'The client identifier', default=123)
+class Unregister(Resource):
+
+    @client_ns.doc(description="Unregister Client, ends connections",
+                   responses={200: 'Unregistered'})
+    def post(self, client_id):
+        try:
+            unregister(client_id)
+            return None, 200
+        except:
+            client_ns.abort(500, 'Could not update state')
+
 
 
 @admin_ns.route('/clients')
@@ -207,7 +233,7 @@ class SendMessage(Resource):
         except:
             client_ns.abort(500, 'Could not receive message')
 
-@admin_ns.route('/<int:task_id>/messages/')
+@admin_ns.route('/<int:task_id>/messages')
 @admin_ns.param('task_id', 'The task identifier', default=123)
 class ReadMessages(Resource):
 
