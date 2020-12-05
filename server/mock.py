@@ -10,13 +10,13 @@ def random_int(_from, _to):
     return random.randint(_from, _to)
 
 def generate_client_id():
-    return random_int(0, 1000)
+    return random_int(0, 100)
 
 def generate_message_id():
-    return random_int(0, 1000)
+    return random_int(0, 100000)
 
 def generate_status_id():
-    return random_int(0, 1000)
+    return random_int(0, 10000)
 
 def generate_task_id():
     return random_int(0, 1000)
@@ -126,19 +126,36 @@ def update_message(task_id, message_id, message_state):
 
 def list_messages(task_id):
     mock_log(f"read message(s) for task {task_id}" )
-    mock_message_1 = {"message_id":4867468386, "author":"cpuyol", "action":{"action_name" : "goal", "placeholders" : {"body_part":"head", "side":"opponent"}}, "state_audit":[{"timestamp":int(time()), "state":"SERVER_RECEIVED"}]}
-    mock_message_2 = {"message_id":4654646552, "author":"engapeth", "action":{"action_name" : "spike"}, "state_audit":[{"timestamp":int(time()), "state":"SERVER_RECEIVED"}, {"timestamp":int(time()+1), "state":"MESSAGE_DELIVERED"}, {"timestamp":int(time()+2), "state":"MESSAGE_PROCESSED"}], "france-bresil":"3-0"}
+    mock_message_1 = {"message_id":generate_message_id(), "author":"cpuyol", "action":{"action_name" : "goal", "placeholders" : {"body_part":"head", "side":"opponent"}}, "state_audit":[{"timestamp":int(time()), "state":"SERVER_RECEIVED"}]}
+    mock_message_2 = {"message_id":generate_message_id(), "author":"engapeth", "action":{"action_name" : "spike"}, "state_audit":[{"timestamp":int(time()), "state":"SERVER_RECEIVED"}, {"timestamp":int(time()+1), "state":"MESSAGE_DELIVERED"}, {"timestamp":int(time()+2), "state":"MESSAGE_PROCESSED"}], "france-bresil":"3-0"}
     return [mock_message_1, mock_message_2]
 
 def read_message(task_id):
-    random_switch = random_int(0,1)
-    mock_log(f"read message for task {task_id} -> {'No message' if random_switch == 0 else 'Mock message'}")
-    if random_switch == 0:
+    random_switch = random_int(0,4)
+    mock_log(f"read message for task {task_id} -> {'No message' if random_switch == 0 else 'Mock message '+str(random_switch)}")
+    if random_switch == 1:
+        mock_message_1 = {"message_id": generate_message_id(), "author": "cpuyol",
+                          "action": {"action_name": "goal", "placeholders": {"body_part": "head", "side": "opponent"}},
+                          "state_audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+        return mock_message_1
+    elif random_switch == 2:
+        mock_message_2 = {"message_id": generate_message_id(), "author": "mjordan",
+                          "action": {"action_name": "shoot", "placeholders": {"player_name": "parker", "points": 3}},
+                          "state_audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+        return mock_message_2
+    elif random_switch == 3:
+        mock_message_3 = {"message_id": generate_message_id(), "author": "bgates",
+                          "action": {"action_name": "send_email", "placeholders": {"recipient": "contact@jordan.com"}},
+                          "state_audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+        return mock_message_3
+    elif random_switch == 4:
+        mock_message_3 = {"message_id": generate_message_id(), "author": "ealderson",
+                          "action": {"action_name": "DUMMY_ACTION"},
+                          "state_audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+        return mock_message_3
+    else:
         #empty message
         return None
-    else:
-        mock_message_1 = {"message_id":4867468386, "author":"cpuyol", "action":{"action_name" : "goal", "placeholders" : {"body_part":"head", "side":"opponent"}}, "state_audit":[{"timestamp":int(time()), "state":"SERVER_RECEIVED"}]}
-        return mock_message_1
 
 
 def unregister(client_id):

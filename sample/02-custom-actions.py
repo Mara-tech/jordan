@@ -36,18 +36,18 @@ for i in range(loop_size):
 
     msg = jordan_instance.read_message()
     if msg:
-        if msg['action']['action_name'] == 'send_email':
-            jordan_instance.acknowledge(msg)
-            do_send_email(msg['action']['placeholders']['recipient'])
-            jordan_instance.processed(msg)
-        elif msg['action']['action_name'] == 'break_loop':
-            jordan_instance.acknowledge(msg)
-            jordan_instance.processed(msg)
+        if msg.action_name == 'send_email':
+            msg.acknowledge()
+            do_send_email(msg.placeholders.recipient)
+            msg.processed()
+        elif msg.action_name == 'break_loop':
+            msg.acknowledge()
+            msg.processed()
             break
-        elif msg['action']['action_name'] == 'shoot':
-            jordan_instance.acknowledge(msg)
-            do_shoot(msg['action']['placeholders']['player_name'], msg['action']['placeholders']['points'])
-            jordan_instance.processed(msg)
+        elif msg.action_name == 'shoot':
+            msg.acknowledge()
+            do_shoot(msg.placeholders.player_name, msg.placeholders.get('points'))
+            msg.processed()
 
 jordan_instance.unregister()
 

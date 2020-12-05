@@ -1,7 +1,7 @@
 from time import time
 import json
 import requests
-
+import threading
 
 
 DEFAULT_CLIENT_NAME = "default-client"
@@ -25,7 +25,7 @@ TASK_ID = '{}/'
 STATUS_RESOURCE = CLIENT_NAMESPACE + TASK_ID + 'status'
 MESSAGE_RESOURCE = CLIENT_NAMESPACE + TASK_ID + 'message'
 MESSAGE_ID = '{}/'
-MESSAGE_STATE = '{}/'
+MESSAGE_STATE = '{}'
 UPDATE_MESSAGE_STATE_RESOURCE = CLIENT_NAMESPACE + TASK_ID + MESSAGE_ID + MESSAGE_STATE
 CLIENT_ID = '{}/'
 UNREGISTER_RESOURCE = CLIENT_NAMESPACE + CLIENT_ID + 'unregister'
@@ -70,6 +70,41 @@ class ActionBuilder():
         return actions
 
 
+class JordanMessagePlaceholders():
+    def __init__(self, placeholders_dict):
+        for k,v in placeholders_dict.items():
+            setattr(self, k, v)
+        self.placehoders = placeholders_dict
+
+    def get(self, key):
+        return self.placehoders[key]
+
+    def has_key(self, key):
+        return key in self.placehoders
+
+class JordanMessage():
+    def __init__(self, base_url, task_id, msg):
+        self.base_url = base_url
+        self.task_id = task_id
+        self.message_id = msg['message_id']
+        self.action_name = msg['action']['action_name']
+        self.placeholders = JordanMessagePlaceholders(msg['action']['placeholders'])
+
+
+    def acknowledge(self):
+        return self.update_message(MESSAGE_STATE_ACKNOWLEDGED)
+
+    def processed(self):
+        return self.update_message(MESSAGE_STATE_PROCESSED)
+
+    def update_message(self, message_state):
+        UPDATE_MESSAGE_STATE_ENDPOINT = self.base_url + UPDATE_MESSAGE_STATE_RESOURCE.format(self.task_id, self.message_id, message_state)
+
+        r = requests.put(UPDATE_MESSAGE_STATE_ENDPOINT)
+
+        return r.status_code == 202
+
+
 
 class JordanInstance():
 
@@ -79,16 +114,16 @@ class JordanInstance():
         self.auth_token = register_output['auth_token']
         self.task_id = register_output['default_task_id']
 
-    def send_status(self, status):
-        return self.send_typed_status(DEFAULT_STATUS_TYPE, status)
+    def send_status(self, status, **kwargs):
+        return self.send_typed_status(DEFAULT_STATUS_TYPE, status, **kwargs)
 
-    def send_success_status(self, status):
-        return self.send_typed_status(SUCCESS_STATUS_TYPE, status)
+    def send_success_status(self, status, **kwargs):
+        return self.send_typed_status(SUCCESS_STATUS_TYPE, status, **kwargs)
 
-    def send_failure_status(self, status):
-        return self.send_typed_status(FAILURE_STATUS_TYPE, status)
+    def send_failure_status(self, status, **kwargs):
+        return self.send_typed_status(FAILURE_STATUS_TYPE, status, **kwargs)
 
-    def send_typed_status(self, status_type, status):
+    def _exec_send_typed_status(self, status_type, status, async_callback=None):
         STATUS_ENDPOINT = self.base_url + STATUS_RESOURCE.format(self.task_id)
         timestamp = int(time())
         payload = {'type':status_type,
@@ -98,31 +133,35 @@ class JordanInstance():
 
         if r.status_code == 200:
             status_output = json.loads(r.text)
+            if async_callback:
+                async_callback(status_output['status_id'])
             return status_output['status_id']
 
         return None
 
-    def read_message(self):
+    def send_typed_status(self, status_type, status, async_call=False, async_callback=None):
+        if async_call or async_callback:
+            threading.Thread(target=self._exec_send_typed_status, args=[status_type, status, async_callback]).start()
+        else:
+            return self._exec_send_typed_status(status_type, status)
+
+    def _exec_read_message(self, async_callback=None):
         MESSAGE_ENDPOINT = self.base_url + MESSAGE_RESOURCE.format(self.task_id)
         r = requests.get(MESSAGE_ENDPOINT)
         if r.status_code == 200:
             message_output = json.loads(r.text)
-            return message_output
+            msg = JordanMessage(self.base_url, self.task_id, message_output)
+            if async_callback:
+                async_callback(msg)
+            return msg
 
         return None
 
-    def acknowledge(self, message):
-        return self.update_message(message, MESSAGE_STATE_ACKNOWLEDGED)
-
-    def processed(self, message):
-        return self.update_message(message, MESSAGE_STATE_PROCESSED)
-
-    def update_message(self, message, message_state):
-        UPDATE_MESSAGE_STATE_ENDPOINT = self.base_url + UPDATE_MESSAGE_STATE_RESOURCE.format(self.task_id, message['message_id'], message_state)
-
-        r = requests.put(UPDATE_MESSAGE_STATE_ENDPOINT)
-
-        return r.status_code == 202
+    def read_message(self, async_call=False, async_callback=None):
+        if async_call or async_callback:
+            threading.Thread(target=self._exec_read_message, args=[async_callback]).start()
+        else:
+            return self._exec_send_typed_status()
 
     def unregister(self):
         UNREGISTER_ENDPOINT = self.base_url + UNREGISTER_RESOURCE.format(self.client_id)

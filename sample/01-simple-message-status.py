@@ -22,9 +22,9 @@ for i in range(loop_size):
 
     msg = jordan_instance.read_message()
     if msg:
-        jordan_instance.acknowledge(msg)
-        print(f"Message '{msg['action']['action_name']}' received and acknowledged")
-        jordan_instance.processed(msg)
+        msg.acknowledge()
+        print(f"Message '{msg.action_name}' received and acknowledged")
+        msg.processed()
 
 jordan_instance.unregister()
 
