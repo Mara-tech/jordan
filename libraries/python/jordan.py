@@ -22,6 +22,7 @@ CLIENT_NAMESPACE = 'client/'
 REGISTER_RESOURCE = CLIENT_NAMESPACE + "register"
 
 TASK_ID = '{}/'
+NEW_TASK_RESOURCE = CLIENT_NAMESPACE + TASK_ID + 'task'
 STATUS_RESOURCE = CLIENT_NAMESPACE + TASK_ID + 'status'
 MESSAGE_RESOURCE = CLIENT_NAMESPACE + TASK_ID + 'message'
 MESSAGE_ID = '{}/'
@@ -97,10 +98,10 @@ class JordanMessage():
     def processed(self):
         return self.update_message(MESSAGE_STATE_PROCESSED)
 
-    def update_message(self, message_state):
+    def update_message(self, message_state, **kwargs):
         UPDATE_MESSAGE_STATE_ENDPOINT = self.base_url + UPDATE_MESSAGE_STATE_RESOURCE.format(self.task_id, self.message_id, message_state)
 
-        r = requests.put(UPDATE_MESSAGE_STATE_ENDPOINT)
+        r = requests.put(UPDATE_MESSAGE_STATE_ENDPOINT, **kwargs)
 
         return r.status_code == 202
 
@@ -108,11 +109,27 @@ class JordanMessage():
 
 class JordanInstance():
 
-    def __init__(self, base_url, register_output):
+    def __init__(self, base_url, task_id, auth_token):
         self.base_url = base_url
-        self.client_id = register_output['client_id']
-        self.auth_token = register_output['auth_token']
-        self.task_id = register_output['default_task_id']
+        self.task_id = task_id
+        self.auth_token = auth_token
+
+
+    def create_task(self, task_name, actions=DEFAULT_NO_ACTION, password=DEFAULT_NO_PASSWORD, **kwargs):
+        NEW_TASK_ENDPOINT = self.base_url + NEW_TASK_RESOURCE.format(self.task_id)
+
+        payload = {'name': task_name}
+        if password:
+            payload['password'] = password
+        if len(actions) > 0:
+            payload['actions'] = actions
+
+        r = requests.post(NEW_TASK_ENDPOINT, json=payload, **kwargs)
+
+        if r.status_code == 201:
+            new_task_output = json.loads(r.text)
+            return JordanInstance(self.base_url, new_task_output['task_id'], self.auth_token)
+        return None
 
     def send_status(self, status, **kwargs):
         return self.send_typed_status(DEFAULT_STATUS_TYPE, status, **kwargs)
@@ -123,13 +140,13 @@ class JordanInstance():
     def send_failure_status(self, status, **kwargs):
         return self.send_typed_status(FAILURE_STATUS_TYPE, status, **kwargs)
 
-    def _exec_send_typed_status(self, status_type, status, async_callback=None):
+    def _exec_send_typed_status(self, status_type, status, async_callback=None, **kwargs):
         STATUS_ENDPOINT = self.base_url + STATUS_RESOURCE.format(self.task_id)
         timestamp = int(time())
         payload = {'type':status_type,
                    'status':status,
                    'timestamp':timestamp}
-        r = requests.post(STATUS_ENDPOINT, json=payload)
+        r = requests.post(STATUS_ENDPOINT, json=payload, **kwargs)
 
         if r.status_code == 200:
             status_output = json.loads(r.text)
@@ -139,15 +156,15 @@ class JordanInstance():
 
         return None
 
-    def send_typed_status(self, status_type, status, async_call=False, async_callback=None):
+    def send_typed_status(self, status_type, status, async_call=False, async_callback=None, **kwargs):
         if async_call or async_callback:
-            threading.Thread(target=self._exec_send_typed_status, args=[status_type, status, async_callback]).start()
+            threading.Thread(target=self._exec_send_typed_status, args=[status_type, status, async_callback], kwargs=kwargs).start()
         else:
             return self._exec_send_typed_status(status_type, status)
 
-    def _exec_read_message(self, async_callback=None):
+    def _exec_read_message(self, async_callback=None, **kwargs):
         MESSAGE_ENDPOINT = self.base_url + MESSAGE_RESOURCE.format(self.task_id)
-        r = requests.get(MESSAGE_ENDPOINT)
+        r = requests.get(MESSAGE_ENDPOINT, **kwargs)
         if r.status_code == 200:
             message_output = json.loads(r.text)
             msg = JordanMessage(self.base_url, self.task_id, message_output)
@@ -157,19 +174,19 @@ class JordanInstance():
 
         return None
 
-    def read_message(self, async_call=False, async_callback=None):
+    def read_message(self, async_call=False, async_callback=None, **kwargs):
         if async_call or async_callback:
-            threading.Thread(target=self._exec_read_message, args=[async_callback]).start()
+            threading.Thread(target=self._exec_read_message, args=[async_callback], kwargs=kwargs).start()
         else:
-            return self._exec_send_typed_status()
+            return self._exec_read_message()
 
-    def unregister(self):
-        UNREGISTER_ENDPOINT = self.base_url + UNREGISTER_RESOURCE.format(self.client_id)
-        r = requests.post(UNREGISTER_ENDPOINT)
+    def unregister(self, **kwargs):
+        UNREGISTER_ENDPOINT = self.base_url + UNREGISTER_RESOURCE.format(self.task_id)
+        r = requests.post(UNREGISTER_ENDPOINT, **kwargs)
         return r.status_code == 200
 
 
-def register(server_base_url, client_name=DEFAULT_CLIENT_NAME, actions=DEFAULT_NO_ACTION, password=DEFAULT_NO_PASSWORD):
+def register(server_base_url, client_name=DEFAULT_CLIENT_NAME, actions=DEFAULT_NO_ACTION, password=DEFAULT_NO_PASSWORD, **kwargs):
     REGISTER_ENDPOINT = server_base_url + REGISTER_RESOURCE
 
     payload = {'name': client_name}
@@ -178,10 +195,10 @@ def register(server_base_url, client_name=DEFAULT_CLIENT_NAME, actions=DEFAULT_N
     if len(actions) > 0:
         payload['actions'] = actions
 
-    r = requests.post(REGISTER_ENDPOINT, json=payload)
+    r = requests.post(REGISTER_ENDPOINT, json=payload, **kwargs)
 
     if r.status_code == 200:
         register_output = json.loads(r.text)
-        return JordanInstance(server_base_url, register_output)
+        return JordanInstance(server_base_url, register_output['task_id'], register_output['auth_token'])
 
     return None

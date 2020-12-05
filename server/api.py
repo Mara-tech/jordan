@@ -35,7 +35,9 @@ admin_ns = api.namespace('admin', description='Admin-side operations')
 
 action_parameter_model = api.model('ActionParameter', {
     'name': fields.String(required=True, description='parameter name (e.g "e-mail", "threshold", etc.)', example='recipient'),
-    'type': fields.String(required=True, description='parameter type ("string", "int", or "float")', example='string')
+    'type': fields.String(required=True, description='parameter type ("string", "int", or "float")', example='string'),
+    'mandatory': fields.Boolean(required=False, description='is the parameter mandatory ?', example=True),
+    'default_value': fields.String(required=False, description='prefill field with default value', example=0.0)
 })
 
 action_definition_model = api.model('ActionDefinition', {
@@ -43,11 +45,16 @@ action_definition_model = api.model('ActionDefinition', {
     'parameters' : fields.List(fields.Nested(action_parameter_model), required=False, description='List of parameters and their type'),
 })
 
-task_model = api.model('task', {
-    'task_id': fields.Integer(required=True, desciption="task identifier", example=456798),
+task_model = api.model('Task', {
+    'task_id': fields.Integer(required=False, desciption="task identifier", example=456798),
     'name': fields.String(required=True, desciption="task name", example='Loss evaluation'),
-    'state': fields.String(required=True, desciption="state (e.g STARTED, PAUSED, COMPLETE, ERROR, TIME_OUT, etc.)", example='STARTED'),
+    'state': fields.String(required=False, desciption="state (e.g STARTED, PAUSED, COMPLETE, ERROR, TIME_OUT, etc.)", example='STARTED'),
+    'password': fields.String(required=False, description='Access password', example='pwd'),
     'actions' : fields.List(fields.Nested(action_definition_model), required=False, description='Available actions')
+})
+
+task_created_model = api.model('TaskCreated', {
+    'task_id': fields.Integer(required=True, desciption="task identifier", example=456798),
 })
 
 client_model = api.model('Client', {
@@ -64,9 +71,8 @@ client_registration_model = api.model('ClientRegistration', {
 })
 
 client_registered_model = api.model('ClientRegistered', {
-    'client_id': fields.Integer(required=True, description='Client identifier', example=123456),
-    'auth_token': fields.String(required=True, description='Authentication key for future calls on this client', example='f9bf78b9a18ce6d46a0cd2b0b86df9da'),
-    'default_task_id': fields.Integer(required=True, description='Client identifier', example=123)
+    'task_id': fields.Integer(required=True, description='Client identifier, which is the root task identifier', example=123),
+    'auth_token': fields.String(required=False, description='Authentication key for future calls on this client', example='f9bf78b9a18ce6d46a0cd2b0b86df9da'),
 })
 
 status_model = api.model('Status', {
@@ -129,6 +135,22 @@ class Register(Resource):
             client_ns.abort(500, 'Could not register client')
 
 
+@client_ns.route('/<int:parent_task_id>/task')
+@client_ns.param('parent_task_id', 'The parent task identifier (may be client_id which is root task id)', default=123)
+class NewTask(Resource):
+
+    @client_ns.doc(description="Create a new task, can be see as a process.",
+                   responses={201: 'Task created'})
+    @client_ns.expect(task_model)
+    @client_ns.marshal_with(task_created_model)
+    def post(self, parent_task_id):
+        try:
+            created_task = create_task(parent_task_id, api.payload)
+            return created_task, 201
+        except:
+            client_ns.abort(500, 'Could not create task')
+
+
 @client_ns.route('/<int:task_id>/status')
 @client_ns.param('task_id', 'The task identifier', default=123)
 class SendStatus(Resource):
@@ -180,11 +202,12 @@ class UpdateMessageState(Resource):
 class Unregister(Resource):
 
     @client_ns.doc(description="Unregister Client, ends connections",
-                   responses={200: 'Unregistered'})
+                   responses={200: 'Unregistered',
+                              400: 'client_id invalid'})
     def post(self, client_id):
         try:
-            unregister(client_id)
-            return None, 200
+            valid_unregister = unregister(client_id)
+            return None, 200 if valid_unregister else 400
         except:
             client_ns.abort(500, 'Could not update state')
 

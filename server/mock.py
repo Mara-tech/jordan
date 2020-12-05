@@ -25,9 +25,14 @@ def generate_task_id():
 def register_client(payload):
     client_id = generate_client_id()
     token = token_hex()
-    default_task_id = generate_task_id()
+    root_task_id = generate_task_id()
     mock_log(f"register {str(payload)}. id={client_id}")
-    return {'client_id':client_id, 'auth_token':token, 'default_task_id':default_task_id}
+    return {'auth_token':token, 'task_id':root_task_id}
+
+def create_task(parent_task_id, payload):
+    task_id = generate_task_id()
+    mock_log(f"New task {task_id}:{payload['name']} created from task {parent_task_id}")
+    return {'task_id':task_id}
 
 def list_clients(authentication_payload):
     mock_log("list clients")
@@ -131,28 +136,63 @@ def list_messages(task_id):
     return [mock_message_1, mock_message_2]
 
 def read_message(task_id):
-    random_switch = random_int(0,4)
+    random_switch = random_int(0,11)
     mock_log(f"read message for task {task_id} -> {'No message' if random_switch == 0 else 'Mock message '+str(random_switch)}")
     if random_switch == 1:
-        mock_message_1 = {"message_id": generate_message_id(), "author": "cpuyol",
+        mock_message = {"message_id": generate_message_id(), "author": "cpuyol",
                           "action": {"action_name": "goal", "placeholders": {"body_part": "head", "side": "opponent"}},
                           "state_audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
-        return mock_message_1
+        return mock_message
     elif random_switch == 2:
-        mock_message_2 = {"message_id": generate_message_id(), "author": "mjordan",
+        mock_message = {"message_id": generate_message_id(), "author": "mjordan",
                           "action": {"action_name": "shoot", "placeholders": {"player_name": "parker", "points": 3}},
                           "state_audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
-        return mock_message_2
+        return mock_message
     elif random_switch == 3:
-        mock_message_3 = {"message_id": generate_message_id(), "author": "bgates",
+        mock_message = {"message_id": generate_message_id(), "author": "bgates",
                           "action": {"action_name": "send_email", "placeholders": {"recipient": "contact@jordan.com"}},
                           "state_audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
-        return mock_message_3
+        return mock_message
     elif random_switch == 4:
-        mock_message_3 = {"message_id": generate_message_id(), "author": "ealderson",
+        mock_message = {"message_id": generate_message_id(), "author": "ealderson",
                           "action": {"action_name": "DUMMY_ACTION"},
                           "state_audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
-        return mock_message_3
+        return mock_message
+    elif random_switch == 5:
+        mock_message = {"message_id": generate_message_id(), "author": "arodin",
+                          "action": {"action_name": "THINK", "placeholders": {"subject": "Science", "duration":60}},
+                          "state_audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+        return mock_message
+    elif random_switch == 6:
+        mock_message = {"message_id": generate_message_id(), "author": "white-rabbit",
+                          "action": {"action_name": "IDLE"},
+                          "state_audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+        return mock_message
+    elif random_switch == 7:
+        mock_message = {"message_id": generate_message_id(), "author": "fgump",
+                          "action": {"action_name": "WALK", "placeholders": {"direction": 270, "speed":50}},
+                          "state_audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+        return mock_message
+    elif random_switch == 8:
+        mock_message = {"message_id": generate_message_id(), "author": "sstrange",
+                          "action": {"action_name": "LIGHT_VISION"},
+                          "state_audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+        return mock_message
+    elif random_switch == 9:
+        mock_message = {"message_id": generate_message_id(), "author": "sfisher",
+                          "action": {"action_name": "NIGHT_VISION"},
+                          "state_audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+        return mock_message
+    elif random_switch == 10:
+        mock_message = {"message_id": generate_message_id(), "author": "jhowlett",
+                          "action": {"action_name": "XRAY_VISION"},
+                          "state_audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+        return mock_message
+    elif random_switch == 11:
+        mock_message = {"message_id": generate_message_id(), "author": "iasimov",
+                          "action": {"action_name": "SHUTDOWN"},
+                          "state_audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+        return mock_message
     else:
         #empty message
         return None
@@ -160,4 +200,4 @@ def read_message(task_id):
 
 def unregister(client_id):
     mock_log(f"unregister client {client_id}")
-    return None
+    return True
