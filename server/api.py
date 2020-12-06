@@ -101,7 +101,7 @@ action_model = api.model('Action', {
 
 action_state = api.model('ActionState', {
     'timestamp': fields.Integer(required=True, description='Seconds since 1970/1/1', example=time()),
-    'state': fields.String(required=True, description='state enum (SERVER_RECEIVED, MESSAGE_DELIVERED, MESSAGE_ACKNOWLEDGED, MESSAGE_PROCESSED,ERROR_MESSAGE_NOT_DELIVERED, ERROR_CANNOT_PROCESS_MESSAGE, ERROR_MESSAGE_NOT_RECEIVED_BY_SERVER', example='MESSAGE_DELIVERED')
+    'state': fields.String(required=True, description='state enum (SERVER_RECEIVED, MESSAGE_DELIVERED, CLIENT_RECEIVED, MESSAGE_ACKNOWLEDGED, MESSAGE_PROCESSED, MESSAGE_OVERRIDDEN, ERROR_MESSAGE_NOT_DELIVERED, ERROR_CANNOT_PROCESS_MESSAGE, ERROR_MESSAGE_NOT_RECEIVED_BY_SERVER', example='MESSAGE_DELIVERED')
 })
 
 message_model = api.model('Message', {

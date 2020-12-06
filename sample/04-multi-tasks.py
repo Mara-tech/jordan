@@ -15,9 +15,12 @@ class Brain():
         brain_message = self.task.read_message(timeout=2)
         if brain_message:
             if brain_message.action_name == 'THINK':
+                brain_message.acknowldge()
                 print(f"I'm thinking about {brain_message.placeholders.subject}")
             elif brain_message.action_name == 'IDLE':
+                brain_message.acknowledge()
                 print(f"I'm emptying my mind")
+                brain_message.processed()
 
 brain_actions = jordan\
                 .with_action('THINK')\
@@ -37,10 +40,13 @@ class Motor():
         motor_message = self.task.read_message(timeout=2)
         if motor_message:
             if motor_message.action_name == 'WALK':
+                motor_message.acknowledge()
                 print(
                     f"I'm heading toward {motor_message.placeholders.direction} at speed {motor_message.placeholders.speed}")
             elif motor_message.action_name == 'IDLE':
+                motor_message.acknowledge()
                 print(f"I'm good where I am")
+                motor_message.processed()
 
 motor_actions = jordan\
                 .with_action('WALK')\
@@ -65,7 +71,9 @@ class Sensor():
         sensor_message = self.task.read_message(timeout=2)
         if sensor_message:
             if sensor_message.action_name in Sensor.VISIONS:
+                sensor_message.acknowledge()
                 self.current_vision = sensor_message.action_name
+                sensor_message.processed()
         self.tell_what_you_see()
 
 
@@ -88,6 +96,7 @@ while(True):
     global_message = jordan_instance.read_message()
     if global_message:
         if global_message.action_name == 'SHUTDOWN':
+            global_message.acknowledge_and_processed()
             break
     brain.loop_iteration()
     motor.loop_iteration()

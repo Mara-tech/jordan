@@ -34,10 +34,13 @@ UNREGISTER_RESOURCE = CLIENT_NAMESPACE + CLIENT_ID + 'unregister'
 
 MESSAGE_STATE_ACKNOWLEDGED = 'MESSAGE_ACKNOWLEDGED'
 MESSAGE_STATE_PROCESSED = 'MESSAGE_PROCESSED'
+MESSAGE_CLIENT_RECEIVED = 'CLIENT_RECEIVED'
+MESSAGE_OVERRIDDEN = 'MESSAGE_OVERRIDDEN'
+CANNOT_PROCESS_MESSAGE = 'ERROR_CANNOT_PROCESS_MESSAGE'
+
 
 def with_action(action_name):
     return ActionBuilder().with_action(action_name)
-
 
 
 class ActionBuilder():
@@ -48,7 +51,6 @@ class ActionBuilder():
         self.actions[action_name] = {}
         self.current_action_name = action_name
         return self
-
 
     def with_parameter(self, parameter_name, parameter_type=PARAMETER_TYPE_STRING):
         valid_parameter_types = [PARAMETER_TYPE_STRING, PARAMETER_TYPE_INT, PARAMETER_TYPE_FLOAT]
@@ -83,6 +85,7 @@ class JordanMessagePlaceholders():
     def has_key(self, key):
         return key in self.placehoders
 
+
 class JordanMessage():
     def __init__(self, base_url, task_id, msg):
         self.base_url = base_url
@@ -91,6 +94,9 @@ class JordanMessage():
         self.action_name = msg['action']['action_name']
         self.placeholders = JordanMessagePlaceholders(msg['action']['placeholders'])
 
+    def acknowledge_and_processed(self):
+        ack = self.acknowledge()
+        return self.processed() if ack else ack
 
     def acknowledge(self):
         return self.update_message(MESSAGE_STATE_ACKNOWLEDGED)
@@ -98,13 +104,19 @@ class JordanMessage():
     def processed(self):
         return self.update_message(MESSAGE_STATE_PROCESSED)
 
+    def received(self):
+        return self.update_message(MESSAGE_CLIENT_RECEIVED)
+
+    def cannot_process(self):
+        return self.update_message(CANNOT_PROCESS_MESSAGE)
+
+    def overridden(self):
+        return self.update_message(MESSAGE_OVERRIDDEN)
+
     def update_message(self, message_state, **kwargs):
         UPDATE_MESSAGE_STATE_ENDPOINT = self.base_url + UPDATE_MESSAGE_STATE_RESOURCE.format(self.task_id, self.message_id, message_state)
-
         r = requests.put(UPDATE_MESSAGE_STATE_ENDPOINT, **kwargs)
-
         return r.status_code == 202
-
 
 
 class JordanInstance():
@@ -113,7 +125,6 @@ class JordanInstance():
         self.base_url = base_url
         self.task_id = task_id
         self.auth_token = auth_token
-
 
     def create_task(self, task_name, actions=DEFAULT_NO_ACTION, password=DEFAULT_NO_PASSWORD, **kwargs):
         NEW_TASK_ENDPOINT = self.base_url + NEW_TASK_RESOURCE.format(self.task_id)
@@ -168,6 +179,7 @@ class JordanInstance():
         if r.status_code == 200:
             message_output = json.loads(r.text)
             msg = JordanMessage(self.base_url, self.task_id, message_output)
+            msg.received()
             if async_callback:
                 async_callback(msg)
             return msg
