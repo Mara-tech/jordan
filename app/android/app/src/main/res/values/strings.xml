@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">JordanApp</string>
+    <string name="main_activity_title">Jordan Servers</string>
+    <string name="clients_fragment_default_title">Jordan</string>
+    <string name="tasks_fragment_default_title">Jordan</string>
+    <string name="action_settings">Settings</string>
+    <!-- Strings used for fragments for navigation -->
+    <string name="first_fragment_label">Server List</string>
+    <string name="second_fragment_label">Client List</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+
+    <string name="hello_first_fragment">Hello first fragment</string>
+    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
+    <string name="menu_refresh">Refresh</string>
+    <string name="default_task_name">Default task</string>
+</resources>

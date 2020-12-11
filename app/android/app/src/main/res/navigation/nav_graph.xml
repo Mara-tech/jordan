@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/ServerListFrag">
+
+    <fragment
+        android:id="@+id/ServerListFrag"
+        android:name="com.mara.jordan.app.ServerListFragment"
+        android:label="@string/first_fragment_label"
+        tools:layout="@layout/server_list_view">
+
+        <action
+            android:id="@+id/action_server_to_client"
+            app:destination="@id/ClientListFrag" />
+    </fragment>
+    <fragment
+        android:id="@+id/ClientListFrag"
+        android:name="com.mara.jordan.app.ClientListFragment"
+        android:label="@string/second_fragment_label"
+        tools:layout="@layout/client_list_view">
+
+        <argument
+            android:name="server_id"
+            app:argType="long" />
+
+        <action
+            android:id="@+id/action_client_to_server"
+            app:destination="@id/ServerListFrag" />
+        <action
+            android:id="@+id/action_client_to_task"
+            app:destination="@id/taskAndActionsFragment" />
+
+    </fragment>
+    <fragment
+        android:id="@+id/taskAndActionsFragment"
+        android:name="com.mara.jordan.app.TaskAndActionsFragment"
+        android:label="fragment_task_and_actions_list"
+        tools:layout="@layout/task_and_actions_list_view" >
+
+        <argument
+            android:name="client_id"
+            app:argType="long" />
+
+        <action
+            android:id="@+id/action_taskAndActionsFragment_to_ClientListFrag"
+            app:destination="@id/ClientListFrag" />
+    </fragment>
+</navigation>
