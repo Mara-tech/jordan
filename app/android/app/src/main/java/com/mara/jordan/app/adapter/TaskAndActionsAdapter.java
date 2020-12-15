@@ -1,9 +1,6 @@
-package com.mara.jordan.app;
-
-import androidx.recyclerview.widget.RecyclerView;
+package com.mara.jordan.app.adapter;
 
 import android.content.Context;
-import android.util.AttributeSet;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -13,28 +10,19 @@ import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.GridLayout;
-import android.widget.GridView;
-import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
-import com.google.common.collect.LinkedListMultimap;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.mara.jordan.app.dummy.MockDatabase;
-import com.mara.jordan.app.dummy.MockDatabase.EasyAction;
+import com.mara.jordan.app.R;
+import com.mara.jordan.app.model.dummy.MockDatabase;
+import com.mara.jordan.app.model.dummy.MockDatabase.EasyAction;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import se.emilsjolander.stickylistheaders.StickyListHeadersAdapter;
 
-/**
- * {@link RecyclerView.Adapter} that can display a {@link EasyAction}.
- */
 public class TaskAndActionsAdapter extends BaseAdapter implements StickyListHeadersAdapter {
 
     private final List<EasyAction> mValues;
@@ -82,6 +70,8 @@ public class TaskAndActionsAdapter extends BaseAdapter implements StickyListHead
 
         final Map<String, View> placeholdersVisualElements = new HashMap<>();
         actionVisualElements.put(holder.actionButton, placeholdersVisualElements);
+
+        holder.actionParametersLayout.removeAllViews();
 
         if(mValues.get(position).getParameters() != null) {
             int row=0, col=0;

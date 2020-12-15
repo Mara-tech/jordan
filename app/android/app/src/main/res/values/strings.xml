@@ -14,4 +14,7 @@
     <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
     <string name="menu_refresh">Refresh</string>
     <string name="default_task_name">Default task</string>
+    <string name="client_tasks_and_actions">Tasks and Actions</string>
+    <string name="client_read_status">Read Status</string>
+    <string name="client_messages_state">Messages States</string>
 </resources>

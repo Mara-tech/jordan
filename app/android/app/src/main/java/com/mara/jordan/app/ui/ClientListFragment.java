@@ -1,5 +1,6 @@
-package com.mara.jordan.app;
+package com.mara.jordan.app.ui;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -18,6 +19,7 @@ import androidx.navigation.fragment.NavHostFragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.snackbar.Snackbar;
+import com.mara.jordan.app.R;
 
 import java.util.List;
 
@@ -33,7 +35,7 @@ public class ClientListFragment extends ListFragment implements AdapterView.OnIt
             Bundle savedInstanceState) {
         final View view = inflater.inflate(R.layout.client_list_view, container, false);
         clientListRefreshLayout = view.findViewById(R.id.swipe_refresh_client);
-
+        setHasOptionsMenu(true);
         // Inflate the layout for this fragment
         return view;
     }
@@ -52,7 +54,8 @@ public class ClientListFragment extends ListFragment implements AdapterView.OnIt
 
     private void refreshClients() {
         //start async refresh clients
-        Snackbar.make(getView(), "Refreshing clients...", Snackbar.LENGTH_SHORT);
+        Snackbar.make(getView(), "Refreshing clients...", Snackbar.LENGTH_SHORT).show();
+        clientListRefreshLayout.setRefreshing(false);
     }
 
     private void onRefreshComplete(List<String> result) {
@@ -87,14 +90,14 @@ public class ClientListFragment extends ListFragment implements AdapterView.OnIt
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
 //        super.onCreateOptionsMenu(menu, inflater);
-        inflater.inflate(R.menu.menu_main, menu);
+        inflater.inflate(R.menu.client_list_menu, menu);
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
 
-            case R.id.menu_refresh:
+            case R.id.refresh_clients:
                 clientListRefreshLayout.setRefreshing(true);
                 refreshClients();
                 return true;
