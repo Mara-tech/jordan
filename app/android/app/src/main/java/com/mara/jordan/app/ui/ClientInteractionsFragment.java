@@ -20,6 +20,8 @@ import com.mara.jordan.app.R;
  */
 public class ClientInteractionsFragment extends Fragment {
 
+    private Fragment currentFragment = null;
+
     /**
      * Mandatory empty constructor for the fragment manager to instantiate the
      * fragment (e.g. upon screen orientation changes).
@@ -30,6 +32,7 @@ public class ClientInteractionsFragment extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setHasOptionsMenu(true);
 
     }
 
@@ -69,7 +72,7 @@ public class ClientInteractionsFragment extends Fragment {
                     }
                 };
         bottomMenu.setOnNavigationItemSelectedListener(navigationItemSelectedListener);
-        bottomMenu.setSelectedItemId(R.id.client_interaction_action);
+        bottomMenu.setSelectedItemId(R.id.client_interaction_status);
         return view;
     }
 
@@ -79,9 +82,20 @@ public class ClientInteractionsFragment extends Fragment {
     }
 
     public void openFragment(Fragment fragment) {
+        currentFragment = fragment;
         FragmentTransaction transaction = getActivity().getSupportFragmentManager().beginTransaction();
         transaction.replace(R.id.client_inner_host_fragment, fragment);
         transaction.addToBackStack(null);
         transaction.commit();
     }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        FragmentTransaction transaction = getActivity().getSupportFragmentManager().beginTransaction();
+        transaction.detach(currentFragment);
+        transaction.addToBackStack(null);
+        transaction.commit();
+    }
+
 }

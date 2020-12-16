@@ -9,7 +9,7 @@
         android:id="@+id/status_text"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="@dimen/text_margin"
+        android:layout_margin="@dimen/read_status_text_item_margin"
         android:maxLines="5"
         android:minLines="1"
         android:singleLine="false"

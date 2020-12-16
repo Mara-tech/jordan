@@ -1,6 +1,11 @@
 package com.mara.jordan.app.model.dummy;
 
+import android.util.Log;
+
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+
+import org.apache.commons.collections4.MapUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,8 +30,10 @@ public class MockDatabase {
 
 
     public static final List<EasyStatus> STATUSES = new ArrayList<>();
+    public static final List<EasyTask> TASKS = new ArrayList<>();
 
     public static final List<EasyMessage> MESSAGES = new ArrayList<>();
+    private static final String TAG = "MockDatabase";
 
 
     static {
@@ -48,6 +55,10 @@ public class MockDatabase {
                 .taskId(4L)
                 .taskName("arm")
                 .build();
+        addTask(brainTask);
+        addTask(legsTask);
+        addTask(eyesTask);
+        addTask(armTask);
 
         addAction(EasyAction.builder()
                 .id(10L)
@@ -123,7 +134,7 @@ public class MockDatabase {
                 .id(1L)
                 .parentTask(brainTask)
                 .timestamp(1607971392285L)
-                .type("GENERAL")
+                .type("general")
                 .status("I'm starting to think about Human condition.")
                 .build()
         );
@@ -131,7 +142,7 @@ public class MockDatabase {
                 .id(2L)
                 .parentTask(brainTask)
                 .timestamp(1607971394285L)
-                .type("GENERAL")
+                .type("general")
                 .status("My conclusion is : Humans suck")
                 .build()
         );
@@ -140,15 +151,15 @@ public class MockDatabase {
                 .id(3L)
                 .parentTask(legsTask)
                 .timestamp(1607971294285L)
-                .type("GENERAL")
+                .type("general")
                 .status("I'm walking South")
                 .build()
         );
         addStatus(EasyStatus.builder()
                 .id(4L)
-                .parentTask(brainTask)
+                .parentTask(legsTask)
                 .timestamp(1607971394285L)
-                .type("SUCCESS")
+                .type("success")
                 .status("Checkpoint reached !")
                 .build()
         );
@@ -156,15 +167,15 @@ public class MockDatabase {
                 .id(5L)
                 .parentTask(eyesTask)
                 .timestamp(1607571294285L)
-                .type("FAILURE")
+                .type("failure")
                 .status("Couldn't switch to X-RAY vision.")
                 .build()
         );
         addStatus(EasyStatus.builder()
                 .id(6L)
-                .parentTask(brainTask)
+                .parentTask(eyesTask)
                 .timestamp(1607976394285L)
-                .type("GENERAL")
+                .type("general")
                 .status("I see a silhouette of a man.")
                 .build()
         );
@@ -217,6 +228,10 @@ public class MockDatabase {
         );
     }
 
+    private static void addTask(EasyTask task) {
+        TASKS.add(task);
+    }
+
     private static void addAction(EasyAction item) {
         ACTIONS.add(item);
         ACTIONS_MAP.put(item.getId(), item);
@@ -230,6 +245,48 @@ public class MockDatabase {
         MESSAGES.add(item);
     }
 
+    public static List<String> getTaskNames() {
+        List<String> list = new ArrayList<>();
+        for (EasyTask TASK : TASKS) {
+            String taskName = TASK.getTaskName();
+            list.add(taskName);
+        }
+        return list;
+    }
+
+    public static List<EasyStatus> selectStatus(String textQuery, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter) {
+        List<EasyStatus> list = new ArrayList<>();
+        for (EasyStatus s : STATUSES) {
+            boolean validStatus = true;
+            if(!Strings.isNullOrEmpty(textQuery)) {
+                validStatus = s.status.toLowerCase().contains(textQuery.toLowerCase());
+            }
+            boolean validType = true;
+            if(!MapUtils.isEmpty(typeFilter)){
+                String type = s.getType();
+                if(!typeFilter.containsKey(type)) {
+                    Log.e(TAG, "Type " + type + " is not handled by type filter (from Dialog). Check StatusFilterTypeAdapter");
+                    validType = true;
+                } else {
+                    validType = typeFilter.get(type);
+                }
+            }
+            boolean validTask = true;
+            if(!MapUtils.isEmpty(taskFilter)){
+                String task = s.getParentTask().getTaskName();
+                if(!taskFilter.containsKey(task)) {
+                    Log.e(TAG, "Task " + task + " is not handled by task filter (from Dialog). Check StatusFilterTaskAdapter");
+                    validTask = true;
+                } else {
+                    validTask = taskFilter.get(task);
+                }
+            }
+            if(validStatus && validType && validTask){
+                list.add(s);
+            }
+        }
+        return list;
+    }
 
 
     @Data

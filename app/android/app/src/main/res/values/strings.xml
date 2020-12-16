@@ -17,4 +17,11 @@
     <string name="client_tasks_and_actions">Tasks and Actions</string>
     <string name="client_read_status">Read Status</string>
     <string name="client_messages_state">Messages States</string>
+    <string name="filter_status">Filter</string>
+    <string name="status_text_size">Font size</string>
+    <string name="status_search">Search</string>
+    <string name="cancel">Cancel</string>
+    <string name="apply">Apply</string>
+    <string name="status_type">Type</string>
+    <string name="status_task">Task</string>
 </resources>
