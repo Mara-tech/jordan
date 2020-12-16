@@ -8,6 +8,7 @@ import com.google.common.collect.Lists;
 import org.apache.commons.collections4.MapUtils;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -174,7 +175,7 @@ public class MockDatabase {
         addStatus(EasyStatus.builder()
                 .id(6L)
                 .parentTask(eyesTask)
-                .timestamp(1607976394285L)
+                .timestamp(new Date().getTime())
                 .type("general")
                 .status("I see a silhouette of a man.")
                 .build()

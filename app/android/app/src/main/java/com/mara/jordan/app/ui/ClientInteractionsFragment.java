@@ -72,7 +72,7 @@ public class ClientInteractionsFragment extends Fragment {
                     }
                 };
         bottomMenu.setOnNavigationItemSelectedListener(navigationItemSelectedListener);
-        bottomMenu.setSelectedItemId(R.id.client_interaction_status);
+        bottomMenu.setSelectedItemId(R.id.client_interaction_action);
         return view;
     }
 

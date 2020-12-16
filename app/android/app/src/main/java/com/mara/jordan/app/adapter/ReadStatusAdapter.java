@@ -9,12 +9,12 @@ import android.widget.TextView;
 
 import androidx.core.content.ContextCompat;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.model.dummy.MockDatabase;
 import com.mara.jordan.app.ui.ReadStatusFragment;
+import com.mara.jordan.app.utils.DateUtils;
 
-import java.text.DateFormat;
-import java.util.Date;
 import java.util.List;
 
 public class ReadStatusAdapter extends BaseAdapter {
@@ -23,6 +23,10 @@ public class ReadStatusAdapter extends BaseAdapter {
     private final Context context;
     private LayoutInflater inflater;
 
+    private static final String ID = "ID : ";
+    private static final String TYPE = "Type : ";
+    private static final String TIMESTAMP = "Timestamp : ";
+    private static final String TASK = "From task : ";
 
     public static final String STATUS_TYPE_SUCCESS = "success";
     public static final String STATUS_TYPE_FAILURE = "failure";
@@ -57,14 +61,38 @@ public class ReadStatusAdapter extends BaseAdapter {
 
         TextView statusView = convertView.findViewById(R.id.status_text);
         MockDatabase.EasyStatus status = mValues.get(position);
-        String timestamp = DateFormat.getDateTimeInstance(DateFormat.SHORT,DateFormat.MEDIUM).format(new Date(status.getTimestamp()));
+        String timestamp = DateUtils.formatTimestamp(status.getTimestamp(), false);
         String taskTag = "[" + status.getParentTask().getTaskName() + "]";
         String SPACE = " ";
         statusView.setText(taskTag + SPACE + timestamp + SPACE + status.getStatus());
         statusView.setTextSize(definedTextSizeSp);
         statusView.setTextColor(getStatusColor(status.getType()));
 
+        statusView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showStatusDetails(v, status);
+            }
+        });
+
         return convertView;
+    }
+
+    private void showStatusDetails(View v, MockDatabase.EasyStatus status) {
+        String[] details = new String[]{
+                status.getStatus(),
+                ID + status.getId(),
+                TYPE + status.getType(),
+                TIMESTAMP + DateUtils.formatTimestamp(status.getTimestamp(), true),
+                TASK + formatTask(status.getParentTask())
+        };
+        new MaterialAlertDialogBuilder(context)
+                .setItems(details, (dialog, which) -> {})
+                .create().show();
+    }
+
+    private String formatTask(MockDatabase.EasyTask parentTask) {
+        return parentTask.getTaskId() + ", " + parentTask.getTaskName() + (parentTask.getProgress() != null ? " ("+parentTask.getProgress() + "%)" : "");
     }
 
     private int getStatusColor(String type) {

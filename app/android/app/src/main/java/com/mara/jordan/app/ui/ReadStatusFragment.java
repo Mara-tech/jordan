@@ -222,7 +222,7 @@ public class ReadStatusFragment extends Fragment {
                 })
                 .setNeutralButton(R.string.cancel, (dialog, which) -> {})
 
-                .create().show();
+                .show();
 
     }
 
