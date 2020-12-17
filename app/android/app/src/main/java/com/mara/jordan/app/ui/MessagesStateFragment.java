@@ -13,8 +13,8 @@ import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.snackbar.Snackbar;
-import com.mara.jordan.app.adapter.MessagesStateAdapter;
 import com.mara.jordan.app.R;
+import com.mara.jordan.app.adapter.MessagesStateAdapter;
 import com.mara.jordan.app.model.dummy.MockDatabase;
 
 public class MessagesStateFragment extends Fragment {

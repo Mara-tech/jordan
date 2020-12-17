@@ -3,6 +3,7 @@ package com.mara.jordan.app.model.dummy;
 import android.util.Log;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
 import org.apache.commons.collections4.MapUtils;
@@ -26,8 +27,8 @@ import lombok.NoArgsConstructor;
  */
 public class MockDatabase {
 
-    public static final List<EasyAction> ACTIONS = new ArrayList<EasyAction>();
-    public static final Map<Long, EasyAction> ACTIONS_MAP = new HashMap<>();
+    public static final List<EasyActionDefinition> ACTIONS = new ArrayList<EasyActionDefinition>();
+    public static final Map<Long, EasyActionDefinition> ACTIONS_MAP = new HashMap<>();
 
 
     public static final List<EasyStatus> STATUSES = new ArrayList<>();
@@ -61,7 +62,7 @@ public class MockDatabase {
         addTask(eyesTask);
         addTask(armTask);
 
-        addAction(EasyAction.builder()
+        addAction(EasyActionDefinition.builder()
                 .id(10L)
                 .actionName("think")
                 .parameters(Lists.newArrayList(
@@ -70,12 +71,12 @@ public class MockDatabase {
                 ))
                 .parentTask(brainTask)
                 .build());
-        addAction(EasyAction.builder()
+        addAction(EasyActionDefinition.builder()
                 .id(11L)
                 .actionName("idle")
                 .parentTask(brainTask)
                 .build());
-        EasyAction walkAction = EasyAction.builder()
+        EasyActionDefinition walkAction = EasyActionDefinition.builder()
                 .id(20L)
                 .actionName("walk")
                 .parameters(Lists.newArrayList(
@@ -85,28 +86,28 @@ public class MockDatabase {
                 .parentTask(legsTask)
                 .build();
         addAction(walkAction);
-        addAction(EasyAction.builder()
+        addAction(EasyActionDefinition.builder()
                 .id(21L)
                 .actionName("idle")
                 .parentTask(legsTask)
                 .build());
-        addAction(EasyAction.builder()
+        addAction(EasyActionDefinition.builder()
                 .id(30L)
                 .actionName("light_vision")
                 .parentTask(eyesTask)
                 .build());
-        addAction(EasyAction.builder()
+        addAction(EasyActionDefinition.builder()
                 .id(31L)
                 .actionName("night_vision")
                 .parentTask(eyesTask)
                 .build());
-        EasyAction xrayVisionAction = EasyAction.builder()
+        EasyActionDefinition xrayVisionAction = EasyActionDefinition.builder()
                 .id(32L)
                 .actionName("xray_vision")
                 .parentTask(eyesTask)
                 .build();
         addAction(xrayVisionAction);
-        addAction(EasyAction.builder()
+        addAction(EasyActionDefinition.builder()
                 .id(40L)
                 .actionName("grab_object")
                 .parameters(Lists.newArrayList(
@@ -115,7 +116,7 @@ public class MockDatabase {
                 ))
                 .parentTask(armTask)
                 .build());
-        addAction(EasyAction.builder()
+        addAction(EasyActionDefinition.builder()
                 .id(41L)
                 .actionName("use_object")
                 .parameters(Lists.newArrayList(
@@ -124,7 +125,7 @@ public class MockDatabase {
                 ))
                 .parentTask(armTask)
                 .build());
-        addAction(EasyAction.builder()
+        addAction(EasyActionDefinition.builder()
                 .id(42L)
                 .actionName("put_object")
                 .parentTask(armTask)
@@ -181,22 +182,32 @@ public class MockDatabase {
                 .build()
         );
 
+        EasyActionExecuted actionForWalk = EasyActionExecuted.builder()
+                .actionName(walkAction.actionName)
+                .placeholders(ImmutableMap.of("direction", 165, "speed", 4))
+                .build();
+
         addMessage(EasyMessage.builder()
                 .id(1L)
-                .action(walkAction)
+                .action(actionForWalk)
+                .parentTask(legsTask)
                 .author("cpuyol")
                 .audit(Lists.newArrayList(
                         EasyMessageState.builder()
                                 .id(100L)
                                 .state("SERVER_RECEIVED")
-                                .timestamp(1607571394285L)
+                                .timestamp(new Date().getTime())
                                 .build()))
                 .build()
         );
 
+        EasyActionExecuted actionForXrayVision = EasyActionExecuted.builder()
+                .actionName(xrayVisionAction.actionName)
+                .build();
+
         addMessage(EasyMessage.builder()
                 .id(2L)
-                .action(xrayVisionAction)
+                .action(actionForXrayVision)
                 .author("mjordan")
                 .audit(Lists.newArrayList(
                         EasyMessageState.builder()
@@ -233,7 +244,7 @@ public class MockDatabase {
         TASKS.add(task);
     }
 
-    private static void addAction(EasyAction item) {
+    private static void addAction(EasyActionDefinition item) {
         ACTIONS.add(item);
         ACTIONS_MAP.put(item.getId(), item);
     }
@@ -294,12 +305,26 @@ public class MockDatabase {
     @AllArgsConstructor
     @NoArgsConstructor
     @Builder
-    public static class EasyAction {
+    public static class EasyActionDefinition {
         private long id;
         private String actionName;
         private EasyTask parentTask;
         private List<EasyActionParameter> parameters = new ArrayList<>();
 
+
+        @Override
+        public String toString() {
+            return actionName;
+        }
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class EasyActionExecuted {
+        private String actionName;
+        private Map<String, Object> placeholders = new HashMap<>();
 
         @Override
         public String toString() {
@@ -346,7 +371,8 @@ public class MockDatabase {
         private long id;
         private String author;
         private List<EasyMessageState> audit;
-        private EasyAction action;
+        private EasyTask parentTask;
+        private EasyActionExecuted action;
     }
     @Data
     @AllArgsConstructor

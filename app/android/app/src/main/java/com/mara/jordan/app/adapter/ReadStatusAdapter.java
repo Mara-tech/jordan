@@ -23,11 +23,6 @@ public class ReadStatusAdapter extends BaseAdapter {
     private final Context context;
     private LayoutInflater inflater;
 
-    private static final String ID = "ID : ";
-    private static final String TYPE = "Type : ";
-    private static final String TIMESTAMP = "Timestamp : ";
-    private static final String TASK = "From task : ";
-
     public static final String STATUS_TYPE_SUCCESS = "success";
     public static final String STATUS_TYPE_FAILURE = "failure";
     public static final String STATUS_TYPE_GENERAL = "general";
@@ -71,20 +66,20 @@ public class ReadStatusAdapter extends BaseAdapter {
         statusView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                showStatusDetails(v, status);
+                showStatusDetails(status);
             }
         });
 
         return convertView;
     }
 
-    private void showStatusDetails(View v, MockDatabase.EasyStatus status) {
+    private void showStatusDetails(MockDatabase.EasyStatus status) {
         String[] details = new String[]{
                 status.getStatus(),
-                ID + status.getId(),
-                TYPE + status.getType(),
-                TIMESTAMP + DateUtils.formatTimestamp(status.getTimestamp(), true),
-                TASK + formatTask(status.getParentTask())
+                context.getString(R.string.status_detais_id) + status.getId(),
+                context.getString(R.string.status_detais_type) + status.getType(),
+                context.getString(R.string.status_detais_timestamp) + DateUtils.formatTimestamp(status.getTimestamp(), true),
+                context.getString(R.string.status_detais_task) + formatTask(status.getParentTask())
         };
         new MaterialAlertDialogBuilder(context)
                 .setItems(details, (dialog, which) -> {})

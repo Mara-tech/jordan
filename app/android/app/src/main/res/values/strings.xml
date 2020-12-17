@@ -24,4 +24,14 @@
     <string name="apply">Apply</string>
     <string name="status_type">Type</string>
     <string name="status_task">Task</string>
+
+    <string name="status_detais_id">"ID : "</string>
+    <string name="status_detais_type">"Type : "</string>
+    <string name="status_detais_timestamp">"Timestamp : "</string>
+    <string name="status_detais_task">"From task : "</string>
+
+    <string name="message_state_detais_author">Sent by : </string>
+    <string name="message_state_detais_id">"ID : "</string>
+    <string name="message_state_detais_audit">"State timeline : "</string>
+    <string name="message_state_detais_placeholders">"With placeholder(s) : "</string>
 </resources>

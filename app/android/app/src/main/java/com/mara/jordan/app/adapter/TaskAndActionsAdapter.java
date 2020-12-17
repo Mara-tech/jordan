@@ -15,7 +15,7 @@ import android.widget.TextView;
 
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.model.dummy.MockDatabase;
-import com.mara.jordan.app.model.dummy.MockDatabase.EasyAction;
+import com.mara.jordan.app.model.dummy.MockDatabase.EasyActionDefinition;
 
 import java.util.HashMap;
 import java.util.List;
@@ -25,12 +25,12 @@ import se.emilsjolander.stickylistheaders.StickyListHeadersAdapter;
 
 public class TaskAndActionsAdapter extends BaseAdapter implements StickyListHeadersAdapter {
 
-    private final List<EasyAction> mValues;
+    private final List<EasyActionDefinition> mValues;
     private final Context context;
     private LayoutInflater inflater;
     private final Map<View, Map<String, View>> actionVisualElements = new HashMap<>();
 
-    public TaskAndActionsAdapter(Context ctx, List<EasyAction> items) {
+    public TaskAndActionsAdapter(Context ctx, List<EasyActionDefinition> items) {
         this.context = ctx;
         mValues = items;
         inflater = LayoutInflater.from(context);
