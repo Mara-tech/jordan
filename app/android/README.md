@@ -13,7 +13,7 @@ Add the base URI of a Jordan server API.
 <p align="center">
     <img src="data/server_list.png" 
           alt="Jordan Server List screenshot" 
-          height="80"/>
+          height="600"/>
 </p>
 Here 3 servers are added and saved by the user.
 
@@ -29,7 +29,7 @@ It may be considered as logs, dedicated to take actions from a Jordan User Inter
 <p align="center">
     <img src="data/status.png" 
           alt="Jordan Client status screenshot" 
-          height="80"/>
+          height="600"/>
 </p>
 These statuses may help the user to decide if an action should be taken.
 
@@ -42,7 +42,7 @@ and handle messages (an action executed by the user).
 <p align="center">
     <img src="data/actions.png" 
           alt="Jordan Actions screenshot" 
-          height="80"/>
+          height="600"/>
 </p>
  
  ### Messages
@@ -58,6 +58,6 @@ and handle messages (an action executed by the user).
  <p align="center">
     <img src="data/messages_state.png" 
           alt="Jordan messages screenshot" 
-          height="80"/>
+          height="600"/>
 </p>
 
