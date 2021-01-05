@@ -12,15 +12,20 @@ import android.widget.ListView;
 import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.adapter.MessagesStateAdapter;
-import com.mara.jordan.app.model.dummy.MockDatabase;
+import com.mara.jordan.app.api.JordanReadMessagesCallback;
+import com.mara.jordan.app.model.JordanClientModel;
+import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
 
-public class MessagesStateFragment extends Fragment {
+public class MessagesStateFragment extends Fragment implements JordanReadMessagesCallback {
 
 
     private SwipeRefreshLayout messagesListRefreshLayout;
+    private JordanClientModel model;
+    private MessagesStateAdapter messageStateAdapter;
 
     /**
      * Mandatory empty constructor for the fragment manager to instantiate the
@@ -29,18 +34,19 @@ public class MessagesStateFragment extends Fragment {
     public MessagesStateFragment() {
     }
 
-    public static Fragment newInstance() {
+    public static Fragment newInstance(JordanClientModel model) {
         MessagesStateFragment fragment = new MessagesStateFragment();
 //        Bundle args = new Bundle();
 //        args.putString(client_id);
 //        fragment.setArguments(args);
+        fragment.model = model;
         return fragment;
     }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        messageStateAdapter = new MessagesStateAdapter(getContext(), model);
     }
 
     @Override
@@ -51,8 +57,10 @@ public class MessagesStateFragment extends Fragment {
         messagesListRefreshLayout = view.findViewById(R.id.swipe_refresh_message_state);
         messagesListRefreshLayout.setOnRefreshListener(this::refreshMessages);
 
-        ListView statusList = (ListView) view.findViewById(R.id.message_state_list);
-        statusList.setAdapter(new MessagesStateAdapter(getContext(), MockDatabase.MESSAGES));
+        ListView statusList = view.findViewById(R.id.message_state_list);
+        statusList.setAdapter(messageStateAdapter);
+
+        refreshMessages();
 
         return view;
     }
@@ -68,7 +76,6 @@ public class MessagesStateFragment extends Fragment {
         switch (item.getItemId()) {
 
             case R.id.refresh_messages_state:
-                messagesListRefreshLayout.setRefreshing(true);
                 refreshMessages();
                 return true;
         }
@@ -80,8 +87,32 @@ public class MessagesStateFragment extends Fragment {
 
     private void refreshMessages() {
         //start async refresh clients
-        Snackbar.make(getView(), "Refreshing messages...", Snackbar.LENGTH_SHORT).show();
-        messagesListRefreshLayout.setRefreshing(false);
+        if(!messagesListRefreshLayout.isRefreshing()){
+            messagesListRefreshLayout.setRefreshing(true);
+        }
+        messageStateAdapter.refresh(this);
     }
 
+    @Override
+    public void onMessagesLoaded(JordanMessageStateDTO[] messages) {
+        messagesListRefreshLayout.setRefreshing(false);
+        if(messages.length == 0){
+            Snackbar.make(getView(), R.string.no_message_state_to_display, Snackbar.LENGTH_SHORT).show();
+        }  }
+
+    @Override
+    public void onMessagesLoadingError(String errorMessage) {
+        messagesListRefreshLayout.setRefreshing(false);
+        Snackbar.make(getView(), R.string.message_state_refresh_failure, Snackbar.LENGTH_LONG)
+                .setAction(R.string.message_state_refresh_failure_details, new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        new MaterialAlertDialogBuilder(getContext())
+                                .setTitle(R.string.message_state_refresh_failure_details_dialog)
+                                .setItems(new String[]{errorMessage}, null)
+                                .show();
+                    }
+                })
+                .show();
+    }
 }

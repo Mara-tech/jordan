@@ -1,111 +1,123 @@
 package com.mara.jordan.app.adapter;
 
 import android.content.Context;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
+import android.widget.ArrayAdapter;
 import android.widget.TextView;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.common.collect.Lists;
 import com.mara.jordan.app.R;
-import com.mara.jordan.app.model.dummy.MockDatabase;
+import com.mara.jordan.app.api.JordanReadMessagesCallback;
+import com.mara.jordan.app.model.JordanClientModel;
+import com.mara.jordan.app.model.dto.JordanMessageStateAuditDTO;
+import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
 import com.mara.jordan.app.utils.DateUtils;
 
 import org.apache.commons.collections4.MapUtils;
 
 import java.util.List;
 
-public class MessagesStateAdapter extends BaseAdapter {
+public class MessagesStateAdapter extends ArrayAdapter<JordanMessageStateDTO> implements JordanReadMessagesCallback {
 
-    private static final MockDatabase.EasyMessageState DEFAULT_MESSAGE = MockDatabase.EasyMessageState.builder().build();
-    private final List<MockDatabase.EasyMessage> mValues;
-    private final Context context;
-    private LayoutInflater inflater;
+    private static final String TAG = "MessageStateAdapter";
+    private final JordanClientModel model;
+    private LayoutInflater mInflater;
+    private static final JordanMessageStateAuditDTO DEFAULT_MESSAGE = JordanMessageStateAuditDTO.builder().build();
 
-    public MessagesStateAdapter(Context ctx, List<MockDatabase.EasyMessage> items) {
-        this.context = ctx;
-        mValues = items;
-        inflater = LayoutInflater.from(context);
-    }
-
-    @Override
-    public int getCount() {
-        return mValues.size();
-    }
-
-    @Override
-    public Object getItem(int position) {
-        return mValues.get(position);
+    public MessagesStateAdapter(Context ctx, JordanClientModel model) {
+        super(ctx, 0);
+        this.model = model;
+        mInflater = LayoutInflater.from(ctx);
     }
 
     @Override
     public long getItemId(int position) {
-        return position;
+        return getItem(position).getMessageId();
     }
 
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
-        convertView = inflater.inflate(R.layout.message_layout, parent, false);
+        View view = mInflater.inflate(R.layout.message_layout, parent, false);
 
-        TextView actionName = convertView.findViewById(R.id.message_action_name);
-        TextView author = convertView.findViewById(R.id.message_author);
-        TextView currentState = convertView.findViewById(R.id.message_current_state);
+        TextView actionName = view.findViewById(R.id.message_action_name);
+        TextView author = view.findViewById(R.id.message_author);
+        TextView currentState = view.findViewById(R.id.message_current_state);
 
-        MockDatabase.EasyMessage message = mValues.get(position);
+        JordanMessageStateDTO message = getItem(position);
         actionName.setText(message.getAction().getActionName());
         author.setText(message.getAuthor());
         currentState.setText(getCurrentState(message.getAudit()));
 
-        convertView.setOnClickListener(new View.OnClickListener() {
+        view.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 showMessageDetails(message);
             }
         });
 
-        return convertView;
+        return view;
     }
 
-    private void showMessageDetails(MockDatabase.EasyMessage message) {
+    private void showMessageDetails(JordanMessageStateDTO message) {
         List<String> details = Lists.newArrayList(
                 message.getAction().getActionName(),
-                context.getString(R.string.message_state_details_id, message.getId()),
-                context.getString(R.string.message_state_details_author, message.getAuthor()),
-                context.getString(R.string.message_state_details_audit)
+                getContext().getString(R.string.message_state_details_id, message.getMessageId()),
+                getContext().getString(R.string.message_state_details_author, message.getAuthor()),
+                getContext().getString(R.string.message_state_details_audit)
         );
 
-        for(MockDatabase.EasyMessageState previousState : message.getAudit()){
+        for(JordanMessageStateAuditDTO previousState : message.getAudit()){
             details.add("  " + DateUtils.formatTimestamp(previousState.getTimestamp(), false) + "  " + previousState.getState());
         };
 
         if(MapUtils.isNotEmpty(message.getAction().getPlaceholders())){
-            details.add(context.getString(R.string.message_state_details_placeholders));
+            details.add(getContext().getString(R.string.message_state_details_placeholders));
             for(String parameterName : message.getAction().getPlaceholders().keySet()){
                 details.add("  " + parameterName + " -> " + message.getAction().getPlaceholders().get(parameterName));
             }
         }
 
-        new MaterialAlertDialogBuilder(context)
+        new MaterialAlertDialogBuilder(getContext())
                 .setItems(details.toArray(new String[]{}), (dialog, which) -> {})
                 .create().show();
     }
 
-    private String getCurrentState(List<MockDatabase.EasyMessageState> audit) {
+    private String getCurrentState(List<JordanMessageStateAuditDTO> audit) {
         //or last element if the list list construction ensures chronology
 //        return audit.stream().reduce((m1,m2) -> m1.getTimestamp() > m2.getTimestamp() ? m1 : m2).orElse(DEFAULT_MESSAGE).getState();
         boolean seen = false;
-        MockDatabase.EasyMessageState acc = null;
-        for (MockDatabase.EasyMessageState easyMessageState : audit) {
+        JordanMessageStateAuditDTO acc = null;
+        for (JordanMessageStateAuditDTO jordanMessageStateAuditDTO : audit) {
             if (!seen) {
                 seen = true;
-                acc = easyMessageState;
+                acc = jordanMessageStateAuditDTO;
             } else {
-                acc = acc.getTimestamp() > easyMessageState.getTimestamp() ? acc : easyMessageState;
+                acc = acc.getTimestamp() > jordanMessageStateAuditDTO.getTimestamp() ? acc : jordanMessageStateAuditDTO;
             }
         }
         return (seen ? acc : DEFAULT_MESSAGE).getState();
     }
 
+    public void refresh(JordanReadMessagesCallback callback) {
+        model.readMessages(callback, this);
+    }
+
+    @Override
+    public void onMessagesLoaded(JordanMessageStateDTO[] messages) {
+        display(messages);
+    }
+
+    private void display(JordanMessageStateDTO[] messagesToDisplay) {
+        clear();
+        addAll(messagesToDisplay);
+    }
+
+    @Override
+    public void onMessagesLoadingError(String errorMessage) {
+        Log.e(TAG, errorMessage);
+    }
 }

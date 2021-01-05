@@ -240,7 +240,7 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
         statusFilterTypeAdapter.onStatusLoaded(statuses);
         statusFilterTaskAdapter.onStatusLoaded(statuses);
         if(statuses.length == 0){
-            Snackbar.make(statusList, R.string.no_status_to_display, BaseTransientBottomBar.LENGTH_SHORT).show();
+            Snackbar.make(getView(), R.string.no_status_to_display, Snackbar.LENGTH_SHORT).show();
         }
     }
 

@@ -9,6 +9,7 @@
     <string name="second_fragment_label">Client List</string>
     <string name="next">Next</string>
     <string name="previous">Previous</string>
+    <string name="details">Details</string>
 
     <string name="menu_refresh">Refresh</string>
 
@@ -37,15 +38,19 @@
     <string name="status_details_type">Type : %s</string>
     <string name="status_details_timestamp">Timestamp : %s</string>
     <string name="status_details_task">From task : %s</string>
-    <string name="status_refresh_failure_details">Details</string>
-    <string name="status_refresh_failure">An error occured while reading status</string>
+    <string name="status_refresh_failure_details">@string/details</string>
+    <string name="status_refresh_failure">An error occurred while reading status</string>
     <string name="status_refresh_failure_details_dialog">Error while reading status</string>
     <string name="no_status_to_display">No status to display</string>
 
     <string name="message_state_details_id">ID : %d</string>
     <string name="message_state_details_author">Sent by : %s</string>
-    <string name="message_state_details_audit">State timeline : %s</string>
+    <string name="message_state_details_audit">State timeline :</string>
     <string name="message_state_details_placeholders">With placeholder(s) :</string>
+    <string name="message_state_refresh_failure_details">@string/details</string>
+    <string name="message_state_refresh_failure">An error occurred while reading messages</string>
+    <string name="message_state_refresh_failure_details_dialog">Error while reading messages</string>
+    <string name="no_message_state_to_display">No message to display</string>
 
 
 

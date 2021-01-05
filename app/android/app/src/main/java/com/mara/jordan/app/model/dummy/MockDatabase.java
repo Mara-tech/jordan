@@ -1,15 +1,8 @@
 package com.mara.jordan.app.model.dummy;
 
-import android.util.Log;
-
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
-import org.apache.commons.collections4.MapUtils;
-
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,10 +24,8 @@ public class MockDatabase {
     public static final Map<Long, EasyActionDefinition> ACTIONS_MAP = new HashMap<>();
 
 
-    public static final List<EasyStatus> STATUSES = new ArrayList<>();
     public static final List<EasyTask> TASKS = new ArrayList<>();
 
-    public static final List<EasyMessage> MESSAGES = new ArrayList<>();
     private static final String TAG = "MockDatabase";
 
 
@@ -132,112 +123,6 @@ public class MockDatabase {
                 .build());
 
 
-        addStatus(EasyStatus.builder()
-                .id(1L)
-                .parentTask(brainTask)
-                .timestamp(1607971392285L)
-                .type("general")
-                .status("I'm starting to think about Human condition.")
-                .build()
-        );
-        addStatus(EasyStatus.builder()
-                .id(2L)
-                .parentTask(brainTask)
-                .timestamp(1607971394285L)
-                .type("general")
-                .status("My conclusion is : Humans suck")
-                .build()
-        );
-
-        addStatus(EasyStatus.builder()
-                .id(3L)
-                .parentTask(legsTask)
-                .timestamp(1607971294285L)
-                .type("general")
-                .status("I'm walking South")
-                .build()
-        );
-        addStatus(EasyStatus.builder()
-                .id(4L)
-                .parentTask(legsTask)
-                .timestamp(1607971394285L)
-                .type("success")
-                .status("Checkpoint reached !")
-                .build()
-        );
-        addStatus(EasyStatus.builder()
-                .id(5L)
-                .parentTask(eyesTask)
-                .timestamp(1607571294285L)
-                .type("failure")
-                .status("Couldn't switch to X-RAY vision.")
-                .build()
-        );
-        addStatus(EasyStatus.builder()
-                .id(6L)
-                .parentTask(eyesTask)
-                .timestamp(new Date().getTime())
-                .type("general")
-                .status("I see a silhouette of a man.")
-                .build()
-        );
-
-        EasyActionExecuted actionForWalk = EasyActionExecuted.builder()
-                .actionName(walkAction.actionName)
-                .placeholders(ImmutableMap.of("direction", 165, "speed", 4))
-                .build();
-
-        addMessage(EasyMessage.builder()
-                .id(1L)
-                .action(actionForWalk)
-                .parentTask(legsTask)
-                .author("cpuyol")
-                .audit(Lists.newArrayList(
-                        EasyMessageState.builder()
-                                .id(100L)
-                                .state("SERVER_RECEIVED")
-                                .timestamp(new Date().getTime())
-                                .build()))
-                .build()
-        );
-
-        EasyActionExecuted actionForXrayVision = EasyActionExecuted.builder()
-                .actionName(xrayVisionAction.actionName)
-                .build();
-
-        addMessage(EasyMessage.builder()
-                .id(2L)
-                .action(actionForXrayVision)
-                .author("mjordan")
-                .audit(Lists.newArrayList(
-                        EasyMessageState.builder()
-                                .id(200L)
-                                .state("SERVER_RECEIVED")
-                                .timestamp(1607541394285L)
-                                .build(),
-                        EasyMessageState.builder()
-                                .id(201L)
-                                .state("MESSAGE_DELIVERED")
-                                .timestamp(1607541424285L)
-                                .build(),
-                        EasyMessageState.builder()
-                                .id(202L)
-                                .state("CLIENT_RECEIVED")
-                                .timestamp(1607541425285L)
-                                .build(),
-                        EasyMessageState.builder()
-                                .id(203L)
-                                .state("MESSAGE_ACKNOWLEDGED")
-                                .timestamp(1607541426285L)
-                                .build(),
-                        EasyMessageState.builder()
-                                .id(204L)
-                                .state("MESSAGE_PROCESSED")
-                                .timestamp(1607541427285L)
-                                .build()
-                        ))
-                .build()
-        );
     }
 
     private static void addTask(EasyTask task) {
@@ -250,13 +135,6 @@ public class MockDatabase {
     }
 
 
-    private static void addStatus(EasyStatus item) {
-        STATUSES.add(item);
-    }
-    private static void addMessage(EasyMessage item) {
-        MESSAGES.add(item);
-    }
-
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
@@ -267,20 +145,6 @@ public class MockDatabase {
         private EasyTask parentTask;
         private List<EasyActionParameter> parameters = new ArrayList<>();
 
-
-        @Override
-        public String toString() {
-            return actionName;
-        }
-    }
-
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    @Builder
-    public static class EasyActionExecuted {
-        private String actionName;
-        private Map<String, Object> placeholders = new HashMap<>();
 
         @Override
         public String toString() {
@@ -308,35 +172,4 @@ public class MockDatabase {
         private Integer progress;
     }
 
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    @Builder
-    public static class EasyStatus {
-        private long id;
-        private String type;
-        private String status;
-        private long timestamp;
-        private EasyTask parentTask;
-    }
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    @Builder
-    public static class EasyMessage {
-        private long id;
-        private String author;
-        private List<EasyMessageState> audit;
-        private EasyTask parentTask;
-        private EasyActionExecuted action;
-    }
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    @Builder
-    public static class EasyMessageState {
-        private long id;
-        private long timestamp;
-        private String state;
-    }
 }
