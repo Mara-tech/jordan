@@ -9,7 +9,6 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.PopupWindow;
 import android.widget.SeekBar;
@@ -19,17 +18,20 @@ import androidx.appcompat.widget.SearchView;
 import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.snackbar.BaseTransientBottomBar;
 import com.google.android.material.snackbar.Snackbar;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.adapter.ReadStatusAdapter;
 import com.mara.jordan.app.adapter.StatusFilterTaskAdapter;
 import com.mara.jordan.app.adapter.StatusFilterTypeAdapter;
-import com.mara.jordan.app.model.dummy.MockDatabase;
+import com.mara.jordan.app.api.JordanReadStatusCallback;
+import com.mara.jordan.app.model.JordanClientModel;
+import com.mara.jordan.app.model.dto.JordanStatusDTO;
 
-import java.util.List;
 import java.util.Map;
 
-public class ReadStatusFragment extends Fragment {
+public class ReadStatusFragment extends Fragment implements JordanReadStatusCallback {
 
     public static final String TAG = "STATUS_FRAG";
 
@@ -43,6 +45,8 @@ public class ReadStatusFragment extends Fragment {
     private String currentSearchQuery;
     private Map<String, Boolean> typeFilter;
     private Map<String, Boolean> taskFilter;
+    private JordanClientModel model;
+    private ReadStatusAdapter statusAdapter;
 
     /**
      * Mandatory empty constructor for the fragment manager to instantiate the
@@ -51,18 +55,21 @@ public class ReadStatusFragment extends Fragment {
     public ReadStatusFragment() {
     }
 
-    public static ReadStatusFragment newInstance() {
+    public static ReadStatusFragment newInstance(JordanClientModel model) {
         ReadStatusFragment fragment = new ReadStatusFragment();
 //        Bundle args = new Bundle();
 //        args.putString(client_id);
 //        fragment.setArguments(args);
+        fragment.model = model;
         return fragment;
     }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        statusAdapter = new ReadStatusAdapter(getContext(), model);
+        statusFilterTypeAdapter = new StatusFilterTypeAdapter(getContext());
+        statusFilterTaskAdapter = new StatusFilterTaskAdapter(getContext());
     }
 
     @Override
@@ -74,11 +81,9 @@ public class ReadStatusFragment extends Fragment {
         statusListRefreshLayout.setOnRefreshListener(this::refreshStatus);
 
         statusList = view.findViewById(R.id.read_status_list);
-        updateStatusAdapter();
+        statusList.setAdapter(statusAdapter);
 
-        statusFilterTypeAdapter = new StatusFilterTypeAdapter(getContext());
-        statusFilterTaskAdapter = new StatusFilterTaskAdapter(getContext());
-
+        refreshStatus();
 
         return view;
     }
@@ -100,12 +105,8 @@ public class ReadStatusFragment extends Fragment {
     }
 
     private void updateStatusAdapter() {
-        List<MockDatabase.EasyStatus> items = MockDatabase.selectStatus(currentSearchQuery, typeFilter, taskFilter);
-        ListAdapter statusAdapter = new ReadStatusAdapter(getContext(), items);
-        statusList.setAdapter(statusAdapter);
+        statusAdapter.select(currentSearchQuery, typeFilter, taskFilter);
     }
-
-
 
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
@@ -141,11 +142,10 @@ public class ReadStatusFragment extends Fragment {
         switch (item.getItemId()) {
 
             case R.id.refresh_status:
-                statusListRefreshLayout.setRefreshing(true);
                 refreshStatus();
                 return true;
             case R.id.filter_status:
-                filterStatusSelected();
+                filterStatusDialog();
                 return true;
             case R.id.status_text_size:
                 createTextSizePopup();
@@ -199,7 +199,7 @@ public class ReadStatusFragment extends Fragment {
     /**
      * Show dialog with task+type checkboxes
       */
-    private void filterStatusSelected() {
+    private void filterStatusDialog() {
 
         statusFilterTypeAdapter.resetTempState();
         statusFilterTaskAdapter.resetTempState();
@@ -228,8 +228,36 @@ public class ReadStatusFragment extends Fragment {
 
     private void refreshStatus() {
         //start async refresh clients
-        Snackbar.make(getView(), "Refreshing status...", Snackbar.LENGTH_SHORT).show();
+        if(!statusListRefreshLayout.isRefreshing()){
+            statusListRefreshLayout.setRefreshing(true);
+        }
+        statusAdapter.refresh(currentSearchQuery, typeFilter, taskFilter, this);
+    }
+
+    @Override
+    public void onStatusLoaded(JordanStatusDTO[] statuses) {
         statusListRefreshLayout.setRefreshing(false);
+        statusFilterTypeAdapter.onStatusLoaded(statuses);
+        statusFilterTaskAdapter.onStatusLoaded(statuses);
+        if(statuses.length == 0){
+            Snackbar.make(statusList, R.string.no_status_to_display, BaseTransientBottomBar.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onStatusLoadingError(String errorMessage) {
+        statusListRefreshLayout.setRefreshing(false);
+        Snackbar.make(getView(), R.string.status_refresh_failure, Snackbar.LENGTH_LONG)
+                .setAction(R.string.status_refresh_failure_details, new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        new MaterialAlertDialogBuilder(getContext())
+                                .setTitle(R.string.status_refresh_failure_details_dialog)
+                                .setItems(new String[]{errorMessage}, null)
+                                .show();
+                    }
+                })
+                .show();
     }
 
 

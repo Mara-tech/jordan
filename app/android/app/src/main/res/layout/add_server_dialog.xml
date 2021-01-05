@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <EditText android:id="@+id/add_server_dialog_server_name"
+        app:layout_constraintTop_toTopOf="parent"
+        style="@style/add_server_dialog_field"
+        android:hint="@string/add_server_dialog_server_name_hint"
+        />
+
+    <EditText android:id="@+id/add_server_dialog_server_base_uri"
+        app:layout_constraintTop_toBottomOf="@id/add_server_dialog_server_name"
+        style="@style/add_server_dialog_field"
+        android:hint="@string/add_server_dialog_server_base_uri_hint"
+        android:inputType="textUri"
+        />
+
+    <CheckBox android:id="@+id/add_server_dialog_remember_login"
+        app:layout_constraintTop_toBottomOf="@id/add_server_dialog_server_base_uri"
+        style="@style/add_server_dialog_field"
+        android:text="@string/add_server_dialog_remember_login"
+        android:checked="true"
+        />
+
+    <EditText android:id="@+id/add_server_dialog_login"
+        app:layout_constraintTop_toBottomOf="@id/add_server_dialog_remember_login"
+        style="@style/add_server_dialog_field"
+        android:hint="@string/add_server_dialog_login_hint"
+        />
+
+
+    <CheckBox android:id="@+id/add_server_dialog_remember_password"
+        app:layout_constraintTop_toBottomOf="@id/add_server_dialog_login"
+        style="@style/add_server_dialog_field"
+        android:text="@string/add_server_dialog_remember_password"
+        android:checked="true"
+        />
+
+    <EditText android:id="@+id/add_server_dialog_password"
+        app:layout_constraintTop_toBottomOf="@id/add_server_dialog_remember_password"
+        style="@style/add_server_dialog_field"
+        android:hint="@string/add_server_dialog_password"
+        android:inputType="textPassword"
+        />
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>

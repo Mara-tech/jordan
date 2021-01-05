@@ -71,9 +71,9 @@ public class MessagesStateAdapter extends BaseAdapter {
     private void showMessageDetails(MockDatabase.EasyMessage message) {
         List<String> details = Lists.newArrayList(
                 message.getAction().getActionName(),
-                context.getString(R.string.message_state_detais_id) + message.getId(),
-                context.getString(R.string.message_state_detais_author) + message.getAuthor(),
-                context.getString(R.string.message_state_detais_audit)
+                context.getString(R.string.message_state_details_id, message.getId()),
+                context.getString(R.string.message_state_details_author, message.getAuthor()),
+                context.getString(R.string.message_state_details_audit)
         );
 
         for(MockDatabase.EasyMessageState previousState : message.getAudit()){
@@ -81,7 +81,7 @@ public class MessagesStateAdapter extends BaseAdapter {
         };
 
         if(MapUtils.isNotEmpty(message.getAction().getPlaceholders())){
-            details.add(context.getString(R.string.message_state_detais_placeholders));
+            details.add(context.getString(R.string.message_state_details_placeholders));
             for(String parameterName : message.getAction().getPlaceholders().keySet()){
                 details.add("  " + parameterName + " -> " + message.getAction().getPlaceholders().get(parameterName));
             }

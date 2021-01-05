@@ -1,53 +1,39 @@
 package com.mara.jordan.app.adapter;
 
 import android.content.Context;
+import android.os.Build;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
+import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 
 import com.google.common.collect.Lists;
 import com.mara.jordan.app.R;
-import com.mara.jordan.app.model.dummy.MockDatabase;
+import com.mara.jordan.app.model.dto.JordanParentTaskDTO;
+import com.mara.jordan.app.model.dto.JordanStatusDTO;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-public class StatusFilterTaskAdapter extends BaseAdapter {
+public class StatusFilterTaskAdapter extends ArrayAdapter<String> {
 
     private static final String TAG = "StatusFilterTaskAdapter";
-    private final List<String> tasks;
+    private List<String> tasks;
     private List<Boolean> taskChecked;
     private List<Boolean> tempView;
-    private final Context context;
-    private LayoutInflater inflater;
+    private LayoutInflater mInflater;
 
 
     public StatusFilterTaskAdapter(Context ctx) {
-        this.context = ctx;
-
-        tasks = MockDatabase.getTaskNames();
-
-        //define retention/persistence policy
-        taskChecked = Lists.newArrayList(
-                true, true, true, true
-        );
-
-        inflater = LayoutInflater.from(context);
-    }
-
-    @Override
-    public int getCount() {
-        return tasks.size();
-    }
-
-    @Override
-    public Object getItem(int position) {
-        return tasks.get(position);
+        super(ctx, 0);
+        mInflater = LayoutInflater.from(ctx);
     }
 
     @Override
@@ -57,9 +43,9 @@ public class StatusFilterTaskAdapter extends BaseAdapter {
 
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
-        convertView = inflater.inflate(R.layout.status_filter_dialog_item, parent, false);
+        View view = mInflater.inflate(R.layout.status_filter_dialog_item, parent, false);
 
-        CheckBox checkBox = convertView.findViewById(R.id.status_filter_item_check);
+        CheckBox checkBox = view.findViewById(R.id.status_filter_item_check);
         String task = tasks.get(position);
         boolean checked = taskChecked.get(position);
         checkBox.setText(task);
@@ -73,7 +59,7 @@ public class StatusFilterTaskAdapter extends BaseAdapter {
             }
         });
 
-        return convertView;
+        return view;
     }
 
     public void applyTempView() {
@@ -92,5 +78,45 @@ public class StatusFilterTaskAdapter extends BaseAdapter {
             }
         }
         return map;
+    }
+
+    public void onStatusLoaded(JordanStatusDTO[] statuses) {
+        tasks = extractDistinctTasks(statuses);
+        taskChecked = initCheckedTasks();
+        resetTempState();
+        clear();
+        addAll(tasks);
+    }
+
+    private List<Boolean> initCheckedTasks() {
+        //tasks.stream().map(this::taskToCheckedInitState).collect(Collectors.toList());
+        List<Boolean> checked = new ArrayList<>();
+        for (String task : tasks) {
+            Boolean aBoolean = taskToCheckedInitState(task);
+            checked.add(aBoolean);
+        }
+        return checked;
+    }
+
+    private Boolean taskToCheckedInitState(String task) {
+        //TODO define retention/persistence policy
+        return true;
+    }
+
+    private List<String> extractDistinctTasks(JordanStatusDTO[] statuses) {
+        // Stream.of(statuses).map(JordanStatusDTO::getParentTask).map(JordanParentTaskDTO::getName).distinct().sorted().collect(Collectors.toList());
+        List<String> list = new ArrayList<>();
+        Set<String> uniqueValues = new HashSet<>();
+        for (JordanStatusDTO status : statuses) {
+            JordanParentTaskDTO parentTask = status.getParentTask();
+            String name = parentTask.getName();
+            if (uniqueValues.add(name)) {
+                list.add(name);
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            list.sort(null);
+        }
+        return list;
     }
 }

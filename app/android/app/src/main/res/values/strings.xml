@@ -10,9 +10,17 @@
     <string name="next">Next</string>
     <string name="previous">Previous</string>
 
-    <string name="hello_first_fragment">Hello first fragment</string>
-    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
     <string name="menu_refresh">Refresh</string>
+
+    <string name="add_server_dialog_confirm">Add server</string>
+    <string name="add_server_dialog_server_name_hint">Server name… (only you will see this name)</string>
+    <string name="add_server_dialog_title">Server setup</string>
+    <string name="add_server_dialog_server_base_uri_hint">https://example.com/jordan</string>
+    <string name="add_server_dialog_login_hint">login</string>
+    <string name="add_server_dialog_password">password</string>
+    <string name="add_server_dialog_remember_login">Remember login for this server</string>
+    <string name="add_server_dialog_remember_password">Remember password for this server</string>
+
     <string name="default_task_name">Default task</string>
     <string name="client_tasks_and_actions">Tasks and Actions</string>
     <string name="client_read_status">Read Status</string>
@@ -25,13 +33,23 @@
     <string name="status_type">Type</string>
     <string name="status_task">Task</string>
 
-    <string name="status_detais_id">"ID : "</string>
-    <string name="status_detais_type">"Type : "</string>
-    <string name="status_detais_timestamp">"Timestamp : "</string>
-    <string name="status_detais_task">"From task : "</string>
+    <string name="status_details_id">ID : %d</string>
+    <string name="status_details_type">Type : %s</string>
+    <string name="status_details_timestamp">Timestamp : %s</string>
+    <string name="status_details_task">From task : %s</string>
+    <string name="status_refresh_failure_details">Details</string>
+    <string name="status_refresh_failure">An error occured while reading status</string>
+    <string name="status_refresh_failure_details_dialog">Error while reading status</string>
+    <string name="no_status_to_display">No status to display</string>
 
-    <string name="message_state_detais_author">Sent by : </string>
-    <string name="message_state_detais_id">"ID : "</string>
-    <string name="message_state_detais_audit">"State timeline : "</string>
-    <string name="message_state_detais_placeholders">"With placeholder(s) : "</string>
+    <string name="message_state_details_id">ID : %d</string>
+    <string name="message_state_details_author">Sent by : %s</string>
+    <string name="message_state_details_audit">State timeline : %s</string>
+    <string name="message_state_details_placeholders">With placeholder(s) :</string>
+
+
+
+
+    <string name="default_server_base_uri">http://192.168.1.41:5000/jordan/admin</string>
+
 </resources>

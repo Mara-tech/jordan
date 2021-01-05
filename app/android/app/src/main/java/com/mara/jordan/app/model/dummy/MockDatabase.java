@@ -257,50 +257,6 @@ public class MockDatabase {
         MESSAGES.add(item);
     }
 
-    public static List<String> getTaskNames() {
-        List<String> list = new ArrayList<>();
-        for (EasyTask TASK : TASKS) {
-            String taskName = TASK.getTaskName();
-            list.add(taskName);
-        }
-        return list;
-    }
-
-    public static List<EasyStatus> selectStatus(String textQuery, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter) {
-        List<EasyStatus> list = new ArrayList<>();
-        for (EasyStatus s : STATUSES) {
-            boolean validStatus = true;
-            if(!Strings.isNullOrEmpty(textQuery)) {
-                validStatus = s.status.toLowerCase().contains(textQuery.toLowerCase());
-            }
-            boolean validType = true;
-            if(!MapUtils.isEmpty(typeFilter)){
-                String type = s.getType();
-                if(!typeFilter.containsKey(type)) {
-                    Log.e(TAG, "Type " + type + " is not handled by type filter (from Dialog). Check StatusFilterTypeAdapter");
-                    validType = true;
-                } else {
-                    validType = typeFilter.get(type);
-                }
-            }
-            boolean validTask = true;
-            if(!MapUtils.isEmpty(taskFilter)){
-                String task = s.getParentTask().getTaskName();
-                if(!taskFilter.containsKey(task)) {
-                    Log.e(TAG, "Task " + task + " is not handled by task filter (from Dialog). Check StatusFilterTaskAdapter");
-                    validTask = true;
-                } else {
-                    validTask = taskFilter.get(task);
-                }
-            }
-            if(validStatus && validType && validTask){
-                list.add(s);
-            }
-        }
-        return list;
-    }
-
-
     @Data
     @AllArgsConstructor
     @NoArgsConstructor

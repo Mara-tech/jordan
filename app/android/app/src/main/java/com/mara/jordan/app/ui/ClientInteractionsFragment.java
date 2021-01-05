@@ -14,6 +14,7 @@ import androidx.fragment.app.FragmentTransaction;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.mara.jordan.app.R;
+import com.mara.jordan.app.model.JordanClientModel;
 
 /**
  * A fragment representing a list of Items.
@@ -21,6 +22,7 @@ import com.mara.jordan.app.R;
 public class ClientInteractionsFragment extends Fragment {
 
     private Fragment currentFragment = null;
+    private JordanClientModel model;
 
     /**
      * Mandatory empty constructor for the fragment manager to instantiate the
@@ -33,7 +35,7 @@ public class ClientInteractionsFragment extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
-
+        model = new JordanClientModel(getContext(), getArguments().getLong(JordanClientModel.CLIENT_ID, -1L));
     }
 
     @Override
@@ -59,7 +61,7 @@ public class ClientInteractionsFragment extends Fragment {
                     @Override public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                         switch (item.getItemId()) {
                             case R.id.client_interaction_status:
-                                openFragment(ReadStatusFragment.newInstance());
+                                openFragment(ReadStatusFragment.newInstance(model));
                                 return true;
                             case R.id.client_interaction_action:
                                 openFragment(TaskAndActionsFragment.newInstance());

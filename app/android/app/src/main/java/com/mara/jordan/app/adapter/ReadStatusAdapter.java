@@ -1,65 +1,64 @@
 package com.mara.jordan.app.adapter;
 
 import android.content.Context;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
+import android.widget.ArrayAdapter;
 import android.widget.TextView;
 
 import androidx.core.content.ContextCompat;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.common.base.Strings;
 import com.mara.jordan.app.R;
-import com.mara.jordan.app.model.dummy.MockDatabase;
+import com.mara.jordan.app.api.JordanReadStatusCallback;
+import com.mara.jordan.app.model.JordanClientModel;
+import com.mara.jordan.app.model.dto.JordanParentTaskDTO;
+import com.mara.jordan.app.model.dto.JordanStatusDTO;
 import com.mara.jordan.app.ui.ReadStatusFragment;
 import com.mara.jordan.app.utils.DateUtils;
 
+import org.apache.commons.collections4.MapUtils;
+
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
-public class ReadStatusAdapter extends BaseAdapter {
-
-    private final List<MockDatabase.EasyStatus> mValues;
-    private final Context context;
-    private LayoutInflater inflater;
+public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
 
     public static final String STATUS_TYPE_SUCCESS = "success";
     public static final String STATUS_TYPE_FAILURE = "failure";
     public static final String STATUS_TYPE_GENERAL = "general";
     public static final String STATUS_TYPE_PROGRESS = "progress";
+    private static final String TAG = "ReadStatusAdapter";
+    private final LayoutInflater mInflater;
+    private final JordanClientModel model;
     private float definedTextSizeSp = ReadStatusFragment.StatusTextSizeHelper.DEFAULT_TEXT_SIZE;
 
-    public ReadStatusAdapter(Context ctx, List<MockDatabase.EasyStatus> items) {
-        this.context = ctx;
-        mValues = items;
-        inflater = LayoutInflater.from(context);
-    }
-
-    @Override
-    public int getCount() {
-        return mValues.size();
-    }
-
-    @Override
-    public Object getItem(int position) {
-        return mValues.get(position);
+    public ReadStatusAdapter(Context ctx, JordanClientModel model) {
+        super(ctx, 0);
+        this.model = model;
+        mInflater = LayoutInflater.from(ctx);
     }
 
     @Override
     public long getItemId(int position) {
-        return position;
+        return getItem(position).getStatusId();
     }
 
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
-        convertView = inflater.inflate(R.layout.status_layout, parent, false);
+        //if convertView == null, convertView =. else reuse ???
 
-        TextView statusView = convertView.findViewById(R.id.status_text);
-        MockDatabase.EasyStatus status = mValues.get(position);
+        View view = mInflater.inflate(R.layout.status_layout, parent, false);
+        TextView statusView = view.findViewById(R.id.status_text);
+        JordanStatusDTO status = getItem(position);
         String timestamp = DateUtils.formatTimestamp(status.getTimestamp(), false);
-        String taskTag = "[" + status.getParentTask().getTaskName() + "]";
-        String SPACE = " ";
-        statusView.setText(taskTag + SPACE + timestamp + SPACE + status.getStatus());
+        String taskTag = formatTask(status.getParentTask(), true);
+        statusView.setText(String.format("%s %s %s", taskTag, timestamp, status.getStatus()));
         statusView.setTextSize(definedTextSizeSp);
         statusView.setTextColor(getStatusColor(status.getType()));
 
@@ -70,29 +69,35 @@ public class ReadStatusAdapter extends BaseAdapter {
             }
         });
 
-        return convertView;
+        return view;
     }
 
-    private void showStatusDetails(MockDatabase.EasyStatus status) {
+    private void showStatusDetails(JordanStatusDTO status) {
         String[] details = new String[]{
-                status.getStatus(),
-                context.getString(R.string.status_detais_id) + status.getId(),
-                context.getString(R.string.status_detais_type) + status.getType(),
-                context.getString(R.string.status_detais_timestamp) + DateUtils.formatTimestamp(status.getTimestamp(), true),
-                context.getString(R.string.status_detais_task) + formatTask(status.getParentTask())
+                getContext().getString(R.string.status_details_id, status.getStatusId()),
+                getContext().getString(R.string.status_details_type, status.getType()),
+                getContext().getString(R.string.status_details_timestamp, DateUtils.formatTimestamp(status.getTimestamp(), true)),
+                getContext().getString(R.string.status_details_task, formatTask(status.getParentTask(), false))
         };
-        new MaterialAlertDialogBuilder(context)
-                .setItems(details, (dialog, which) -> {})
+        new MaterialAlertDialogBuilder(getContext())
+                .setTitle(status.getStatus())
+                .setItems(details, (dialog, which) -> {
+                })
                 .create().show();
     }
 
-    private String formatTask(MockDatabase.EasyTask parentTask) {
-        return parentTask.getTaskId() + ", " + parentTask.getTaskName() + (parentTask.getProgress() != null ? " ("+parentTask.getProgress() + "%)" : "");
+    private String formatTask(JordanParentTaskDTO parentTask, boolean shortTag) {
+        if(shortTag){
+            return String.format("[%s]", parentTask.getName());
+        }else {
+            return String.format("%d, %s %s", parentTask.getTaskId(), parentTask.getName(), (Strings.isNullOrEmpty(parentTask.getState()) ? "" : " (" + parentTask.getState() + ")"));
+        }
     }
 
+    //TODO use xml mapping ?
     private int getStatusColor(String type) {
         int colorResId;
-        switch (type){
+        switch (type) {
             case STATUS_TYPE_SUCCESS:
                 colorResId = R.color.status_type_success;
                 break;
@@ -100,7 +105,7 @@ public class ReadStatusAdapter extends BaseAdapter {
                 colorResId = R.color.status_type_failure;
                 break;
             case STATUS_TYPE_GENERAL:
-                colorResId =  R.color.status_type_general;
+                colorResId = R.color.status_type_general;
                 break;
             case STATUS_TYPE_PROGRESS:
                 colorResId = R.color.status_type_progress;
@@ -109,12 +114,70 @@ public class ReadStatusAdapter extends BaseAdapter {
                 colorResId = R.color.status_type_default;
                 break;
         }
-        return ContextCompat.getColor(context, colorResId);
+        return ContextCompat.getColor(getContext(), colorResId);
     }
 
     public void changeTextSize(int textSizeSp) {
         definedTextSizeSp = textSizeSp;
         notifyDataSetInvalidated();
 
+    }
+
+    public void refresh(String query, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter, JordanReadStatusCallback callback) {
+        model.readStatus(callback, new JordanReadStatusCallback() {
+            @Override
+            public void onStatusLoaded(JordanStatusDTO[] statuses) {
+                select(query, typeFilter, taskFilter, statuses);
+            }
+
+            @Override
+            public void onStatusLoadingError(String errorMessage) {
+                Log.e(TAG, errorMessage);
+            }
+        });
+    }
+
+    public void select(String query, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter) {
+        select(query, typeFilter, taskFilter, model.getStatuses());
+    }
+
+    private void select(String query, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter, JordanStatusDTO[] statuses) {
+        final Collection<JordanStatusDTO> statusToDisplay = applyFilters(query, typeFilter, taskFilter, statuses);
+        clear();
+        addAll(statusToDisplay);
+    }
+
+    private static List<JordanStatusDTO> applyFilters(String textQuery, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter, JordanStatusDTO[] statuses) {
+        List<JordanStatusDTO> list = new ArrayList<>();
+        for (JordanStatusDTO s : statuses) {
+            boolean validStatus = true;
+            if(!Strings.isNullOrEmpty(textQuery)) {
+                validStatus = s.getStatus().toLowerCase().contains(textQuery.toLowerCase());
+            }
+            boolean validType = true;
+            if(!MapUtils.isEmpty(typeFilter)){
+                String type = s.getType();
+                if(!typeFilter.containsKey(type)) {
+                    Log.e(TAG, "Type " + type + " is not handled by type filter (from Dialog). Check StatusFilterTypeAdapter");
+                    validType = true;
+                } else {
+                    validType = typeFilter.get(type);
+                }
+            }
+            boolean validTask = true;
+            if(!MapUtils.isEmpty(taskFilter)){
+                String task = s.getParentTask().getName();
+                if(!taskFilter.containsKey(task)) {
+                    Log.e(TAG, "Task " + task + " is not handled by task filter (from Dialog). Check StatusFilterTaskAdapter");
+                    validTask = true;
+                } else {
+                    validTask = taskFilter.get(task);
+                }
+            }
+            if(validStatus && validType && validTask){
+                list.add(s);
+            }
+        }
+        return list;
     }
 }
