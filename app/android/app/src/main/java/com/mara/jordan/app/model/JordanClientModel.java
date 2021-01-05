@@ -2,9 +2,12 @@ package com.mara.jordan.app.model;
 
 import android.content.Context;
 
+import com.mara.jordan.app.adapter.TaskAndActionsAdapter;
 import com.mara.jordan.app.api.JordanApi;
+import com.mara.jordan.app.api.JordanGetActionsCallback;
 import com.mara.jordan.app.api.JordanReadMessagesCallback;
 import com.mara.jordan.app.api.JordanReadStatusCallback;
+import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
 import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
 import com.mara.jordan.app.model.dto.JordanStatusDTO;
 
@@ -12,7 +15,7 @@ import org.apache.commons.lang3.ArrayUtils;
 
 import lombok.Getter;
 
-public class JordanClientModel implements JordanModel, JordanReadStatusCallback, JordanReadMessagesCallback {
+public class JordanClientModel implements JordanModel, JordanReadStatusCallback, JordanReadMessagesCallback, JordanGetActionsCallback {
 
     private static final String TAG = "JordanClientModel";
     private final long clientId;
@@ -22,6 +25,8 @@ public class JordanClientModel implements JordanModel, JordanReadStatusCallback,
     private JordanStatusDTO[] statuses = new JordanStatusDTO[]{};
     @Getter
     private JordanMessageStateDTO[] messages = new JordanMessageStateDTO[]{};
+    @Getter
+    private JordanActionDefinitionWithTaskDTO[] actionDefinitions;
 
     public JordanClientModel(Context context, long clientId) {
         this.clientId = clientId;
@@ -53,6 +58,20 @@ public class JordanClientModel implements JordanModel, JordanReadStatusCallback,
 
     @Override
     public void onMessagesLoadingError(String errorMessage) {
+
+    }
+
+    public void readActionDefinitions(JordanGetActionsCallback... callbacks) {
+        api.readActionDefinitions(ArrayUtils.add(callbacks, this));
+    }
+
+    @Override
+    public void onActionsLoaded(JordanActionDefinitionWithTaskDTO[] actions) {
+        actionDefinitions = actions;
+    }
+
+    @Override
+    public void onActionsLoadingError(String errorMessage) {
 
     }
 }

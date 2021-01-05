@@ -64,7 +64,7 @@ public class ClientInteractionsFragment extends Fragment {
                                 openFragment(ReadStatusFragment.newInstance(model));
                                 return true;
                             case R.id.client_interaction_action:
-                                openFragment(TaskAndActionsFragment.newInstance());
+                                openFragment(TaskAndActionsFragment.newInstance(model));
                                 return true;
                             case R.id.client_interaction_messages_state:
                                 openFragment(MessagesStateFragment.newInstance(model));

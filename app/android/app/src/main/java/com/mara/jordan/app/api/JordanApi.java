@@ -5,6 +5,7 @@ import android.util.Log;
 
 import com.android.volley.VolleyError;
 import com.mara.jordan.app.R;
+import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
 import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
 import com.mara.jordan.app.model.dto.JordanStatusDTO;
 import com.mara.jordan.app.utils.NetworkUtils;
@@ -85,6 +86,33 @@ public class JordanApi {
         }
     }
 
+    public void readActionDefinitions(JordanGetActionsCallback... callbacks) {
+        String taskId = getTaskId();
+        String endpoint = "actions";
+        String url = String.format("%s/%s/%s", getServerBaseUrl(), taskId, endpoint);
+        GsonRequest<JordanActionDefinitionWithTaskDTO[]> readStatusRequest = new GsonRequest<>(
+                url,
+                JordanActionDefinitionWithTaskDTO[].class,
+                NetworkUtils.makeHeaders(),
+                response -> handleResponse(response, callbacks),
+                error -> handleError(error, callbacks)
+        );
+        Log.i(TAG, "Queuing " + endpoint + " query : " + url);
+        VolleyInterfaceSingleton.getInstance(context).addToRequestQueue(readStatusRequest);
+    }
+
+    private void handleError(VolleyError error, JordanGetActionsCallback[] callbacks) {
+        for(JordanGetActionsCallback callback :callbacks){
+            callback.onActionsLoadingError(extractErrorMessage(error));
+        }
+    }
+
+    private void handleResponse(JordanActionDefinitionWithTaskDTO[] response, JordanGetActionsCallback... callbacks) {
+        final JordanActionDefinitionWithTaskDTO[] safeResponse = response != null ? response : new JordanActionDefinitionWithTaskDTO[]{};
+        for(JordanGetActionsCallback callback : callbacks){
+            callback.onActionsLoaded(safeResponse);
+        }
+    }
     private static String extractErrorMessage(VolleyError error) {
         return String.format("%s %s", error.toString(), error.getMessage());
     }

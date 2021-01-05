@@ -12,20 +12,24 @@ import android.view.ViewGroup;
 import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.adapter.TaskAndActionsAdapter;
-import com.mara.jordan.app.model.dummy.MockDatabase;
+import com.mara.jordan.app.api.JordanGetActionsCallback;
+import com.mara.jordan.app.model.JordanClientModel;
+import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
 
 import se.emilsjolander.stickylistheaders.StickyListHeadersListView;
 
 import static android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS;
 
-public class TaskAndActionsFragment extends Fragment {
+public class TaskAndActionsFragment extends Fragment implements JordanGetActionsCallback {
 
 
     private SwipeRefreshLayout tasksListRefreshLayout;
-
+    private JordanClientModel model;
+    private TaskAndActionsAdapter adapter;
 
     /**
      * Mandatory empty constructor for the fragment manager to instantiate the
@@ -34,18 +38,19 @@ public class TaskAndActionsFragment extends Fragment {
     public TaskAndActionsFragment() {
     }
 
-    public static Fragment newInstance() {
+    public static Fragment newInstance(JordanClientModel model) {
         TaskAndActionsFragment fragment = new TaskAndActionsFragment();
 //        Bundle args = new Bundle();
 //        args.putString(client_id);
 //        fragment.setArguments(args);
+        fragment.model = model;
         return fragment;
     }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        adapter = new TaskAndActionsAdapter(getContext(), model);
     }
 
     @Override
@@ -57,16 +62,15 @@ public class TaskAndActionsFragment extends Fragment {
         tasksListRefreshLayout = view.findViewById(R.id.swipe_refresh_tasks);
         tasksListRefreshLayout.setOnRefreshListener(this::refreshTasks);
 
-        StickyListHeadersListView stickyList = (StickyListHeadersListView) view.findViewById(R.id.task_list);
+        StickyListHeadersListView stickyList = view.findViewById(R.id.task_list);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             stickyList.setImportantForAutofill(IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
         }
 
-        TaskAndActionsAdapter adapter = new TaskAndActionsAdapter(getContext(), MockDatabase.ACTIONS);
         stickyList.setAdapter(adapter);
 
-
+        refreshTasks();
 
         return view;
     }
@@ -82,7 +86,6 @@ public class TaskAndActionsFragment extends Fragment {
         switch (item.getItemId()) {
 
             case R.id.refresh_tasks:
-                tasksListRefreshLayout.setRefreshing(true);
                 refreshTasks();
                 return true;
         }
@@ -94,8 +97,33 @@ public class TaskAndActionsFragment extends Fragment {
 
     private void refreshTasks() {
         //start async refresh clients
-        Snackbar.make(getView(), "Refreshing tasks...", Snackbar.LENGTH_SHORT).show();
-        tasksListRefreshLayout.setRefreshing(false);
+        if(!tasksListRefreshLayout.isRefreshing()){
+            tasksListRefreshLayout.setRefreshing(true);
+        }
+        adapter.refresh(this);
     }
 
+    @Override
+    public void onActionsLoaded(JordanActionDefinitionWithTaskDTO[] actions) {
+        tasksListRefreshLayout.setRefreshing(false);
+        if(actions.length == 0){
+            Snackbar.make(getView(), R.string.no_action_definitions_to_display, Snackbar.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onActionsLoadingError(String errorMessage) {
+        tasksListRefreshLayout.setRefreshing(false);
+        Snackbar.make(getView(), R.string.action_definitions_refresh_failure, Snackbar.LENGTH_LONG)
+                .setAction(R.string.action_definitions_refresh_failure_details, new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        new MaterialAlertDialogBuilder(getContext())
+                                .setTitle(R.string.action_definitions_refresh_failure_details_dialog)
+                                .setItems(new String[]{errorMessage}, null)
+                                .show();
+                    }
+                })
+                .show();
+    }
 }

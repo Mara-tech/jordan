@@ -52,6 +52,10 @@
     <string name="message_state_refresh_failure_details_dialog">Error while reading messages</string>
     <string name="no_message_state_to_display">No message to display</string>
 
+    <string name="action_definitions_refresh_failure_details">@string/details</string>
+    <string name="action_definitions_refresh_failure">An error occurred while reading available actions</string>
+    <string name="action_definitions_refresh_failure_details_dialog">Error while reading available actions</string>
+    <string name="no_action_definitions_to_display">No action to display</string>
 
 
 

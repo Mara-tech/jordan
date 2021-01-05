@@ -9,9 +9,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class JordanParentTaskDTO {
-    private long taskId;
+public class JordanActionParameterDTO {
     private String name;
-    private Integer progress;
-    private String state;
+    private String type;
+    private boolean mandatory;
+    private Object defaultValue;
 }
