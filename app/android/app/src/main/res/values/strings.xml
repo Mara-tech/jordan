@@ -22,6 +22,12 @@
     <string name="add_server_dialog_remember_login">Remember login for this server</string>
     <string name="add_server_dialog_remember_password">Remember password for this server</string>
 
+    <string name="client_refresh_failure_details">@string/details</string>
+    <string name="client_refresh_failure">An error occurred while reading clients</string>
+    <string name="client_refresh_failure_details_dialog">Error while reading clients</string>
+    <string name="no_client_to_display">No client to display</string>
+    <string name="client_running_task">%s running task(s)</string>
+
     <string name="default_task_name">Default task</string>
     <string name="client_tasks_and_actions">Tasks and Actions</string>
     <string name="client_read_status">Read Status</string>

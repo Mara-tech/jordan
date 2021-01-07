@@ -3,7 +3,7 @@ package com.mara.jordan.app.model;
 import android.content.Context;
 import android.util.Log;
 
-public class JordanServerModel {
+public class JordanServerModel implements JordanModel {
 
 
     private static final String TAG = "JordanServerModel";
@@ -14,6 +14,6 @@ public class JordanServerModel {
     }
 
     public void addServer(String serverName, String serverBaseUri, boolean rememberLogin, String login, boolean rememberPassword, String password) {
-        Log.i(TAG, "server " + serverName + "added.");
+        Log.i(TAG, "server " + serverName + " to be added.");
     }
 }

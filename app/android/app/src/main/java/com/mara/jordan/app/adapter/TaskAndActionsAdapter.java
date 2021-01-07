@@ -22,7 +22,7 @@ import androidx.core.content.ContextCompat;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.api.JordanGetActionsCallback;
 import com.mara.jordan.app.api.JordanSendMessageCallback;
-import com.mara.jordan.app.model.JordanClientModel;
+import com.mara.jordan.app.model.JordanTaskModel;
 import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
 import com.mara.jordan.app.model.dto.JordanActionParameterDTO;
 import com.mara.jordan.app.model.dto.JordanParentTaskDTO;
@@ -45,7 +45,7 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
     private static final String NON_MANDATORY = "";
     private static final long DELAY_BEFORE_REVERT_ACTION_BUTTON_STATE_MS = 2500;
 
-    private final JordanClientModel model;
+    private final JordanTaskModel model;
     private final JordanSendMessageUiCallback callback;
     private LayoutInflater mInflater;
     private final Map<View, Map<JordanActionParameterDTO, View>> actionVisualElementsMapping = new HashMap<>();
@@ -55,7 +55,7 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
         return new HashMap<>();
     }
 
-    public TaskAndActionsAdapter(Context ctx, JordanClientModel model, JordanSendMessageUiCallback callback) {
+    public TaskAndActionsAdapter(Context ctx, JordanTaskModel model, JordanSendMessageUiCallback callback) {
         super(ctx, 0);
         this.model = model;
         mInflater = LayoutInflater.from(ctx);

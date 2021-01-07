@@ -12,7 +12,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.common.collect.Lists;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.api.JordanReadMessagesCallback;
-import com.mara.jordan.app.model.JordanClientModel;
+import com.mara.jordan.app.model.JordanTaskModel;
 import com.mara.jordan.app.model.dto.JordanMessageStateAuditDTO;
 import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
 import com.mara.jordan.app.utils.DateUtils;
@@ -24,11 +24,11 @@ import java.util.List;
 public class MessagesStateAdapter extends ArrayAdapter<JordanMessageStateDTO> implements JordanReadMessagesCallback {
 
     private static final String TAG = "MessageStateAdapter";
-    private final JordanClientModel model;
+    private final JordanTaskModel model;
     private LayoutInflater mInflater;
     private static final JordanMessageStateAuditDTO DEFAULT_MESSAGE = JordanMessageStateAuditDTO.builder().build();
 
-    public MessagesStateAdapter(Context ctx, JordanClientModel model) {
+    public MessagesStateAdapter(Context ctx, JordanTaskModel model) {
         super(ctx, 0);
         this.model = model;
         mInflater = LayoutInflater.from(ctx);

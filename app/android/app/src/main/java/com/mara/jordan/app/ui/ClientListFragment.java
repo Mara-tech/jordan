@@ -1,6 +1,6 @@
 package com.mara.jordan.app.ui;
 
-import android.annotation.SuppressLint;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -8,62 +8,66 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.fragment.app.ListFragment;
+import androidx.fragment.app.Fragment;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
 import com.mara.jordan.app.R;
+import com.mara.jordan.app.adapter.ClientAdapter;
+import com.mara.jordan.app.api.JordanGetClientsCallback;
+import com.mara.jordan.app.model.JordanClientModel;
+import com.mara.jordan.app.model.JordanServerModel;
+import com.mara.jordan.app.model.dto.JordanClientDTO;
 
-import java.util.List;
+import se.emilsjolander.stickylistheaders.StickyListHeadersListView;
 
-public class ClientListFragment extends ListFragment implements AdapterView.OnItemClickListener {
+import static android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS;
 
-    private static final String[] CLIENTS = new String[]{"Musique classique evaluation", "Musique Final Fantasy training", "Musique classique training", "Musique Nintendo evaluation"};
-    private ArrayAdapter clientListAdapter;
+public class ClientListFragment extends Fragment implements OnClientClickListener, JordanGetClientsCallback {
+
+    private ClientAdapter adapter;
     private SwipeRefreshLayout clientListRefreshLayout;
+    private JordanClientModel model;
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        model = new JordanClientModel(getContext(), getArguments().getLong(JordanServerModel.SERVER_ID, -1L));
+        adapter = new ClientAdapter(getContext(), model, this);
+    }
+
 
     @Override
     public View onCreateView(
             LayoutInflater inflater, ViewGroup container,
             Bundle savedInstanceState) {
         final View view = inflater.inflate(R.layout.client_list_view, container, false);
-        clientListRefreshLayout = view.findViewById(R.id.swipe_refresh_client);
         setHasOptionsMenu(true);
-        // Inflate the layout for this fragment
+
+        clientListRefreshLayout = view.findViewById(R.id.swipe_refresh_client);
+        clientListRefreshLayout.setOnRefreshListener(this::refreshClients);
+
+        StickyListHeadersListView stickyList = view.findViewById(R.id.client_list);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            stickyList.setImportantForAutofill(IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
+        }
+        stickyList.setAdapter(adapter);
+
+        refreshClients();
+
         return view;
     }
 
-    @Override
-    public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-
-        clientListAdapter = new ArrayAdapter(getActivity(), android.R.layout.simple_list_item_1, CLIENTS);
-        setListAdapter(clientListAdapter);
-
-        clientListRefreshLayout.setOnRefreshListener(this::refreshClients);
-
-        getListView().setOnItemClickListener(this);
-    }
-
     private void refreshClients() {
-        //start async refresh clients
-        Snackbar.make(getView(), "Refreshing clients...", Snackbar.LENGTH_SHORT).show();
-        clientListRefreshLayout.setRefreshing(false);
-    }
-
-    private void onRefreshComplete(List<String> result) {
-        clientListAdapter.clear();
-        for (String client : result) {
-            clientListAdapter.add(client);
+        if(!clientListRefreshLayout.isRefreshing()){
+            clientListRefreshLayout.setRefreshing(true);
         }
-        clientListRefreshLayout.setRefreshing(false);
+        adapter.refresh(this);
     }
 
     @Override
@@ -78,18 +82,17 @@ public class ClientListFragment extends ListFragment implements AdapterView.OnIt
     }
 
     @Override
-    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-//        NavHostFragment.findNavController(ClientListFragment.this)
-//                .navigate(R.id.action_client_to_server);
-        final Bundle selectedclientBundle = new Bundle();
-        selectedclientBundle.putString("client_name", CLIENTS[position]);
+    public void onClientClicked(JordanClientDTO selectedClient) {
+        final Bundle selectedClientBundle = new Bundle();
+        selectedClientBundle.putLong(JordanClientModel.CLIENT_ID, selectedClient.getClientId());
+        selectedClientBundle.putString("client_name", selectedClient.getName());
         NavHostFragment.findNavController(ClientListFragment.this)
-                .navigate(R.id.action_client_to_task, selectedclientBundle);
+                .navigate(R.id.action_client_to_task, selectedClientBundle);
     }
 
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
-//        super.onCreateOptionsMenu(menu, inflater);
+        super.onCreateOptionsMenu(menu, inflater);
         inflater.inflate(R.menu.client_list_menu, menu);
     }
 
@@ -98,7 +101,6 @@ public class ClientListFragment extends ListFragment implements AdapterView.OnIt
         switch (item.getItemId()) {
 
             case R.id.refresh_clients:
-                clientListRefreshLayout.setRefreshing(true);
                 refreshClients();
                 return true;
         }
@@ -106,5 +108,29 @@ public class ClientListFragment extends ListFragment implements AdapterView.OnIt
         // User didn't trigger a refresh, let the superclass handle this action
         return super.onOptionsItemSelected(item);
 
+    }
+
+    @Override
+    public void onClientsLoaded(JordanClientDTO[] clients) {
+        clientListRefreshLayout.setRefreshing(false);
+        if(clients.length == 0){
+            Snackbar.make(getView(), R.string.no_client_to_display, Snackbar.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onClientsLoadingError(String errorMessage) {
+        clientListRefreshLayout.setRefreshing(false);
+        Snackbar.make(getView(), R.string.client_refresh_failure, Snackbar.LENGTH_LONG)
+                .setAction(R.string.client_refresh_failure_details, new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        new MaterialAlertDialogBuilder(getContext())
+                                .setTitle(R.string.client_refresh_failure_details_dialog)
+                                .setItems(new String[]{errorMessage}, null)
+                                .show();
+                    }
+                })
+                .show();
     }
 }

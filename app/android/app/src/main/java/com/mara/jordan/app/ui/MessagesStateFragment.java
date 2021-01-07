@@ -17,14 +17,14 @@ import com.google.android.material.snackbar.Snackbar;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.adapter.MessagesStateAdapter;
 import com.mara.jordan.app.api.JordanReadMessagesCallback;
-import com.mara.jordan.app.model.JordanClientModel;
+import com.mara.jordan.app.model.JordanTaskModel;
 import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
 
 public class MessagesStateFragment extends Fragment implements JordanReadMessagesCallback {
 
 
     private SwipeRefreshLayout messagesListRefreshLayout;
-    private JordanClientModel model;
+    private JordanTaskModel model;
     private MessagesStateAdapter messageStateAdapter;
 
     /**
@@ -34,7 +34,7 @@ public class MessagesStateFragment extends Fragment implements JordanReadMessage
     public MessagesStateFragment() {
     }
 
-    public static Fragment newInstance(JordanClientModel model) {
+    public static Fragment newInstance(JordanTaskModel model) {
         MessagesStateFragment fragment = new MessagesStateFragment();
 //        Bundle args = new Bundle();
 //        args.putString(client_id);
@@ -98,7 +98,8 @@ public class MessagesStateFragment extends Fragment implements JordanReadMessage
         messagesListRefreshLayout.setRefreshing(false);
         if(messages.length == 0){
             Snackbar.make(getView(), R.string.no_message_state_to_display, Snackbar.LENGTH_SHORT).show();
-        }  }
+        }
+    }
 
     @Override
     public void onMessagesLoadingError(String errorMessage) {

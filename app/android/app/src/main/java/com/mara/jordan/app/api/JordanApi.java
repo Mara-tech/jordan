@@ -6,6 +6,7 @@ import android.util.Log;
 import com.android.volley.VolleyError;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
+import com.mara.jordan.app.model.dto.JordanClientDTO;
 import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
 import com.mara.jordan.app.model.dto.JordanSendMessageActionDTO;
 import com.mara.jordan.app.model.dto.JordanSendMessageDTO;
@@ -19,7 +20,7 @@ public class JordanApi {
     private static final String TAG = "JordanApi";
     private final Context context;
 
-    public JordanApi(Context context) {
+    public JordanApi(Context context) { //or singleton, with ApplicationContext ?
         this.context = context;
     }
 
@@ -156,6 +157,34 @@ public class JordanApi {
             callback.onMessageSent(safeResponse);
         }
     }
+
+    public void listClients(JordanGetClientsCallback... callbacks) {
+        String endpoint = "clients";
+        String url = String.format("%s/%s", getServerBaseUrl(), endpoint);
+        GsonGetRequest<JordanClientDTO[]> readClientsRequest = new GsonGetRequest<>(
+                url,
+                JordanClientDTO[].class,
+                NetworkUtils.makeHeaders(),
+                response -> handleResponse(response, callbacks),
+                error -> handleError(error, callbacks)
+        );
+        Log.i(TAG, "Queuing " + endpoint + " query : " + url);
+        VolleyInterfaceSingleton.getInstance(context).addToRequestQueue(readClientsRequest);
+    }
+
+    private void handleError(VolleyError error, JordanGetClientsCallback[] callbacks) {
+        for(JordanGetClientsCallback callback :callbacks){
+            callback.onClientsLoadingError(extractErrorMessage(error));
+        }
+    }
+
+    private void handleResponse(JordanClientDTO[] response, JordanGetClientsCallback... callbacks) {
+        final JordanClientDTO[] safeResponse = response != null ? response : new JordanClientDTO[]{};
+        for(JordanGetClientsCallback callback : callbacks){
+            callback.onClientsLoaded(safeResponse);
+        }
+    }
+
     private static String extractErrorMessage(VolleyError error) {
         return String.format("%s %s", error.toString(), error.getMessage());
     }

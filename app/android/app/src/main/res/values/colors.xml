@@ -10,6 +10,8 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="client_header_background">@color/white</color>
+    <color name="client_header_foreground">@color/dark_grey</color>
     <color name="task_element_background">#F1ECEC</color>
     <color name="light_grey">#F1F1F1</color>
     <color name="grey">#CECECE</color>

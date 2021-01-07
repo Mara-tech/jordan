@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
 public class JordanTaskDTO {
     private long taskId;
     private String name;
+    private Integer progress;
     private String state;
     private List<JordanActionDefinitionDTO> actions;
 }

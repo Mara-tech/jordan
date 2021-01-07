@@ -14,7 +14,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.common.base.Strings;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.api.JordanReadStatusCallback;
-import com.mara.jordan.app.model.JordanClientModel;
+import com.mara.jordan.app.model.JordanTaskModel;
 import com.mara.jordan.app.model.dto.JordanParentTaskDTO;
 import com.mara.jordan.app.model.dto.JordanStatusDTO;
 import com.mara.jordan.app.ui.ReadStatusFragment;
@@ -35,10 +35,10 @@ public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
     public static final String STATUS_TYPE_PROGRESS = "progress";
     private static final String TAG = "ReadStatusAdapter";
     private final LayoutInflater mInflater;
-    private final JordanClientModel model;
+    private final JordanTaskModel model;
     private float definedTextSizeSp = ReadStatusFragment.StatusTextSizeHelper.DEFAULT_TEXT_SIZE;
 
-    public ReadStatusAdapter(Context ctx, JordanClientModel model) {
+    public ReadStatusAdapter(Context ctx, JordanTaskModel model) {
         super(ctx, 0);
         this.model = model;
         mInflater = LayoutInflater.from(ctx);

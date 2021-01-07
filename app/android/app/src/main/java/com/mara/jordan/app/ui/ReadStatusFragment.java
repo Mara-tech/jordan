@@ -19,14 +19,13 @@ import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.snackbar.BaseTransientBottomBar;
 import com.google.android.material.snackbar.Snackbar;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.adapter.ReadStatusAdapter;
 import com.mara.jordan.app.adapter.StatusFilterTaskAdapter;
 import com.mara.jordan.app.adapter.StatusFilterTypeAdapter;
 import com.mara.jordan.app.api.JordanReadStatusCallback;
-import com.mara.jordan.app.model.JordanClientModel;
+import com.mara.jordan.app.model.JordanTaskModel;
 import com.mara.jordan.app.model.dto.JordanStatusDTO;
 
 import java.util.Map;
@@ -45,7 +44,7 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
     private String currentSearchQuery;
     private Map<String, Boolean> typeFilter;
     private Map<String, Boolean> taskFilter;
-    private JordanClientModel model;
+    private JordanTaskModel model;
     private ReadStatusAdapter statusAdapter;
 
     /**
@@ -55,7 +54,7 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
     public ReadStatusFragment() {
     }
 
-    public static ReadStatusFragment newInstance(JordanClientModel model) {
+    public static ReadStatusFragment newInstance(JordanTaskModel model) {
         ReadStatusFragment fragment = new ReadStatusFragment();
 //        Bundle args = new Bundle();
 //        args.putString(client_id);

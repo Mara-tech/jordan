@@ -17,7 +17,7 @@ import com.google.android.material.snackbar.Snackbar;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.adapter.TaskAndActionsAdapter;
 import com.mara.jordan.app.api.JordanGetActionsCallback;
-import com.mara.jordan.app.model.JordanClientModel;
+import com.mara.jordan.app.model.JordanTaskModel;
 import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
 import com.mara.jordan.app.model.dto.JordanActionParameterDTO;
 
@@ -32,7 +32,7 @@ public class TaskAndActionsFragment extends Fragment implements JordanGetActions
 
 
     private SwipeRefreshLayout tasksListRefreshLayout;
-    private JordanClientModel model;
+    private JordanTaskModel model;
     private TaskAndActionsAdapter adapter;
 
     /**
@@ -42,7 +42,7 @@ public class TaskAndActionsFragment extends Fragment implements JordanGetActions
     public TaskAndActionsFragment() {
     }
 
-    public static Fragment newInstance(JordanClientModel model) {
+    public static Fragment newInstance(JordanTaskModel model) {
         TaskAndActionsFragment fragment = new TaskAndActionsFragment();
 //        Bundle args = new Bundle();
 //        args.putString(client_id);
