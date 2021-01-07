@@ -63,7 +63,7 @@ class ActionBuilder():
         self.current_action_name = None
         actions = []
         for action_name, parameters in self.actions.items():
-            action_definition = {'action_name':action_name}
+            action_definition = {'actionName':action_name}
             if len(parameters) > 0:
                 action_definition['parameters'] = []
                 for param_name, param_type in parameters.items():
@@ -90,8 +90,8 @@ class JordanMessage():
     def __init__(self, base_url, task_id, msg):
         self.base_url = base_url
         self.task_id = task_id
-        self.message_id = msg['message_id']
-        self.action_name = msg['action']['action_name']
+        self.message_id = msg['messageId']
+        self.action_name = msg['action']['actionName']
         self.placeholders = JordanMessagePlaceholders(msg['action']['placeholders'])
 
     def acknowledge_and_processed(self):
@@ -139,7 +139,7 @@ class JordanInstance():
 
         if r.status_code == 201:
             new_task_output = json.loads(r.text)
-            return JordanInstance(self.base_url, new_task_output['task_id'], self.auth_token)
+            return JordanInstance(self.base_url, new_task_output['taskId'], self.auth_token)
         return None
 
     def send_status(self, status, **kwargs):
@@ -162,8 +162,8 @@ class JordanInstance():
         if r.status_code == 200:
             status_output = json.loads(r.text)
             if async_callback:
-                async_callback(status_output['status_id'])
-            return status_output['status_id']
+                async_callback(status_output['statusId'])
+            return status_output['statusId']
 
         return None
 
@@ -211,6 +211,6 @@ def register(server_base_url, client_name=DEFAULT_CLIENT_NAME, actions=DEFAULT_N
 
     if r.status_code == 200:
         register_output = json.loads(r.text)
-        return JordanInstance(server_base_url, register_output['task_id'], register_output['auth_token'])
+        return JordanInstance(server_base_url, register_output['taskId'], register_output['authToken'])
 
     return None

@@ -15,7 +15,7 @@ class Brain():
         brain_message = self.task.read_message(timeout=2)
         if brain_message:
             if brain_message.action_name == 'THINK':
-                brain_message.acknowldge()
+                brain_message.acknowledge()
                 print(f"I'm thinking about {brain_message.placeholders.subject}")
             elif brain_message.action_name == 'IDLE':
                 brain_message.acknowledge()

@@ -33,20 +33,33 @@ admin_ns = api.namespace('admin', description='Admin-side operations')
 #---MODEL DEFINITION---
 #----------------------
 
+parent_task_model = api.model('Task', {
+    'taskId': fields.Integer(required=True, desciption="task identifier", example=456798),
+    'name': fields.String(required=True, desciption="task name", example='Loss evaluation'),
+    'progress': fields.Integer(required=False, desciption="task progress from 0 to 100", example=75),
+    'state': fields.String(required=False, desciption="state (e.g STARTED, PAUSED, COMPLETE, ERROR, TIME_OUT, etc.)", example='STARTED')
+})
+
 action_parameter_model = api.model('ActionParameter', {
     'name': fields.String(required=True, description='parameter name (e.g "e-mail", "threshold", etc.)', example='recipient'),
     'type': fields.String(required=True, description='parameter type ("string", "int", or "float")', example='string'),
     'mandatory': fields.Boolean(required=False, description='is the parameter mandatory ?', example=True),
-    'default_value': fields.String(required=False, description='prefill field with default value', example=0.0)
+    'defaultValue': fields.String(required=False, description='pre-fill field with default value', example=0.0)
+})
+
+action_definition_with_task_model = api.model('ActionDefinition', {
+    'actionName' : fields.String(required=False, description='Action name', example='send_email'),
+    'parameters' : fields.List(fields.Nested(action_parameter_model), required=False, description='List of parameters and their type'),
+    'parentTask': fields.Nested(parent_task_model, required=False, description='quick description of the target task for this action')
 })
 
 action_definition_model = api.model('ActionDefinition', {
-    'action_name' : fields.String(required=False, description='Action name', example='send_email'),
+    'actionName' : fields.String(required=False, description='Action name', example='send_email'),
     'parameters' : fields.List(fields.Nested(action_parameter_model), required=False, description='List of parameters and their type'),
 })
 
 task_model = api.model('Task', {
-    'task_id': fields.Integer(required=False, desciption="task identifier", example=456798),
+    'taskId': fields.Integer(required=False, desciption="task identifier", example=456798),
     'name': fields.String(required=True, desciption="task name", example='Loss evaluation'),
     'state': fields.String(required=False, desciption="state (e.g STARTED, PAUSED, COMPLETE, ERROR, TIME_OUT, etc.)", example='STARTED'),
     'password': fields.String(required=False, description='Access password', example='pwd'),
@@ -54,11 +67,11 @@ task_model = api.model('Task', {
 })
 
 task_created_model = api.model('TaskCreated', {
-    'task_id': fields.Integer(required=True, desciption="task identifier", example=456798),
+    'taskId': fields.Integer(required=True, desciption="task identifier", example=456798),
 })
 
 client_model = api.model('Client', {
-    'client_id': fields.Integer(required=True, desciption="client identifier", example=123456),
+    'clientId': fields.Integer(required=True, desciption="client identifier", example=123456),
     'name': fields.String(required=True, desciption="client name", example='IA Training Bot 01'),
     'state': fields.String(required=True, desciption="state (e.g REGISTERED, UNREGISTERED, COMPLETE, ERROR, TIME_OUT, etc.)", example='REGISTERED'),
     'tasks': fields.List(fields.Nested(task_model), required=True)
@@ -71,19 +84,20 @@ client_registration_model = api.model('ClientRegistration', {
 })
 
 client_registered_model = api.model('ClientRegistered', {
-    'task_id': fields.Integer(required=True, description='Client identifier, which is the root task identifier', example=123),
-    'auth_token': fields.String(required=False, description='Authentication key for future calls on this client', example='f9bf78b9a18ce6d46a0cd2b0b86df9da'),
+    'taskId': fields.Integer(required=True, description='Client identifier, which is the root task identifier', example=123),
+    'authToken': fields.String(required=False, description='Authentication key for future calls on this client', example='f9bf78b9a18ce6d46a0cd2b0b86df9da'),
 })
 
 status_model = api.model('Status', {
-    'status_id' : fields.Integer(required=False, description='status id in server database', example=123456),
+    'statusId' : fields.Integer(required=False, description='status id in server database', example=123456),
     'type': fields.String(required=True, description='status type', example='general'),
     'status': fields.String(required=True, description='status content, message', example='program still running'),
-    'timestamp': fields.Integer(required=True, description='Seconds since 1970/1/1', example=int(time()))
+    'timestamp': fields.Integer(required=True, description='Seconds since 1970/1/1', example=int(time())),
+    'parentTask': fields.Nested(parent_task_model, required=True, description='quick description of the task sending this status')
 })
 
 status_sent_model = api.model('StatusSent', {
-    'status_id' : fields.Integer(required=True, description='status id in server database', example=123456),
+    'statusId' : fields.Integer(required=True, description='status id in server database', example=123456),
 })
 
 #https://github.com/noirbizarre/flask-restplus/issues/172#issuecomment-277033144
@@ -92,23 +106,24 @@ wildcard_fields = api.model('GenericMapping', {
 })
 
 action_model = api.model('Action', {
-    'action_name': fields.String(required=True, description='refers to the action definition of the same name', example='send_email'),
+    'actionName': fields.String(required=True, description='refers to the action definition of the same name', example='send_email'),
     'placeholders': fields.Nested(
         wildcard_fields,
             required=False, skip_none=True, description='mapping parameter_name->value_to_pass_in', example={"recipient" : "user@mail.com"}
     )
 })
 
-action_state = api.model('ActionState', {
+message_state_audit = api.model('ActionState', {
     'timestamp': fields.Integer(required=True, description='Seconds since 1970/1/1', example=time()),
     'state': fields.String(required=True, description='state enum (SERVER_RECEIVED, MESSAGE_DELIVERED, CLIENT_RECEIVED, MESSAGE_ACKNOWLEDGED, MESSAGE_PROCESSED, MESSAGE_OVERRIDDEN, ERROR_MESSAGE_NOT_DELIVERED, ERROR_CANNOT_PROCESS_MESSAGE, ERROR_MESSAGE_NOT_RECEIVED_BY_SERVER', example='MESSAGE_DELIVERED')
 })
 
 message_model = api.model('Message', {
-    'message_id': fields.Integer(required=False, description='message id in server database', example=456789),
+    'messageId': fields.Integer(required=False, description='message id in server database', example=456789),
     'author': fields.String(required=True, description='authenticated login of the originator of the message', example='pupu'),
     'action': fields.Nested(action_model, required=True, description='description of the action to execute by the client'),
-    'state_audit': fields.List(fields.Nested(action_state), required=False, description='previous and current message state(s) once handled by server')
+    'parentTask': fields.Nested(parent_task_model, required=False, description='quick description of the target task for this message'),
+    'audit': fields.List(fields.Nested(message_state_audit), required=False, description='previous and current message state(s) once handled by server')
 })
 
 #--------------------
@@ -223,6 +238,20 @@ class ListClients(Resource):
         try:
             client_list = list_clients(api.authorizations)
             return client_list, 200
+        except:
+            client_ns.abort(500, 'Could not access to any client')
+
+@admin_ns.route('/<int:task_id>/actions')
+@admin_ns.param('task_id', 'The task identifier', default=123)
+class ListActions(Resource):
+
+    @admin_ns.doc(description="Get all actions available for the admin role under this task_id/client_id",
+                   responses={200: 'list of available actions'})
+    @admin_ns.marshal_with(action_definition_with_task_model, as_list=True)
+    def get(self, task_id):
+        try:
+            actions_list = list_actions(task_id, api.authorizations)
+            return actions_list, 200
         except:
             client_ns.abort(500, 'Could not access to any client')
 
