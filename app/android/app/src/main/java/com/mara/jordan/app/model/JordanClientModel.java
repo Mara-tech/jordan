@@ -2,16 +2,18 @@ package com.mara.jordan.app.model;
 
 import android.content.Context;
 
-import com.mara.jordan.app.adapter.TaskAndActionsAdapter;
 import com.mara.jordan.app.api.JordanApi;
 import com.mara.jordan.app.api.JordanGetActionsCallback;
 import com.mara.jordan.app.api.JordanReadMessagesCallback;
 import com.mara.jordan.app.api.JordanReadStatusCallback;
+import com.mara.jordan.app.api.JordanSendMessageCallback;
 import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
 import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
 import com.mara.jordan.app.model.dto.JordanStatusDTO;
 
 import org.apache.commons.lang3.ArrayUtils;
+
+import java.util.Map;
 
 import lombok.Getter;
 
@@ -73,5 +75,9 @@ public class JordanClientModel implements JordanModel, JordanReadStatusCallback,
     @Override
     public void onActionsLoadingError(String errorMessage) {
 
+    }
+
+    public void sendMessage(long taskId, String actionName, Map<String, Object> placeholders, JordanSendMessageCallback... callbacks) {
+        api.sendMessage(taskId, actionName, placeholders, callbacks);
     }
 }

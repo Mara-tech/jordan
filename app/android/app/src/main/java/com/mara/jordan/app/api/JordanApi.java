@@ -7,8 +7,12 @@ import com.android.volley.VolleyError;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
 import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
+import com.mara.jordan.app.model.dto.JordanSendMessageActionDTO;
+import com.mara.jordan.app.model.dto.JordanSendMessageDTO;
 import com.mara.jordan.app.model.dto.JordanStatusDTO;
 import com.mara.jordan.app.utils.NetworkUtils;
+
+import java.util.Map;
 
 public class JordanApi {
 
@@ -28,12 +32,16 @@ public class JordanApi {
         return "123";
     }
 
+    private String getAuthor() {
+        return "pbaudet";
+    }
+
     public void readStatus(JordanReadStatusCallback... callbacks) {
         String taskId = getTaskId();
         String endpoint = "status";
         String lineCount = "10";
         String url = String.format("%s/%s/%s/%s", getServerBaseUrl(), taskId, endpoint, lineCount);
-        GsonRequest<JordanStatusDTO[]> readStatusRequest = new GsonRequest<>(
+        GsonGetRequest<JordanStatusDTO[]> readStatusRequest = new GsonGetRequest<>(
                 url,
                 JordanStatusDTO[].class,
                 NetworkUtils.makeHeaders(),
@@ -61,7 +69,7 @@ public class JordanApi {
         String taskId = getTaskId();
         String endpoint = "messages";
         String url = String.format("%s/%s/%s", getServerBaseUrl(), taskId, endpoint);
-        GsonRequest<JordanMessageStateDTO[]> readStatusRequest = new GsonRequest<>(
+        GsonGetRequest<JordanMessageStateDTO[]> readMessagesRequest = new GsonGetRequest<>(
                 url,
                 JordanMessageStateDTO[].class,
                 NetworkUtils.makeHeaders(),
@@ -69,7 +77,7 @@ public class JordanApi {
                 error -> handleError(error, callbacks)
         );
         Log.i(TAG, "Queuing " + endpoint + " query : " + url);
-        VolleyInterfaceSingleton.getInstance(context).addToRequestQueue(readStatusRequest);
+        VolleyInterfaceSingleton.getInstance(context).addToRequestQueue(readMessagesRequest);
     }
 
 
@@ -90,7 +98,7 @@ public class JordanApi {
         String taskId = getTaskId();
         String endpoint = "actions";
         String url = String.format("%s/%s/%s", getServerBaseUrl(), taskId, endpoint);
-        GsonRequest<JordanActionDefinitionWithTaskDTO[]> readStatusRequest = new GsonRequest<>(
+        GsonGetRequest<JordanActionDefinitionWithTaskDTO[]> readActionsRequest = new GsonGetRequest<>(
                 url,
                 JordanActionDefinitionWithTaskDTO[].class,
                 NetworkUtils.makeHeaders(),
@@ -98,7 +106,7 @@ public class JordanApi {
                 error -> handleError(error, callbacks)
         );
         Log.i(TAG, "Queuing " + endpoint + " query : " + url);
-        VolleyInterfaceSingleton.getInstance(context).addToRequestQueue(readStatusRequest);
+        VolleyInterfaceSingleton.getInstance(context).addToRequestQueue(readActionsRequest);
     }
 
     private void handleError(VolleyError error, JordanGetActionsCallback[] callbacks) {
@@ -111,6 +119,41 @@ public class JordanApi {
         final JordanActionDefinitionWithTaskDTO[] safeResponse = response != null ? response : new JordanActionDefinitionWithTaskDTO[]{};
         for(JordanGetActionsCallback callback : callbacks){
             callback.onActionsLoaded(safeResponse);
+        }
+    }
+
+    public void sendMessage(long taskId, String actionName, Map<String, Object> placeholders, JordanSendMessageCallback... callbacks) {
+        String endpoint = "message";
+        String url = String.format("%s/%s/%s", getServerBaseUrl(), taskId, endpoint);
+        JordanSendMessageDTO requestDTO = JordanSendMessageDTO.builder()
+                .author(getAuthor())
+                .action(JordanSendMessageActionDTO.builder()
+                        .actionName(actionName)
+                        .placeholders(placeholders)
+                        .build())
+                .build();
+        GsonPostRequest<Long> sendMessageRequest = new GsonPostRequest<>(
+                url,
+                requestDTO,
+                Long.class,
+                NetworkUtils.makeHeaders(),
+                response -> handleResponse(response, callbacks),
+                error -> handleError(error, callbacks)
+        );
+        Log.i(TAG, "Queuing " + endpoint + " query : " + url);
+        VolleyInterfaceSingleton.getInstance(context).addToRequestQueue(sendMessageRequest);
+    }
+
+    private void handleError(VolleyError error, JordanSendMessageCallback[] callbacks) {
+        for(JordanSendMessageCallback callback :callbacks){
+            callback.onMessageSendingError(extractErrorMessage(error));
+        }
+    }
+
+    private void handleResponse(Long response, JordanSendMessageCallback... callbacks) {
+        final long safeResponse = response != null ? response : -1L;
+        for(JordanSendMessageCallback callback : callbacks){
+            callback.onMessageSent(safeResponse);
         }
     }
     private static String extractErrorMessage(VolleyError error) {

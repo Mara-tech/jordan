@@ -56,6 +56,17 @@
     <string name="action_definitions_refresh_failure">An error occurred while reading available actions</string>
     <string name="action_definitions_refresh_failure_details_dialog">Error while reading available actions</string>
     <string name="no_action_definitions_to_display">No action to display</string>
+    <string name="action_missing_mandatory_field_detail">%s (%s)</string>
+
+    <string name="message_sent">Message sent</string>
+    <string name="message_sent_details">@string/details</string>
+    <string name="message_sent_id">ID : %d</string>
+    <string name="message_not_sent_mandatory">Please fill all mandatory fields</string>
+    <string name="message_not_sent_details">@string/details</string>
+    <string name="message_not_sent_mandatory_dialog">These mandatory fields are missing</string>
+    <string name="message_not_sent_failure">An error occurred while sending message</string>
+    <string name="message_not_sent_failure_details">@string/details</string>
+    <string name="message_not_sent_failure_details_dialog">Error while sending message</string>
 
 
 

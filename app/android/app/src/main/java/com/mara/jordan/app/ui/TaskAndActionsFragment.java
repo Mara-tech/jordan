@@ -19,12 +19,16 @@ import com.mara.jordan.app.adapter.TaskAndActionsAdapter;
 import com.mara.jordan.app.api.JordanGetActionsCallback;
 import com.mara.jordan.app.model.JordanClientModel;
 import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
+import com.mara.jordan.app.model.dto.JordanActionParameterDTO;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import se.emilsjolander.stickylistheaders.StickyListHeadersListView;
 
 import static android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS;
 
-public class TaskAndActionsFragment extends Fragment implements JordanGetActionsCallback {
+public class TaskAndActionsFragment extends Fragment implements JordanGetActionsCallback, JordanSendMessageUiCallback {
 
 
     private SwipeRefreshLayout tasksListRefreshLayout;
@@ -50,7 +54,7 @@ public class TaskAndActionsFragment extends Fragment implements JordanGetActions
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        adapter = new TaskAndActionsAdapter(getContext(), model);
+        adapter = new TaskAndActionsAdapter(getContext(), model, this);
     }
 
     @Override
@@ -120,6 +124,63 @@ public class TaskAndActionsFragment extends Fragment implements JordanGetActions
                     public void onClick(View v) {
                         new MaterialAlertDialogBuilder(getContext())
                                 .setTitle(R.string.action_definitions_refresh_failure_details_dialog)
+                                .setItems(new String[]{errorMessage}, null)
+                                .show();
+                    }
+                })
+                .show();
+    }
+
+    @Override
+    public void alertMandatoryFieldMissing(List<JordanActionParameterDTO> missingInput) {
+        Snackbar.make(getView(), R.string.message_not_sent_mandatory, Snackbar.LENGTH_SHORT)
+                .setAction(R.string.message_not_sent_details, new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        new MaterialAlertDialogBuilder(getContext())
+                                .setTitle(R.string.message_not_sent_mandatory_dialog)
+                                .setItems(renderMissingMandatoryFields(missingInput), null)
+                                .show();
+                    }
+                })
+                .show();
+    }
+
+    private String[] renderMissingMandatoryFields(List<JordanActionParameterDTO> missingInput) {
+//        return missingInput.stream().map(param -> param.getName().concat(" (").concat(param.getType()).concat(")")).collect(Collectors.toList());
+        List<String> list = new ArrayList<>();
+        for (JordanActionParameterDTO param : missingInput) {
+            String concat = getString(R.string.action_missing_mandatory_field_detail, param.getName(), param.getType());
+            list.add(concat);
+        }
+        return list.toArray(new String[]{});
+    }
+
+    @Override
+    public void onMessageSent(long messageId) {
+        Snackbar.make(getView(), R.string.message_sent, Snackbar.LENGTH_SHORT) //TODO add action name ?
+                .setAction(R.string.message_sent_details, new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        new MaterialAlertDialogBuilder(getContext())
+                                .setTitle(R.string.message_sent)
+                                .setItems(new String[]{
+                                        getString(R.string.message_sent_id, messageId)
+                                }, null)
+                                .show();
+                    }
+                })
+                .show();
+    }
+
+    @Override
+    public void onMessageSendingError(String errorMessage) {
+        Snackbar.make(getView(), R.string.message_not_sent_failure, Snackbar.LENGTH_LONG)
+                .setAction(R.string.message_not_sent_failure_details, new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        new MaterialAlertDialogBuilder(getContext())
+                                .setTitle(R.string.message_not_sent_failure_details_dialog)
                                 .setItems(new String[]{errorMessage}, null)
                                 .show();
                     }

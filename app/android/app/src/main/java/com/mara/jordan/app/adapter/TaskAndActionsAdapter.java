@@ -1,70 +1,86 @@
 package com.mara.jordan.app.adapter;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.drawable.Drawable;
+import android.os.Handler;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.GridLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import androidx.annotation.DrawableRes;
+import androidx.core.content.ContextCompat;
+
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.api.JordanGetActionsCallback;
+import com.mara.jordan.app.api.JordanSendMessageCallback;
 import com.mara.jordan.app.model.JordanClientModel;
 import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
 import com.mara.jordan.app.model.dto.JordanActionParameterDTO;
 import com.mara.jordan.app.model.dto.JordanParentTaskDTO;
+import com.mara.jordan.app.ui.JordanSendMessageUiCallback;
 
+import org.apache.commons.lang3.StringUtils;
+
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import br.com.simplepass.loadingbutton.customViews.CircularProgressButton;
 import se.emilsjolander.stickylistheaders.StickyListHeadersAdapter;
 
-public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWithTaskDTO> implements StickyListHeadersAdapter, JordanGetActionsCallback {
+public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWithTaskDTO> implements StickyListHeadersAdapter, JordanGetActionsCallback{
 
     private static final String TAG = "TaskAndActionsAdapter";
+    private static final String IS_MANDATORY_INDICATOR = " *";
+    private static final String NON_MANDATORY = "";
+    private static final long DELAY_BEFORE_REVERT_ACTION_BUTTON_STATE_MS = 2500;
 
     private final JordanClientModel model;
+    private final JordanSendMessageUiCallback callback;
     private LayoutInflater mInflater;
-    private final Map<View, Map<String, View>> actionVisualElements = new HashMap<>();
+    private final Map<View, Map<JordanActionParameterDTO, View>> actionVisualElementsMapping = new HashMap<>();
+    private Map<Integer, View> viewHolderMapping = initViewHolderMapping();
 
-    public TaskAndActionsAdapter(Context ctx, JordanClientModel model) {
+    private static Map<Integer, View> initViewHolderMapping() {
+        return new HashMap<>();
+    }
+
+    public TaskAndActionsAdapter(Context ctx, JordanClientModel model, JordanSendMessageUiCallback callback) {
         super(ctx, 0);
         this.model = model;
         mInflater = LayoutInflater.from(ctx);
+        this.callback = callback;
     }
 
     @Override
     public long getItemId(int position) {
-        return position;
+        return getHashcode(getItem(position));
+    }
+
+    private int getHashcode(JordanActionDefinitionWithTaskDTO action) {
+        return (action.getActionName() + action.getParentTask().getTaskId()).hashCode();
     }
 
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
-        ViewHolder holder;
-
-        if (convertView == null) {
-            holder = new ViewHolder();
-            convertView = mInflater.inflate(R.layout.action_layout, parent, false);
-            holder.actionButton = convertView.findViewById(R.id.action_execute);
-            holder.actionParametersLayout = convertView.findViewById(R.id.action_placeholders_container);
-            convertView.setTag(holder);
-        } else {
-            holder = (ViewHolder) convertView.getTag();
-        }
-
         JordanActionDefinitionWithTaskDTO actionDefinition = getItem(position);
-
+        View view = createOrReuseView(actionDefinition, parent);
+        ViewHolder holder = (ViewHolder) view.getTag();
         holder.actionButton.setText(actionDefinition.getActionName());
-        holder.actionButton.setOnClickListener(v -> actionClicked(v));
+        holder.actionButton.setOnClickListener(v -> actionClicked((CircularProgressButton) v, actionDefinition.getParentTask().getTaskId(), actionDefinition.getActionName()));
 
-        final Map<String, View> placeholdersVisualElements = new HashMap<>();
-        actionVisualElements.put(holder.actionButton, placeholdersVisualElements);
+        final Map<JordanActionParameterDTO, View> placeholdersVisualElements = new HashMap<>();
+        actionVisualElementsMapping.put(holder.actionButton, placeholdersVisualElements);
 
         holder.actionParametersLayout.removeAllViews();
 
@@ -77,7 +93,7 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
                                 GridLayout.spec(row),
                                 GridLayout.spec(col, 1f)
                         ));
-                parameterNameView.setText(parameter.getName());
+                parameterNameView.setText(makeParameterName(parameter));
 
 
                 col ++;
@@ -95,20 +111,100 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
                     parameterPlaceholderView.setText(String.valueOf(parameter.getDefaultValue()));
                 }
 
-                placeholdersVisualElements.put(parameter.getName(), parameterPlaceholderView);
+                placeholdersVisualElements.put(parameter, parameterPlaceholderView);
 
                 row++;
                 col=0;
             }
         }
 
-        return convertView;
+        return view;
     }
 
-    private void actionClicked(View buttonClicked) {
-        final Map<String, View> placeholders = actionVisualElements.get(buttonClicked);
-        for(String parameterName : placeholders.keySet()){
-            Log.i("ACTION", parameterName + " -> " + ((EditText)placeholders.get(parameterName)).getText());
+    private View createOrReuseView(JordanActionDefinitionWithTaskDTO actionDefinition, ViewGroup parent) {
+        int hashcode = getHashcode(actionDefinition);
+        View reuseView = viewHolderMapping.get(hashcode);
+        if(reuseView == null){
+            reuseView = createView(parent);
+            viewHolderMapping.put(hashcode, reuseView);
+        }
+        return reuseView;
+    }
+
+    private View createView(ViewGroup parent) {
+        ViewHolder holder = new ViewHolder();
+        View view = mInflater.inflate(R.layout.action_layout, parent, false);
+        holder.actionButton = view.findViewById(R.id.action_execute);
+        holder.actionParametersLayout = view.findViewById(R.id.action_placeholders_container);
+        view.setTag(holder);
+        return view;
+    }
+
+    private String makeParameterName(JordanActionParameterDTO parameter) {
+        return parameter.getName().concat(parameter.isMandatory() ? IS_MANDATORY_INDICATOR : NON_MANDATORY);
+    }
+
+    private void actionClicked(CircularProgressButton buttonClicked, long taskId, String actionName) {
+        final Map<JordanActionParameterDTO, View> placeholdersVisualElements = actionVisualElementsMapping.get(buttonClicked);
+        final List<JordanActionParameterDTO> missingInput = new ArrayList<>();
+        final Map<String, Object> placeholders = new HashMap<>();
+        for(JordanActionParameterDTO parameter : placeholdersVisualElements.keySet()){
+            String userInput = ((EditText) placeholdersVisualElements.get(parameter)).getText().toString();
+            if(parameter.isMandatory() && StringUtils.isEmpty(userInput)){
+                missingInput.add(parameter);
+            } else {
+                placeholders.put(parameter.getName(), userInput);
+            }
+        }
+        if(!missingInput.isEmpty()){
+            callback.alertMandatoryFieldMissing(missingInput);
+        } else {
+            buttonClicked.startAnimation();
+            model.sendMessage(taskId, actionName, placeholders, callback,
+                            new JordanSendMessageCallback() {
+                                @Override
+                                public void onMessageSent(long messageId) {
+                                    buttonClicked.doneLoadingAnimation(getProgressionButtonFillColor(), getSuccessBitmap());
+                                    waitAndResetButton(buttonClicked);
+                                }
+
+                                private void waitAndResetButton(CircularProgressButton button) {
+                                    new Handler().postDelayed(button::revertAnimation, DELAY_BEFORE_REVERT_ACTION_BUTTON_STATE_MS);
+                                }
+
+                                @Override
+                                public void onMessageSendingError(String errorMessage) {
+                                    buttonClicked.doneLoadingAnimation(getProgressionButtonFillColor(), getErrorBitmap());
+                                    waitAndResetButton(buttonClicked);
+                                }
+                            }
+                            );
+        }
+    }
+
+    private int getProgressionButtonFillColor() {
+        return ContextCompat.getColor(getContext(), R.color.red_bull);
+    }
+
+    private Bitmap getSuccessBitmap() {
+        return drawBitmap(R.drawable.check);
+    }
+
+    private Bitmap getErrorBitmap() {
+        return drawBitmap(R.drawable.cross);
+    }
+
+    private Bitmap drawBitmap(@DrawableRes int resId){
+        Drawable drawable = ContextCompat.getDrawable(getContext(), resId);
+        try {
+            Bitmap bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+            drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+            drawable.draw(canvas);
+            return bitmap;
+        } catch (OutOfMemoryError e) {
+            Log.e(TAG, "Cannot create bitmap from resource " + resId, e);
+            return Bitmap.createBitmap(0,0, Bitmap.Config.ALPHA_8);
         }
     }
 
@@ -155,6 +251,7 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
 
     private void display(JordanActionDefinitionWithTaskDTO[] actionsToDisplay) {
         clear();
+        viewHolderMapping = initViewHolderMapping();
         addAll(actionsToDisplay);
     }
     @Override
@@ -168,7 +265,7 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
     }
 
     class ViewHolder {
-        Button actionButton;
+        CircularProgressButton actionButton;
         GridLayout actionParametersLayout;
     }
 

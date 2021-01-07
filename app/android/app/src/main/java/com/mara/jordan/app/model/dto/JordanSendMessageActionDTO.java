@@ -1,19 +1,17 @@
 package com.mara.jordan.app.model.dto;
 
+import java.util.Map;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@EqualsAndHashCode
-public class JordanActionParameterDTO {
-    private String name;
-    private String type;
-    private boolean mandatory;
-    private Object defaultValue;
+public class JordanSendMessageActionDTO {
+    private String actionName;
+    private Map<String, Object> placeholders;
 }

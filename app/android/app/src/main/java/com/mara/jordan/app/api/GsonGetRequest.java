@@ -15,7 +15,7 @@ import java.util.Map;
 /**
  * https://developer.android.com/training/volley/request-custom#example:-gsonrequest
  */
-public class GsonRequest<T> extends Request<T> {
+public class GsonGetRequest<T> extends Request<T> {
     private final Gson gson = new Gson();
     private final Class<T> clazz;
     private final Map<String, String> headers;
@@ -28,8 +28,8 @@ public class GsonRequest<T> extends Request<T> {
      * @param clazz Relevant class object, for Gson's reflection
      * @param headers Map of request headers
      */
-    public GsonRequest(String url, Class<T> clazz, Map<String, String> headers,
-                       Response.Listener<T> listener, Response.ErrorListener errorListener) {
+    public GsonGetRequest(String url, Class<T> clazz, Map<String, String> headers,
+                          Response.Listener<T> listener, Response.ErrorListener errorListener) {
         super(Method.GET, url, errorListener);
         this.clazz = clazz;
         this.headers = headers;

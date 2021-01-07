@@ -4,7 +4,7 @@
         <!-- Primary brand color. -->
         <item name="colorPrimary">@color/red_bull</item>
         <item name="colorPrimaryDark">@color/bordeaux</item>
-        <item name="colorAccent">@color/bordeaux</item>
+        <item name="colorAccent">@color/red_bull</item>
         <item name="colorSurface">@color/light_grey</item>
         <item name="colorOnSurface">@color/grey</item>
 
