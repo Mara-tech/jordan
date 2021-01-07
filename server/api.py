@@ -61,7 +61,8 @@ action_definition_model = api.model('ActionDefinition', {
 task_model = api.model('Task', {
     'taskId': fields.Integer(required=False, desciption="task identifier", example=456798),
     'name': fields.String(required=True, desciption="task name", example='Loss evaluation'),
-    'state': fields.String(required=False, desciption="state (e.g STARTED, PAUSED, COMPLETE, ERROR, TIME_OUT, etc.)", example='STARTED'),
+    'progress': fields.Integer(required=False, desciption="task progress from 0 to 100", example=75),
+    'state': fields.String(required=False, desciption="state (e.g RUNNING, PAUSED, COMPLETE, ERROR, TIME_OUT, etc.)", example='RUNNING'),
     'password': fields.String(required=False, description='Access password', example='pwd'),
     'actions' : fields.List(fields.Nested(action_definition_model), required=False, description='Available actions')
 })

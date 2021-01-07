@@ -48,7 +48,8 @@ def list_clients(authentication_payload):
     task_client_1 = {
         'taskId': 456798,
         'name': 'Loss evaluation',
-        'state': 'STARTED',
+        'state': 'RUNNING',
+        'progress': 70,
         'actions' : [actions_client_1]
     }
     client_1 = {
@@ -78,13 +79,14 @@ def list_clients(authentication_payload):
     task_1_client_2 = {
         'taskId': 16462,
         'name': 'General',
-        'state': 'STARTED',
+        'state': 'RUNNING',
+        'progress': 35,
         'actions': [action_1_t1_c2, action_2_t1_c2]
     }
     task_2_client_2 = {
         'taskId': 16462,
         'name': 'Logging',
-        'state': 'STARTED'
+        'state': 'RUNNING'
     }
     client_2 = {
         'clientId': 165744,
