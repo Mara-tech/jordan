@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/ServerListFrag">
+
+    <fragment
+        android:id="@+id/ServerListFrag"
+        android:name="com.mara.jordan.app.ui.ServerListFragment"
+        android:label="@string/first_fragment_label"
+        tools:layout="@layout/server_list_view">
+
+        <action
+            android:id="@+id/action_server_to_client"
+            app:destination="@id/ClientListFrag"
+            app:exitAnim="@anim/exit_left"
+            app:enterAnim="@anim/enter_left"/>
+    </fragment>
+    <fragment
+        android:id="@+id/ClientListFrag"
+        android:name="com.mara.jordan.app.ui.ClientListFragment"
+        android:label="@string/second_fragment_label"
+        tools:layout="@layout/client_list_view">
+
+        <argument
+            android:name="server_id"
+            app:argType="long" />
+
+        <action
+            android:id="@+id/action_client_to_server"
+            app:destination="@id/ServerListFrag"
+            app:exitAnim="@anim/exit_right"
+            app:enterAnim="@anim/enter_right"/>
+        <action
+            android:id="@+id/action_client_to_task"
+            app:destination="@id/ClientInterationsFragment"
+            app:exitAnim="@anim/exit_left"
+            app:enterAnim="@anim/enter_left"/>
+
+    </fragment>
+    <fragment
+        android:id="@+id/ClientInterationsFragment"
+        android:name="com.mara.jordan.app.ui.ClientInteractionsFragment"
+        android:label="fragment_client_interactions"
+        tools:layout="@layout/client_interactions_layout" >
+
+        <argument
+            android:name="client_id"
+            app:argType="long" />
+
+        <action
+            android:id="@+id/action_clientInteractionsFragment_to_ClientListFrag"
+            app:destination="@id/ClientListFrag"
+            app:exitAnim="@anim/exit_right"
+            app:enterAnim="@anim/enter_right"/>
+    </fragment>
+</navigation>

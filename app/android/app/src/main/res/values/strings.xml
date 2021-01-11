@@ -1,0 +1,90 @@
+<resources>
+    <string name="app_name">JordanApp</string>
+    <string name="main_activity_title">Jordan Servers</string>
+    <string name="clients_fragment_default_title">Jordan</string>
+    <string name="tasks_fragment_default_title">Jordan</string>
+    <string name="action_settings">Settings</string>
+    <!-- Strings used for fragments for navigation -->
+    <string name="first_fragment_label">Server List</string>
+    <string name="second_fragment_label">Client List</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+    <string name="details">Details</string>
+
+    <string name="menu_refresh">Refresh</string>
+
+    <string name="add_server_dialog_confirm">Add server</string>
+    <string name="add_server_dialog_server_name_hint">Server name… (only you will see this name)</string>
+    <string name="add_server_dialog_title">Server setup</string>
+    <string name="add_server_dialog_server_base_uri_hint">https://example.com/jordan</string>
+    <string name="add_server_dialog_login_hint">login</string>
+    <string name="add_server_dialog_password">password</string>
+    <string name="add_server_dialog_remember_login">Remember login for this server</string>
+    <string name="add_server_dialog_remember_password">Remember password for this server</string>
+
+    <string name="client_refresh_failure_details">@string/details</string>
+    <string name="client_refresh_failure">An error occurred while reading clients</string>
+    <string name="client_refresh_failure_details_dialog">Error while reading clients</string>
+    <string name="no_client_to_display">No client to display</string>
+    <string name="client_running_task">%s running task(s)</string>
+
+    <string name="default_task_name">Default task</string>
+    <string name="client_tasks_and_actions">Tasks and Actions</string>
+    <string name="client_read_status">Read Status</string>
+    <string name="client_messages_state">Messages States</string>
+    <string name="filter_status">Filter</string>
+    <string name="filter_message">Filter</string>
+    <string name="status_text_size">Font size</string>
+    <string name="status_search">Search</string>
+    <string name="cancel">Cancel</string>
+    <string name="apply">Apply</string>
+
+
+    <string name="status_details_id">ID : %d</string>
+    <string name="status_details_type">Type : %s</string>
+    <string name="status_details_timestamp">Timestamp : %s</string>
+    <string name="status_details_task">From task : %s</string>
+    <string name="status_refresh_failure_details">@string/details</string>
+    <string name="status_refresh_failure">An error occurred while reading status</string>
+    <string name="status_refresh_failure_details_dialog">Error while reading status</string>
+    <string name="no_status_to_display">No status to display</string>
+    <string name="status_type">Type</string>
+    <string name="status_task">Task</string>
+
+    <string name="message_state_details_id">ID : %d</string>
+    <string name="message_state_details_author">Sent by : %s</string>
+    <string name="message_state_details_audit">State timeline :</string>
+    <string name="message_state_details_placeholders">With placeholder(s) :</string>
+    <string name="message_state_details_parent_task">Target task : %s (id:%d)</string>
+    <string name="message_state_details_parent_task_introduce_state_or_progress">" which was"</string>
+    <string name="message_state_details_parent_task_state">" at state %s"</string>
+    <string name="message_state_details_parent_task_progress">" at progress %d"</string>
+    <string name="message_state_refresh_failure_details">@string/details</string>
+    <string name="message_state_refresh_failure">An error occurred while reading messages</string>
+    <string name="message_state_refresh_failure_details_dialog">Error while reading messages</string>
+    <string name="no_message_state_to_display">No message to display</string>
+    <string name="message_parent_task">Task</string>
+    <string name="message_author">Author</string>
+    <string name="message_state">State</string>
+
+    <string name="action_definitions_refresh_failure_details">@string/details</string>
+    <string name="action_definitions_refresh_failure">An error occurred while reading available actions</string>
+    <string name="action_definitions_refresh_failure_details_dialog">Error while reading available actions</string>
+    <string name="no_action_definitions_to_display">No action to display</string>
+    <string name="action_missing_mandatory_field_detail">%s (%s)</string>
+
+    <string name="message_sent">Message sent</string>
+    <string name="message_sent_details">@string/details</string>
+    <string name="message_sent_id">ID : %d</string>
+    <string name="message_not_sent_mandatory">Please fill all mandatory fields</string>
+    <string name="message_not_sent_details">@string/details</string>
+    <string name="message_not_sent_mandatory_dialog">These mandatory fields are missing</string>
+    <string name="message_not_sent_failure">An error occurred while sending message</string>
+    <string name="message_not_sent_failure_details">@string/details</string>
+    <string name="message_not_sent_failure_details_dialog">Error while sending message</string>
+
+
+
+    <string name="default_server_base_uri">http://192.168.1.41:5000/jordan/admin</string>
+
+</resources>

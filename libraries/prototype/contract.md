@@ -197,6 +197,22 @@ from JordanServer
 #### Authentication and roles
 TBD
 
+## List actions
+Reads available actions for a client or a task.
+A client/task may have one or several available actions.
+A structured DTO (from json object) describes the above,
+according to the role of the authenticated user.
+#### HTTP API v1
+GET {taskId}/actions
+Success response : 200 OK
+#### API function(s)
+from JordanServer
+
+    list_actions(
+    ) : list<JordanActionDefinition>
+#### Authentication and roles
+TBD
+
 
 ## Send message
 Program an action which will be executed by Passive Client.

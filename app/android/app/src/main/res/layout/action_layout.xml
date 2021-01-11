@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+
+    <GridLayout android:id="@+id/action_placeholders_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="42dp"
+        android:columnCount="2"
+        >
+
+<!--        <TextView-->
+<!--            android:layout_column="0"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:text="test"/>-->
+
+<!--        <EditText-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:layout_column="1"-->
+<!--            android:layout_marginLeft="30dp"-->
+<!--            android:gravity="center_horizontal"-->
+<!--            android:paddingLeft="10dp"-->
+<!--            android:text="30" />-->
+
+    </GridLayout>
+
+
+    <br.com.simplepass.loadingbutton.customViews.CircularProgressButton
+        android:id="@+id/action_execute"
+        style="@style/action_button"
+        app:spinning_bar_width="4dp"
+        app:spinning_bar_color="@color/white"
+        app:spinning_bar_padding="0dp"
+        app:finalCornerAngle="50dp" />
+</LinearLayout>
