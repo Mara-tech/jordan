@@ -1,6 +1,6 @@
 import server.jordan_log as log
 import random
-from time import time
+import time
 from secrets import token_hex
 def mock_log(msg):
     log.info('[MOCK] ' + msg)
@@ -241,7 +241,7 @@ def read_status(task_id, line_count):
         {"statusId" : 3, "type":"general", "status":"I'm walking South", "parentTask": legs_task, "timestamp":1607971294285, },
         {"statusId" : 4, "type":"success", "status":"Checkpoint reached !", "parentTask": legs_task, "timestamp":1607971394285, },
         {"statusId" : 5, "type":"failure", "status":"Couldn't switch to X-RAY vision.", "parentTask": eyes_task, "timestamp":1607571294285, },
-        {"statusId" : 6, "type":"general", "status":"I see a silhouette of a man.", "parentTask": eyes_task, "timestamp":time()*1000, }
+        {"statusId" : 6, "type":"general", "status":"I see a silhouette of a man.", "parentTask": eyes_task, "timestamp":time.time()*1000, }
         ]
     # mock_status_1 = {"status_id" : 1, "type":"general", "status":"I'm starting to think about Human condition.", "parentTask": brain_task, "timestamp":1607971392285, }
     # mock_status_2 = {"type":"progress", "status":"77%", "timestamp":1607005146, "should_not_appear":"KO"}
@@ -251,6 +251,7 @@ def read_status(task_id, line_count):
 def post_message(task_id, payload):
     mock_log(f"post message for task {task_id} : " + str(payload))
     message_id = generate_message_id()
+    time.sleep(1)
     return message_id
 
 MessageStateEnum = [
@@ -273,8 +274,8 @@ def update_message(task_id, message_id, message_state):
 
 def list_messages(task_id):
     mock_log(f"read message(s) for task {task_id}" )
-    mock_message_1 = {"messageId":generate_message_id(), "author":"cpuyol", "action":{"actionName" : "goal", "placeholders" : {"body_part":"head", "side":"opponent"}}, "audit":[{"timestamp":int(time()), "state":"SERVER_RECEIVED"}]}
-    mock_message_2 = {"messageId":generate_message_id(), "author":"engapeth", "action":{"actionName" : "spike"}, "audit":[{"timestamp":int(time()), "state":"SERVER_RECEIVED"}, {"timestamp":int(time()+1), "state":"MESSAGE_DELIVERED"}, {"timestamp":int(time()+2), "state":"MESSAGE_PROCESSED"}], "france-bresil":"3-0"}
+    mock_message_1 = {"messageId":generate_message_id(), "author":"cpuyol", "action":{"actionName" : "goal", "placeholders" : {"body_part":"head", "side":"opponent"}}, "audit":[{"timestamp":int(time.time()), "state":"SERVER_RECEIVED"}]}
+    mock_message_2 = {"messageId":generate_message_id(), "author":"engapeth", "action":{"actionName" : "spike"}, "audit":[{"timestamp":int(time.time()), "state":"SERVER_RECEIVED"}, {"timestamp":int(time.time()+1), "state":"MESSAGE_DELIVERED"}, {"timestamp":int(time.time()+2), "state":"MESSAGE_PROCESSED"}], "france-bresil":"3-0"}
     return [
         mock_message_1,
         mock_message_2
@@ -286,57 +287,57 @@ def read_message(task_id):
     if random_switch == 1:
         mock_message = {"messageId": generate_message_id(), "author": "cpuyol",
                           "action": {"actionName": "goal", "placeholders": {"body_part": "head", "side": "opponent"}},
-                          "audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+                          "audit": [{"timestamp": int(time.time()), "state": "SERVER_RECEIVED"}]}
         return mock_message
     elif random_switch == 2:
         mock_message = {"messageId": generate_message_id(), "author": "mjordan",
                           "action": {"actionName": "shoot", "placeholders": {"playerName": "parker", "points": 3}},
-                          "audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+                          "audit": [{"timestamp": int(time.time()), "state": "SERVER_RECEIVED"}]}
         return mock_message
     elif random_switch == 3:
         mock_message = {"messageId": generate_message_id(), "author": "bgates",
                           "action": {"actionName": "send_email", "placeholders": {"recipient": "contact@jordan.com"}},
-                          "audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+                          "audit": [{"timestamp": int(time.time()), "state": "SERVER_RECEIVED"}]}
         return mock_message
     elif random_switch == 4:
         mock_message = {"messageId": generate_message_id(), "author": "ealderson",
                           "action": {"actionName": "DUMMY_ACTION"},
-                          "audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+                          "audit": [{"timestamp": int(time.time()), "state": "SERVER_RECEIVED"}]}
         return mock_message
     elif random_switch == 5:
         mock_message = {"messageId": generate_message_id(), "author": "arodin",
                           "action": {"actionName": "THINK", "placeholders": {"subject": "Science", "duration":60}},
-                          "audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+                          "audit": [{"timestamp": int(time.time()), "state": "SERVER_RECEIVED"}]}
         return mock_message
     elif random_switch == 6:
         mock_message = {"messageId": generate_message_id(), "author": "white-rabbit",
                           "action": {"actionName": "IDLE"},
-                          "audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+                          "audit": [{"timestamp": int(time.time()), "state": "SERVER_RECEIVED"}]}
         return mock_message
     elif random_switch == 7:
         mock_message = {"messageId": generate_message_id(), "author": "fgump",
                           "action": {"actionName": "WALK", "placeholders": {"direction": 270, "speed":50}},
-                          "audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+                          "audit": [{"timestamp": int(time.time()), "state": "SERVER_RECEIVED"}]}
         return mock_message
     elif random_switch == 8:
         mock_message = {"messageId": generate_message_id(), "author": "sstrange",
                           "action": {"actionName": "LIGHT_VISION"},
-                          "audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+                          "audit": [{"timestamp": int(time.time()), "state": "SERVER_RECEIVED"}]}
         return mock_message
     elif random_switch == 9:
         mock_message = {"messageId": generate_message_id(), "author": "sfisher",
                           "action": {"actionName": "NIGHT_VISION"},
-                          "audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+                          "audit": [{"timestamp": int(time.time()), "state": "SERVER_RECEIVED"}]}
         return mock_message
     elif random_switch == 10:
         mock_message = {"messageId": generate_message_id(), "author": "jhowlett",
                           "action": {"actionName": "XRAY_VISION"},
-                          "audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+                          "audit": [{"timestamp": int(time.time()), "state": "SERVER_RECEIVED"}]}
         return mock_message
     elif random_switch == 11:
         mock_message = {"messageId": generate_message_id(), "author": "iasimov",
                           "action": {"actionName": "SHUTDOWN"},
-                          "audit": [{"timestamp": int(time()), "state": "SERVER_RECEIVED"}]}
+                          "audit": [{"timestamp": int(time.time()), "state": "SERVER_RECEIVED"}]}
         return mock_message
     else:
         #empty message

@@ -14,4 +14,8 @@
 
 ## Requirements
 ### Central server
+    pip install requests
     pip install flask-restplus
+    pip install Werkzeug==0.16.1
+    pip install redis
+    pip install rejson

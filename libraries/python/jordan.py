@@ -45,7 +45,8 @@ def with_action(action_name):
 
 class ActionBuilder():
 
-    actions = {}
+    def __init__(self):
+        self.actions = {}
 
     def with_action(self, action_name):
         self.actions[action_name] = {}
