@@ -33,12 +33,12 @@
     <string name="client_read_status">Read Status</string>
     <string name="client_messages_state">Messages States</string>
     <string name="filter_status">Filter</string>
+    <string name="filter_message">Filter</string>
     <string name="status_text_size">Font size</string>
     <string name="status_search">Search</string>
     <string name="cancel">Cancel</string>
     <string name="apply">Apply</string>
-    <string name="status_type">Type</string>
-    <string name="status_task">Task</string>
+
 
     <string name="status_details_id">ID : %d</string>
     <string name="status_details_type">Type : %s</string>
@@ -48,15 +48,24 @@
     <string name="status_refresh_failure">An error occurred while reading status</string>
     <string name="status_refresh_failure_details_dialog">Error while reading status</string>
     <string name="no_status_to_display">No status to display</string>
+    <string name="status_type">Type</string>
+    <string name="status_task">Task</string>
 
     <string name="message_state_details_id">ID : %d</string>
     <string name="message_state_details_author">Sent by : %s</string>
     <string name="message_state_details_audit">State timeline :</string>
     <string name="message_state_details_placeholders">With placeholder(s) :</string>
+    <string name="message_state_details_parent_task">Target task : %s (id:%d)</string>
+    <string name="message_state_details_parent_task_introduce_state_or_progress">" which was"</string>
+    <string name="message_state_details_parent_task_state">" at state %s"</string>
+    <string name="message_state_details_parent_task_progress">" at progress %d"</string>
     <string name="message_state_refresh_failure_details">@string/details</string>
     <string name="message_state_refresh_failure">An error occurred while reading messages</string>
     <string name="message_state_refresh_failure_details_dialog">Error while reading messages</string>
     <string name="no_message_state_to_display">No message to display</string>
+    <string name="message_parent_task">Task</string>
+    <string name="message_author">Author</string>
+    <string name="message_state">State</string>
 
     <string name="action_definitions_refresh_failure_details">@string/details</string>
     <string name="action_definitions_refresh_failure">An error occurred while reading available actions</string>

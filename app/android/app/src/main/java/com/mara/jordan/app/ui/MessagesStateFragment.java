@@ -1,5 +1,6 @@
 package com.mara.jordan.app.ui;
 
+import android.content.DialogInterface;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -9,16 +10,22 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ListView;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
 import com.mara.jordan.app.R;
+import com.mara.jordan.app.adapter.MessageFilterAuthorAdapter;
+import com.mara.jordan.app.adapter.MessageFilterStateAdapter;
+import com.mara.jordan.app.adapter.MessageFilterTaskAdapter;
 import com.mara.jordan.app.adapter.MessagesStateAdapter;
 import com.mara.jordan.app.api.JordanReadMessagesCallback;
 import com.mara.jordan.app.model.JordanTaskModel;
 import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
+
+import java.util.Map;
 
 public class MessagesStateFragment extends Fragment implements JordanReadMessagesCallback {
 
@@ -26,6 +33,12 @@ public class MessagesStateFragment extends Fragment implements JordanReadMessage
     private SwipeRefreshLayout messagesListRefreshLayout;
     private JordanTaskModel model;
     private MessagesStateAdapter messageStateAdapter;
+    private MessageFilterTaskAdapter messageFilterTaskAdapter;
+    private MessageFilterAuthorAdapter messageFilterAuthorAdapter;
+    private MessageFilterStateAdapter messageFilterStateAdapter;
+    private Map<String, Boolean> taskFilter;
+    private Map<String, Boolean> authorFilter;
+    private Map<String, Boolean> stateFilter;
 
     /**
      * Mandatory empty constructor for the fragment manager to instantiate the
@@ -47,6 +60,9 @@ public class MessagesStateFragment extends Fragment implements JordanReadMessage
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         messageStateAdapter = new MessagesStateAdapter(getContext(), model);
+        messageFilterTaskAdapter = new MessageFilterTaskAdapter(getContext());
+        messageFilterAuthorAdapter = new MessageFilterAuthorAdapter(getContext());
+        messageFilterStateAdapter = new MessageFilterStateAdapter(getContext());
     }
 
     @Override
@@ -78,6 +94,9 @@ public class MessagesStateFragment extends Fragment implements JordanReadMessage
             case R.id.refresh_messages_state:
                 refreshMessages();
                 return true;
+            case R.id.filter_message:
+                filterMessageDialog();
+                return true;
         }
 
         // User didn't trigger a refresh, let the superclass handle this action
@@ -85,17 +104,68 @@ public class MessagesStateFragment extends Fragment implements JordanReadMessage
 
     }
 
+
+    /**
+     * Show dialog with task+author+state checkboxes
+     */
+    private void filterMessageDialog() {
+
+        messageFilterTaskAdapter.resetTempState();
+        messageFilterAuthorAdapter.resetTempState();
+        messageFilterStateAdapter.resetTempState();
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        View filterDialogView = requireActivity().getLayoutInflater().inflate(R.layout.message_filter_dialog, null);
+        ListView taskList = filterDialogView.findViewById(R.id.message_filter_task_list);
+        taskList.setAdapter(messageFilterTaskAdapter);
+        ListView authorList = filterDialogView.findViewById(R.id.message_filter_author_list);
+        authorList.setAdapter(messageFilterAuthorAdapter);
+        ListView stateList = filterDialogView.findViewById(R.id.message_filter_state_list);
+        stateList.setAdapter(messageFilterStateAdapter);
+
+        builder.setView(filterDialogView)
+                .setPositiveButton(R.string.apply, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        messageFilterTaskAdapter.applyTempView();
+                        messageFilterAuthorAdapter.applyTempView();
+                        messageFilterStateAdapter.applyTempView();
+                        setMessageFilters(messageFilterTaskAdapter.getFilterMapping(),
+                                messageFilterAuthorAdapter.getFilterMapping(),
+                                messageFilterStateAdapter.getFilterMapping());
+                    }
+                })
+                .setNeutralButton(R.string.cancel, (dialog, which) -> {})
+
+                .show();
+
+    }
+
+    private void setMessageFilters(Map<String, Boolean> taskFilter, Map<String, Boolean> authorFilter, Map<String, Boolean> stateFilter) {
+        this.taskFilter = taskFilter;
+        this.authorFilter = authorFilter;
+        this.stateFilter = stateFilter;
+        updateMessageAdapter();
+    }
+
+    private void updateMessageAdapter() {
+        messageStateAdapter.select(taskFilter, authorFilter, stateFilter);
+    }
+
+
     private void refreshMessages() {
-        //start async refresh clients
         if(!messagesListRefreshLayout.isRefreshing()){
             messagesListRefreshLayout.setRefreshing(true);
         }
-        messageStateAdapter.refresh(this);
+        messageStateAdapter.refresh(this, taskFilter, authorFilter, stateFilter);
     }
 
     @Override
     public void onMessagesLoaded(JordanMessageStateDTO[] messages) {
         messagesListRefreshLayout.setRefreshing(false);
+        messageFilterTaskAdapter.onItemsLoaded(messages);
+        messageFilterAuthorAdapter.onItemsLoaded(messages);
+        messageFilterStateAdapter.onItemsLoaded(messages);
         if(messages.length == 0){
             Snackbar.make(getView(), R.string.no_message_state_to_display, Snackbar.LENGTH_SHORT).show();
         }

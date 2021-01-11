@@ -3,19 +3,19 @@ package com.mara.jordan.app.adapter;
 import android.content.Context;
 import android.os.Build;
 
+import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
 import com.mara.jordan.app.model.dto.JordanParentTaskDTO;
-import com.mara.jordan.app.model.dto.JordanStatusDTO;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class StatusFilterTaskAdapter extends ACheckBoxFilterAdapter<JordanStatusDTO> {
+public class MessageFilterTaskAdapter extends ACheckBoxFilterAdapter<JordanMessageStateDTO> {
 
-    private static final String TAG = "StatusFilterTaskAdapter";
+    private static final String TAG = "MessageFilterTaskAdapter";
 
-    public StatusFilterTaskAdapter(Context ctx) {
+    public MessageFilterTaskAdapter(Context ctx) {
         super(ctx);
     }
 
@@ -25,12 +25,12 @@ public class StatusFilterTaskAdapter extends ACheckBoxFilterAdapter<JordanStatus
     }
 
     @Override
-    protected List<String> prepareItems(JordanStatusDTO[] dtos) {
-        // Stream.of(dtos).map(JordanStatusDTO::getParentTask).map(JordanParentTaskDTO::getName).distinct().sorted().collect(Collectors.toList());
+    protected List<String> prepareItems(JordanMessageStateDTO[] dtos) {
+//         return Stream.of(dtos).map(JordanMessageStateDTO::getParentTask).map(JordanParentTaskDTO::getName).distinct().sorted().collect(Collectors.toList());
         List<String> list = new ArrayList<>();
         Set<String> uniqueValues = new HashSet<>();
-        for (JordanStatusDTO status : dtos) {
-            JordanParentTaskDTO parentTask = status.getParentTask();
+        for (JordanMessageStateDTO dto : dtos) {
+            JordanParentTaskDTO parentTask = dto.getParentTask();
             String name = parentTask.getName();
             if (uniqueValues.add(name)) {
                 list.add(name);

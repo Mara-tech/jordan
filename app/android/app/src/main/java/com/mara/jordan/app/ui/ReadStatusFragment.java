@@ -216,7 +216,8 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
                     public void onClick(DialogInterface dialog, int which) {
                         statusFilterTypeAdapter.applyTempView();
                         statusFilterTaskAdapter.applyTempView();
-                        setStatusFilters(statusFilterTypeAdapter.getFilterMapping(), statusFilterTaskAdapter.getFilterMapping());
+                        setStatusFilters(statusFilterTypeAdapter.getFilterMapping(),
+                                statusFilterTaskAdapter.getFilterMapping());
                     }
                 })
                 .setNeutralButton(R.string.cancel, (dialog, which) -> {})
@@ -226,7 +227,6 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
     }
 
     private void refreshStatus() {
-        //start async refresh clients
         if(!statusListRefreshLayout.isRefreshing()){
             statusListRefreshLayout.setRefreshing(true);
         }
@@ -236,8 +236,8 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
     @Override
     public void onStatusLoaded(JordanStatusDTO[] statuses) {
         statusListRefreshLayout.setRefreshing(false);
-        statusFilterTypeAdapter.onStatusLoaded(statuses);
-        statusFilterTaskAdapter.onStatusLoaded(statuses);
+        statusFilterTypeAdapter.onItemsLoaded(statuses);
+        statusFilterTaskAdapter.onItemsLoaded(statuses);
         if(statuses.length == 0){
             Snackbar.make(getView(), R.string.no_status_to_display, Snackbar.LENGTH_SHORT).show();
         }

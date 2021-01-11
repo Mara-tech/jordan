@@ -45,7 +45,10 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
     private static final String NON_MANDATORY = "";
     private static final long DELAY_BEFORE_REVERT_ACTION_BUTTON_STATE_MS = 2500;
 
-    private final JordanTaskModel model;
+    /**
+     * model for client, aka root task
+     */
+    private final JordanTaskModel rootTaskModel;
     private final JordanSendMessageUiCallback callback;
     private LayoutInflater mInflater;
     private final Map<View, Map<JordanActionParameterDTO, View>> actionVisualElementsMapping = new HashMap<>();
@@ -57,7 +60,7 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
 
     public TaskAndActionsAdapter(Context ctx, JordanTaskModel model, JordanSendMessageUiCallback callback) {
         super(ctx, 0);
-        this.model = model;
+        this.rootTaskModel = model;
         mInflater = LayoutInflater.from(ctx);
         this.callback = callback;
     }
@@ -160,7 +163,7 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
             callback.alertMandatoryFieldMissing(missingInput);
         } else {
             buttonClicked.startAnimation();
-            model.sendMessage(taskId, actionName, placeholders, callback,
+            rootTaskModel.subTaskModel(taskId).sendMessage(actionName, placeholders, callback,
                             new JordanSendMessageCallback() {
                                 @Override
                                 public void onMessageSent(long messageId) {
@@ -241,7 +244,7 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
     }
 
     public void refresh(JordanGetActionsCallback callback) {
-        model.readActionDefinitions(callback, this);
+        rootTaskModel.readActionDefinitions(callback, this);
     }
 
     @Override

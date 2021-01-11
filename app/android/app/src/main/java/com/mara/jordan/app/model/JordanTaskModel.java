@@ -13,14 +13,20 @@ import com.mara.jordan.app.model.dto.JordanStatusDTO;
 
 import org.apache.commons.lang3.ArrayUtils;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import lombok.Getter;
 
+/**
+ * A client, as a root task, is also represented in {@link JordanTaskModel}.
+ */
 public class JordanTaskModel implements JordanModel, JordanReadStatusCallback, JordanReadMessagesCallback, JordanGetActionsCallback {
 
     private static final String TAG = "JordanClientModel";
-    private final long clientId;
+    private final Context context;
+    private final long taskId;
+    private final Map<Long, JordanTaskModel> subTaskModelInstances = new HashMap<>();
     private final JordanApi api;
 
     @Getter
@@ -30,14 +36,16 @@ public class JordanTaskModel implements JordanModel, JordanReadStatusCallback, J
     @Getter
     private JordanActionDefinitionWithTaskDTO[] actionDefinitions;
 
-    public JordanTaskModel(Context context, long clientId) {
+
+    public JordanTaskModel(Context ctx, long taskId) {
         super();
-        this.clientId = clientId;
-        api = new JordanApi(context);
+        this.context = ctx.getApplicationContext();
+        this.taskId = taskId;
+        api = JordanApi.getInstance(ctx);
     }
 
     public void readStatus(JordanReadStatusCallback... callbacks) {
-        api.readStatus(ArrayUtils.add(callbacks, this));
+        api.readStatus(taskId, ArrayUtils.add(callbacks, this));
     }
 
     @Override
@@ -51,7 +59,7 @@ public class JordanTaskModel implements JordanModel, JordanReadStatusCallback, J
     }
 
     public void readMessages(JordanReadMessagesCallback... callbacks) {
-        api.readMessages(ArrayUtils.add(callbacks, this));
+        api.readMessages(taskId, ArrayUtils.add(callbacks, this));
     }
 
     @Override
@@ -65,7 +73,7 @@ public class JordanTaskModel implements JordanModel, JordanReadStatusCallback, J
     }
 
     public void readActionDefinitions(JordanGetActionsCallback... callbacks) {
-        api.readActionDefinitions(ArrayUtils.add(callbacks, this));
+        api.readActionDefinitions(taskId, ArrayUtils.add(callbacks, this));
     }
 
     @Override
@@ -78,7 +86,16 @@ public class JordanTaskModel implements JordanModel, JordanReadStatusCallback, J
 
     }
 
-    public void sendMessage(long taskId, String actionName, Map<String, Object> placeholders, JordanSendMessageCallback... callbacks) {
+    public void sendMessage(String actionName, Map<String, Object> placeholders, JordanSendMessageCallback... callbacks) {
         api.sendMessage(taskId, actionName, placeholders, callbacks);
+    }
+
+    public JordanTaskModel subTaskModel(long taskId) {
+        JordanTaskModel subTaskModel = subTaskModelInstances.get(taskId);
+        if(subTaskModel == null){
+            subTaskModel = new JordanTaskModel(context, taskId);
+            subTaskModelInstances.put(taskId, subTaskModel);
+        }
+        return subTaskModel;
     }
 }

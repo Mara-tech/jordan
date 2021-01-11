@@ -165,7 +165,7 @@ public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
                 }
             }
             boolean validTask = true;
-            if(!MapUtils.isEmpty(taskFilter)){
+            if(!MapUtils.isEmpty(taskFilter) && s.getParentTask() != null){
                 String task = s.getParentTask().getName();
                 if(!taskFilter.containsKey(task)) {
                     Log.e(TAG, "Task " + task + " is not handled by task filter (from Dialog). Check StatusFilterTaskAdapter");

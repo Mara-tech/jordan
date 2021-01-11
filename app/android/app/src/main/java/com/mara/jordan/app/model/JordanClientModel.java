@@ -14,7 +14,7 @@ public class JordanClientModel implements JordanModel {
 
     public JordanClientModel(Context ctx, long serverId) {
         context = ctx;
-        api = new JordanApi(context);
+        api = JordanApi.getInstance(context);
 
     }
 

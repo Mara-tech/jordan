@@ -7,17 +7,28 @@ import java.util.GregorianCalendar;
 
 public class DateUtils {
 
+    private static final long SECONDS_TO_MILLISECONDS = 1000;
+    private static final DateFormat DATE_TIME_FORMAT = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM);
+    private static final DateFormat TIME_FORMAT = DateFormat.getTimeInstance(DateFormat.MEDIUM);
+
+//    static {
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//            TimeZone defaultTimezone = TimeZone.getTimeZone(ZoneId.systemDefault());
+//            DATE_TIME_FORMAT.setTimeZone(defaultTimezone);
+//            TIME_FORMAT.setTimeZone(defaultTimezone);
+//        }
+//    }
     /**
      *
-     * @param time date to print/format
+     * @param time date to print/format, timestamp in seconds
      * @param alwaysPrintDay print date only if different from current date
      */
     public static String formatTimestamp(long time, boolean alwaysPrintDay){
-        Date date = new Date(time);
+        Date date = new Date(time * SECONDS_TO_MILLISECONDS);
         if(alwaysPrintDay || !isSameDay(date, new Date())) {
-            return DateFormat.getDateTimeInstance(DateFormat.SHORT,DateFormat.MEDIUM).format(date);
+            return DATE_TIME_FORMAT.format(date);
         } else {
-            return DateFormat.getTimeInstance(DateFormat.MEDIUM).format(date);
+            return TIME_FORMAT.format(date);
         }
     }
 

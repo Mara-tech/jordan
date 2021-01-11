@@ -18,10 +18,19 @@ import java.util.Map;
 public class JordanApi {
 
     private static final String TAG = "JordanApi";
+    private static JordanApi instance;
     private final Context context;
 
-    public JordanApi(Context context) { //or singleton, with ApplicationContext ?
-        this.context = context;
+    private JordanApi(Context context) {
+        super();
+        this.context = context.getApplicationContext();
+    }
+
+    public static synchronized JordanApi getInstance(Context ctx) {
+        if(instance == null){
+            instance = new JordanApi(ctx);
+        }
+        return instance;
     }
 
 
@@ -29,19 +38,14 @@ public class JordanApi {
         return context.getString(R.string.default_server_base_uri);
     }
 
-    private String getTaskId() {
-        return "123";
-    }
-
     private String getAuthor() {
         return "pbaudet";
     }
 
-    public void readStatus(JordanReadStatusCallback... callbacks) {
-        String taskId = getTaskId();
+    public void readStatus(long taskId, JordanReadStatusCallback... callbacks) {
         String endpoint = "status";
         String lineCount = "10";
-        String url = String.format("%s/%s/%s/%s", getServerBaseUrl(), taskId, endpoint, lineCount);
+        String url = String.format("%s/%d/%s/%s", getServerBaseUrl(), taskId, endpoint, lineCount);
         GsonGetRequest<JordanStatusDTO[]> readStatusRequest = new GsonGetRequest<>(
                 url,
                 JordanStatusDTO[].class,
@@ -66,10 +70,9 @@ public class JordanApi {
         }
     }
 
-    public void readMessages(JordanReadMessagesCallback... callbacks) {
-        String taskId = getTaskId();
+    public void readMessages(long taskId,JordanReadMessagesCallback... callbacks) {
         String endpoint = "messages";
-        String url = String.format("%s/%s/%s", getServerBaseUrl(), taskId, endpoint);
+        String url = String.format("%s/%d/%s", getServerBaseUrl(), taskId, endpoint);
         GsonGetRequest<JordanMessageStateDTO[]> readMessagesRequest = new GsonGetRequest<>(
                 url,
                 JordanMessageStateDTO[].class,
@@ -95,10 +98,9 @@ public class JordanApi {
         }
     }
 
-    public void readActionDefinitions(JordanGetActionsCallback... callbacks) {
-        String taskId = getTaskId();
+    public void readActionDefinitions(long taskId, JordanGetActionsCallback... callbacks) {
         String endpoint = "actions";
-        String url = String.format("%s/%s/%s", getServerBaseUrl(), taskId, endpoint);
+        String url = String.format("%s/%d/%s", getServerBaseUrl(), taskId, endpoint);
         GsonGetRequest<JordanActionDefinitionWithTaskDTO[]> readActionsRequest = new GsonGetRequest<>(
                 url,
                 JordanActionDefinitionWithTaskDTO[].class,
