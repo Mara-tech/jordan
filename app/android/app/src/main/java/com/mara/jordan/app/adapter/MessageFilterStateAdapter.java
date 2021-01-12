@@ -11,6 +11,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static com.mara.jordan.app.utils.JordanHelper.getCurrentState;
+
 public class MessageFilterStateAdapter extends ACheckBoxFilterAdapter<JordanMessageStateDTO> {
 
     private static final String TAG = "MessageFilterStateAdapter";
@@ -31,7 +33,7 @@ public class MessageFilterStateAdapter extends ACheckBoxFilterAdapter<JordanMess
         Set<String> uniqueValues = new HashSet<>();
         for (JordanMessageStateDTO dto : dtos) {
             List<JordanMessageStateAuditDTO> audit = dto.getAudit();
-            String currentState = MessagesStateAdapter.getCurrentState(audit);
+            String currentState = getCurrentState(audit);
             if (uniqueValues.add(currentState)) {
                 list.add(currentState);
             }

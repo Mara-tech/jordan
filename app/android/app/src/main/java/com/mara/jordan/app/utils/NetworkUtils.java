@@ -27,4 +27,15 @@ public class NetworkUtils {
                 //HEADER_AUTHORIZATION, "Bearer <token>"
         );
     }
+
+    /**
+     * e.g https://example.com/jordan/admin/ returns https://example.com/jordan/admin
+     */
+    public static String removeEndingSlash(String baseUrl) {
+        String SLASH = "/";
+        if(baseUrl.endsWith(SLASH)){
+            return baseUrl.substring(0, baseUrl.length() -1);
+        }
+        return baseUrl;
+    }
 }

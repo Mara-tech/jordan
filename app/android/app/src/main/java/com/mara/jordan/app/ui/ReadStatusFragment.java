@@ -13,6 +13,8 @@ import android.widget.ListView;
 import android.widget.PopupWindow;
 import android.widget.SeekBar;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.SearchView;
 import androidx.fragment.app.Fragment;
@@ -82,9 +84,13 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
         statusList = view.findViewById(R.id.read_status_list);
         statusList.setAdapter(statusAdapter);
 
-        refreshStatus();
-
         return view;
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        refreshStatus();
     }
 
     private void setCurrentSearchQuery(String query) {
@@ -239,24 +245,28 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
         statusFilterTypeAdapter.onItemsLoaded(statuses);
         statusFilterTaskAdapter.onItemsLoaded(statuses);
         if(statuses.length == 0){
-            Snackbar.make(getView(), R.string.no_status_to_display, Snackbar.LENGTH_SHORT).show();
+            if(getView() != null){
+                Snackbar.make(getView(), R.string.no_status_to_display, Snackbar.LENGTH_SHORT).show();
+            }
         }
     }
 
     @Override
     public void onStatusLoadingError(String errorMessage) {
         statusListRefreshLayout.setRefreshing(false);
-        Snackbar.make(getView(), R.string.status_refresh_failure, Snackbar.LENGTH_LONG)
-                .setAction(R.string.status_refresh_failure_details, new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        new MaterialAlertDialogBuilder(getContext())
-                                .setTitle(R.string.status_refresh_failure_details_dialog)
-                                .setItems(new String[]{errorMessage}, null)
-                                .show();
-                    }
-                })
-                .show();
+        if(getView() != null && getContext() != null) {
+            Snackbar.make(getView(), R.string.status_refresh_failure, Snackbar.LENGTH_LONG)
+                    .setAction(R.string.status_refresh_failure_details, new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            new MaterialAlertDialogBuilder(getContext())
+                                    .setTitle(R.string.status_refresh_failure_details_dialog)
+                                    .setItems(new String[]{errorMessage}, null)
+                                    .show();
+                        }
+                    })
+                    .show();
+        }
     }
 
 

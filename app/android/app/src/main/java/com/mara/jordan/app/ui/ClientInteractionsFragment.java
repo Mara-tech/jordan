@@ -14,6 +14,7 @@ import androidx.fragment.app.FragmentTransaction;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.mara.jordan.app.R;
+import com.mara.jordan.app.model.JordanClientModel;
 import com.mara.jordan.app.model.JordanTaskModel;
 
 /**
@@ -42,7 +43,7 @@ public class ClientInteractionsFragment extends Fragment {
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         if(getArguments() != null) {
-            ((AppCompatActivity) getActivity()).getSupportActionBar().setTitle(getArguments().getString("client_name", getString(R.string.tasks_fragment_default_title)));
+            ((AppCompatActivity) getActivity()).getSupportActionBar().setTitle(getArguments().getString(JordanClientModel.CLIENT_NAME, getString(R.string.tasks_fragment_default_title)));
         }
         else {
             ((AppCompatActivity) getActivity()).getSupportActionBar().setTitle("ERROR : No client selected");

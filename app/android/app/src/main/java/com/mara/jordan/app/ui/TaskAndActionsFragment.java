@@ -9,6 +9,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
@@ -74,9 +76,13 @@ public class TaskAndActionsFragment extends Fragment implements JordanGetActions
 
         stickyList.setAdapter(adapter);
 
-        refreshTasks();
-
         return view;
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        refreshTasks();
     }
 
     @Override
@@ -100,7 +106,6 @@ public class TaskAndActionsFragment extends Fragment implements JordanGetActions
     }
 
     private void refreshTasks() {
-        //start async refresh clients
         if(!tasksListRefreshLayout.isRefreshing()){
             tasksListRefreshLayout.setRefreshing(true);
         }
@@ -111,39 +116,45 @@ public class TaskAndActionsFragment extends Fragment implements JordanGetActions
     public void onActionsLoaded(JordanActionDefinitionWithTaskDTO[] actions) {
         tasksListRefreshLayout.setRefreshing(false);
         if(actions.length == 0){
-            Snackbar.make(getView(), R.string.no_action_definitions_to_display, Snackbar.LENGTH_SHORT).show();
+            if(getView() != null && getContext() != null){
+                Snackbar.make(getView(), R.string.no_action_definitions_to_display, Snackbar.LENGTH_SHORT).show();
+            }
         }
     }
 
     @Override
     public void onActionsLoadingError(String errorMessage) {
         tasksListRefreshLayout.setRefreshing(false);
-        Snackbar.make(getView(), R.string.action_definitions_refresh_failure, Snackbar.LENGTH_LONG)
-                .setAction(R.string.action_definitions_refresh_failure_details, new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        new MaterialAlertDialogBuilder(getContext())
-                                .setTitle(R.string.action_definitions_refresh_failure_details_dialog)
-                                .setItems(new String[]{errorMessage}, null)
-                                .show();
-                    }
-                })
-                .show();
+        if(getView() != null && getContext() != null){
+            Snackbar.make(getView(), R.string.action_definitions_refresh_failure, Snackbar.LENGTH_LONG)
+                    .setAction(R.string.action_definitions_refresh_failure_details, new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            new MaterialAlertDialogBuilder(getContext())
+                                    .setTitle(R.string.action_definitions_refresh_failure_details_dialog)
+                                    .setItems(new String[]{errorMessage}, null)
+                                    .show();
+                        }
+                    })
+                    .show();
+        }
     }
 
     @Override
     public void alertMandatoryFieldMissing(List<JordanActionParameterDTO> missingInput) {
-        Snackbar.make(getView(), R.string.message_not_sent_mandatory, Snackbar.LENGTH_SHORT)
-                .setAction(R.string.message_not_sent_details, new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        new MaterialAlertDialogBuilder(getContext())
-                                .setTitle(R.string.message_not_sent_mandatory_dialog)
-                                .setItems(renderMissingMandatoryFields(missingInput), null)
-                                .show();
-                    }
-                })
-                .show();
+        if(getView() != null && getContext() != null){
+            Snackbar.make(getView(), R.string.message_not_sent_mandatory, Snackbar.LENGTH_SHORT)
+                    .setAction(R.string.message_not_sent_details, new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            new MaterialAlertDialogBuilder(getContext())
+                                    .setTitle(R.string.message_not_sent_mandatory_dialog)
+                                    .setItems(renderMissingMandatoryFields(missingInput), null)
+                                    .show();
+                        }
+                    })
+                    .show();
+        }
     }
 
     private String[] renderMissingMandatoryFields(List<JordanActionParameterDTO> missingInput) {
@@ -158,33 +169,37 @@ public class TaskAndActionsFragment extends Fragment implements JordanGetActions
 
     @Override
     public void onMessageSent(long messageId) {
-        Snackbar.make(getView(), R.string.message_sent, Snackbar.LENGTH_SHORT) //TODO add action name ?
-                .setAction(R.string.message_sent_details, new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        new MaterialAlertDialogBuilder(getContext())
-                                .setTitle(R.string.message_sent)
-                                .setItems(new String[]{
-                                        getString(R.string.message_sent_id, messageId)
-                                }, null)
-                                .show();
-                    }
-                })
-                .show();
+        if(getView() != null && getContext() != null){
+            Snackbar.make(getView(), R.string.message_sent, Snackbar.LENGTH_SHORT) //TODO add action name ?
+                    .setAction(R.string.message_sent_details, new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            new MaterialAlertDialogBuilder(getContext())
+                                    .setTitle(R.string.message_sent)
+                                    .setItems(new String[]{
+                                            getString(R.string.message_sent_id, messageId)
+                                    }, null)
+                                    .show();
+                        }
+                    })
+                    .show();
+        }
     }
 
     @Override
     public void onMessageSendingError(String errorMessage) {
-        Snackbar.make(getView(), R.string.message_not_sent_failure, Snackbar.LENGTH_LONG)
-                .setAction(R.string.message_not_sent_failure_details, new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        new MaterialAlertDialogBuilder(getContext())
-                                .setTitle(R.string.message_not_sent_failure_details_dialog)
-                                .setItems(new String[]{errorMessage}, null)
-                                .show();
-                    }
-                })
-                .show();
+        if(getView() != null && getContext() != null){
+            Snackbar.make(getView(), R.string.message_not_sent_failure, Snackbar.LENGTH_LONG)
+                    .setAction(R.string.message_not_sent_failure_details, new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            new MaterialAlertDialogBuilder(getContext())
+                                    .setTitle(R.string.message_not_sent_failure_details_dialog)
+                                    .setItems(new String[]{errorMessage}, null)
+                                    .show();
+                        }
+                    })
+                    .show();
+        }
     }
 }

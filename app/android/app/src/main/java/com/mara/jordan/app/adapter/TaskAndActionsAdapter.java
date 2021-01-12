@@ -27,6 +27,7 @@ import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
 import com.mara.jordan.app.model.dto.JordanActionParameterDTO;
 import com.mara.jordan.app.model.dto.JordanParentTaskDTO;
 import com.mara.jordan.app.ui.JordanSendMessageUiCallback;
+import com.mara.jordan.app.utils.CircularProgressButtonHelper;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -50,6 +51,7 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
      */
     private final JordanTaskModel rootTaskModel;
     private final JordanSendMessageUiCallback callback;
+    private final CircularProgressButtonHelper cpbh;
     private LayoutInflater mInflater;
     private final Map<View, Map<JordanActionParameterDTO, View>> actionVisualElementsMapping = new HashMap<>();
     private Map<Integer, View> viewHolderMapping = initViewHolderMapping();
@@ -63,6 +65,7 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
         this.rootTaskModel = model;
         mInflater = LayoutInflater.from(ctx);
         this.callback = callback;
+        cpbh = CircularProgressButtonHelper.getInstance(ctx);
     }
 
     @Override
@@ -167,7 +170,7 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
                             new JordanSendMessageCallback() {
                                 @Override
                                 public void onMessageSent(long messageId) {
-                                    buttonClicked.doneLoadingAnimation(getProgressionButtonFillColor(), getSuccessBitmap());
+                                    buttonClicked.doneLoadingAnimation(cpbh.getProgressionButtonFillColor(), cpbh.getSuccessBitmap());
                                     waitAndResetButton(buttonClicked);
                                 }
 
@@ -177,37 +180,11 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
 
                                 @Override
                                 public void onMessageSendingError(String errorMessage) {
-                                    buttonClicked.doneLoadingAnimation(getProgressionButtonFillColor(), getErrorBitmap());
+                                    buttonClicked.doneLoadingAnimation(cpbh.getProgressionButtonFillColor(), cpbh.getErrorBitmap());
                                     waitAndResetButton(buttonClicked);
                                 }
                             }
                             );
-        }
-    }
-
-    private int getProgressionButtonFillColor() {
-        return ContextCompat.getColor(getContext(), R.color.red_bull);
-    }
-
-    private Bitmap getSuccessBitmap() {
-        return drawBitmap(R.drawable.check);
-    }
-
-    private Bitmap getErrorBitmap() {
-        return drawBitmap(R.drawable.cross);
-    }
-
-    private Bitmap drawBitmap(@DrawableRes int resId){
-        Drawable drawable = ContextCompat.getDrawable(getContext(), resId);
-        try {
-            Bitmap bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
-            Canvas canvas = new Canvas(bitmap);
-            drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
-            drawable.draw(canvas);
-            return bitmap;
-        } catch (OutOfMemoryError e) {
-            Log.e(TAG, "Cannot create bitmap from resource " + resId, e);
-            return Bitmap.createBitmap(0,0, Bitmap.Config.ALPHA_8);
         }
     }
 

@@ -10,6 +10,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ListView;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
@@ -76,9 +78,13 @@ public class MessagesStateFragment extends Fragment implements JordanReadMessage
         ListView statusList = view.findViewById(R.id.message_state_list);
         statusList.setAdapter(messageStateAdapter);
 
-        refreshMessages();
-
         return view;
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        refreshMessages();
     }
 
     @Override
@@ -167,23 +173,27 @@ public class MessagesStateFragment extends Fragment implements JordanReadMessage
         messageFilterAuthorAdapter.onItemsLoaded(messages);
         messageFilterStateAdapter.onItemsLoaded(messages);
         if(messages.length == 0){
-            Snackbar.make(getView(), R.string.no_message_state_to_display, Snackbar.LENGTH_SHORT).show();
+            if(getView() != null){
+                Snackbar.make(getView(), R.string.no_message_state_to_display, Snackbar.LENGTH_SHORT).show();
+            }
         }
     }
 
     @Override
     public void onMessagesLoadingError(String errorMessage) {
         messagesListRefreshLayout.setRefreshing(false);
-        Snackbar.make(getView(), R.string.message_state_refresh_failure, Snackbar.LENGTH_LONG)
-                .setAction(R.string.message_state_refresh_failure_details, new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        new MaterialAlertDialogBuilder(getContext())
-                                .setTitle(R.string.message_state_refresh_failure_details_dialog)
-                                .setItems(new String[]{errorMessage}, null)
-                                .show();
-                    }
-                })
-                .show();
+        if(getView() != null && getContext() != null) {
+            Snackbar.make(getView(), R.string.message_state_refresh_failure, Snackbar.LENGTH_LONG)
+                    .setAction(R.string.message_state_refresh_failure_details, new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            new MaterialAlertDialogBuilder(getContext())
+                                    .setTitle(R.string.message_state_refresh_failure_details_dialog)
+                                    .setItems(new String[]{errorMessage}, null)
+                                    .show();
+                        }
+                    })
+                    .show();
+        }
     }
 }

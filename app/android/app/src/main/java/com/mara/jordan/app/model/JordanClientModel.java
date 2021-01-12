@@ -12,10 +12,11 @@ public class JordanClientModel implements JordanModel {
     private final Context context;
     private final JordanApi api;
 
-    public JordanClientModel(Context ctx, long serverId) {
+    public JordanClientModel(Context ctx, String serverBaseUrl) {
         context = ctx;
-        api = JordanApi.getInstance(context);
 
+        api = JordanApi.getInstance(context);
+        api.setServerBaseUrl(serverBaseUrl);
     }
 
     public void listClients(JordanGetClientsCallback... callbacks) {

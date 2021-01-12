@@ -10,17 +10,41 @@
     <string name="next">Next</string>
     <string name="previous">Previous</string>
     <string name="details">Details</string>
+    <string name="cancel">Cancel</string>
+    <string name="apply">Apply</string>
 
     <string name="menu_refresh">Refresh</string>
 
+    <string name="import_server_menu">Import servers</string>
+    <string name="export_server_menu">Export servers</string>
+
+    <string name="server_refresh_failure_details">@string/details</string>
+    <string name="server_refresh_failure">An error occurred while listing servers</string>
+    <string name="server_refresh_failure_details_dialog">Error while listing servers</string>
+    <string name="no_server_to_display">Add a server with \'+\' button</string>
+    <string name="server_no_active_client">No active client</string>
+    <string name="server_active_clients">%d active client(s)</string>
+    <string name="server_active_task_single">1 active task</string>
+    <string name="server_active_tasks">%d active tasks</string>
+    <string name="server_active_tasks_progress">, %d %%</string>
+    <string name="server_added">Server %s added</string>
+    <string name="server_updated">Server %s updated</string>
+    <string name="server_deleted">Server %s deleted</string>
+    <string name="update_server_dialog_confirm">Update</string>
     <string name="add_server_dialog_confirm">Add server</string>
+    <string name="add_server_dialog_test">Test</string>
     <string name="add_server_dialog_server_name_hint">Server name… (only you will see this name)</string>
     <string name="add_server_dialog_title">Server setup</string>
-    <string name="add_server_dialog_server_base_uri_hint">https://example.com/jordan</string>
+    <string name="add_server_dialog_server_base_uri_hint">https://example.com/jordan/admin</string>
     <string name="add_server_dialog_login_hint">login</string>
     <string name="add_server_dialog_password">password</string>
     <string name="add_server_dialog_remember_login">Remember login for this server</string>
     <string name="add_server_dialog_remember_password">Remember password for this server</string>
+    <string name="update_server">Update</string>
+    <string name="delete_server">Delete</string>
+    <string name="delete_server_confirmation_dialog">Do you want to delete server %s ?</string>
+    <string name="delete_server_confirmation_positive">Delete</string>
+    <string name="delete_server_confirmation_negative">@string/cancel</string>
 
     <string name="client_refresh_failure_details">@string/details</string>
     <string name="client_refresh_failure">An error occurred while reading clients</string>
@@ -36,8 +60,6 @@
     <string name="filter_message">Filter</string>
     <string name="status_text_size">Font size</string>
     <string name="status_search">Search</string>
-    <string name="cancel">Cancel</string>
-    <string name="apply">Apply</string>
 
 
     <string name="status_details_id">ID : %d</string>
@@ -82,9 +104,5 @@
     <string name="message_not_sent_failure">An error occurred while sending message</string>
     <string name="message_not_sent_failure_details">@string/details</string>
     <string name="message_not_sent_failure_details_dialog">Error while sending message</string>
-
-
-
-    <string name="default_server_base_uri">http://192.168.1.41:5000/jordan/admin</string>
 
 </resources>
