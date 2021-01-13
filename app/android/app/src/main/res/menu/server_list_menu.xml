@@ -6,4 +6,16 @@
         android:id="@+id/refresh_server"
         app:showAsAction="never"
         android:title="@string/menu_refresh"/>
+
+    <item
+        android:id="@+id/import_server_list"
+        app:showAsAction="never"
+        android:title="@string/import_server_menu"
+        />
+
+    <item
+        android:id="@+id/export_server_list"
+        app:showAsAction="never"
+        android:title="@string/export_server_menu"
+        />
 </menu>

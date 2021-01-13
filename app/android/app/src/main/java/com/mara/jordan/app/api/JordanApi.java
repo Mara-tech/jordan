@@ -3,23 +3,32 @@ package com.mara.jordan.app.api;
 import android.content.Context;
 import android.util.Log;
 
+import com.android.volley.ParseError;
 import com.android.volley.VolleyError;
-import com.mara.jordan.app.R;
 import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
 import com.mara.jordan.app.model.dto.JordanClientDTO;
 import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
 import com.mara.jordan.app.model.dto.JordanSendMessageActionDTO;
 import com.mara.jordan.app.model.dto.JordanSendMessageDTO;
 import com.mara.jordan.app.model.dto.JordanStatusDTO;
+import com.mara.jordan.app.model.dto.JordanTestDTO;
+import com.mara.jordan.app.ui.ServerConnectionTestCallback;
 import com.mara.jordan.app.utils.NetworkUtils;
 
 import java.util.Map;
+
+import lombok.Getter;
+import lombok.Setter;
 
 public class JordanApi {
 
     private static final String TAG = "JordanApi";
     private static JordanApi instance;
     private final Context context;
+
+    @Getter
+    @Setter
+    private String serverBaseUrl;
 
     private JordanApi(Context context) {
         super();
@@ -33,10 +42,6 @@ public class JordanApi {
         return instance;
     }
 
-
-    private String getServerBaseUrl() {
-        return context.getString(R.string.default_server_base_uri);
-    }
 
     private String getAuthor() {
         return "pbaudet";
@@ -161,8 +166,12 @@ public class JordanApi {
     }
 
     public void listClients(JordanGetClientsCallback... callbacks) {
+        listClients(getServerBaseUrl(), callbacks);
+    }
+
+    public void listClients(String serverBaseUrl, JordanGetClientsCallback... callbacks) {
         String endpoint = "clients";
-        String url = String.format("%s/%s", getServerBaseUrl(), endpoint);
+        String url = String.format("%s/%s", serverBaseUrl, endpoint);
         GsonGetRequest<JordanClientDTO[]> readClientsRequest = new GsonGetRequest<>(
                 url,
                 JordanClientDTO[].class,
@@ -184,6 +193,36 @@ public class JordanApi {
         final JordanClientDTO[] safeResponse = response != null ? response : new JordanClientDTO[]{};
         for(JordanGetClientsCallback callback : callbacks){
             callback.onClientsLoaded(safeResponse);
+        }
+    }
+
+    public void testConnection(String serverBaseUrl, ServerConnectionTestCallback... callbacks) {
+        String endpoint = "hello";
+        String url = String.format("%s/%s", NetworkUtils.removeEndingSlash(serverBaseUrl), endpoint);
+        GsonGetRequest<JordanTestDTO> readClientsRequest = new GsonGetRequest<>(
+                url,
+                JordanTestDTO.class,
+                NetworkUtils.makeHeaders(),
+                response -> handleResponse(response, callbacks),
+                error -> handleError(error, callbacks)
+        );
+        Log.i(TAG, "Queuing " + endpoint + " query : " + url);
+        VolleyInterfaceSingleton.getInstance(context).addToRequestQueue(readClientsRequest);
+    }
+
+    private void handleError(VolleyError error, ServerConnectionTestCallback[] callbacks) {
+        for(ServerConnectionTestCallback callback :callbacks){
+            callback.onConnectionTestError(error);
+        }
+    }
+
+    private void handleResponse(JordanTestDTO response, ServerConnectionTestCallback... callbacks) {
+        if(response == null){
+            handleError(new ParseError(new IllegalArgumentException("Response should not be null.")), callbacks);
+        } else {
+            for (ServerConnectionTestCallback callback : callbacks) {
+                callback.onConnectionTestPassed(response);
+            }
         }
     }
 

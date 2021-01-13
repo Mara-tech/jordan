@@ -1,6 +1,5 @@
 package com.mara.jordan.app.ui;
 
-import android.content.DialogInterface;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -8,57 +7,65 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.CheckBox;
-import android.widget.CompoundButton;
-import android.widget.EditText;
-import android.widget.ListAdapter;
+import android.widget.ListView;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.fragment.app.ListFragment;
+import androidx.fragment.app.Fragment;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
+import com.google.common.collect.ImmutableList;
 import com.mara.jordan.app.R;
+import com.mara.jordan.app.adapter.ServerAdapter;
+import com.mara.jordan.app.db.JordanListServersCallback;
+import com.mara.jordan.app.db.JordanServer;
+import com.mara.jordan.app.db.OnServerUpdateListener;
+import com.mara.jordan.app.model.JordanClientModel;
 import com.mara.jordan.app.model.JordanServerModel;
 
-public class ServerListFragment extends ListFragment implements AdapterView.OnItemClickListener {
+import java.util.List;
 
-    public static final String[] SERVERS = {"\uD83D\uDE0A IA Training Perso", "\uD83D\uDCBC IA Training boulot", "\uD83D\uDE80 Communauté NextGen"};
-    private ListAdapter serverListAdapter;
+public class ServerListFragment extends Fragment implements JordanListServersCallback,
+        OnServerClickListener,
+        OnServerUpdateListener,
+        ServerAddOrUpdateCallback,
+        ServerImportExportCallback {
+
+    private ServerAdapter serverListAdapter;
     private SwipeRefreshLayout serverListRefreshLayout;
     private JordanServerModel model;
+    private List<JordanServer> serversList = ImmutableList.of();
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setHasOptionsMenu(true);
+
+        this.model = new JordanServerModel(getContext());
+        serverListAdapter = new ServerAdapter(getContext(), model, this, this);
+    }
 
     @Override
     public View onCreateView(
             LayoutInflater inflater, ViewGroup container,
             Bundle savedInstanceState) {
-
-        model = new JordanServerModel(getContext());
-
-
         final View view = inflater.inflate(R.layout.server_list_view, container, false);
-        setHasOptionsMenu(true);
-
-        ((AppCompatActivity)getActivity()).getSupportActionBar().setTitle(R.string.main_activity_title);
-
         serverListRefreshLayout = view.findViewById(R.id.swipe_refresh_server);
+        serverListRefreshLayout.setOnRefreshListener(this::refreshServers);
 
-        //TODO custom adapter. What to show ? (need api calls, so fill adapter with async callback)
-        //TODO plus popupwindow for Edit/Delete
-        serverListAdapter = new ArrayAdapter(getContext(), android.R.layout.simple_list_item_1, SERVERS);
-
+        ListView list = view.findViewById(R.id.server_list);
+        list.setAdapter(serverListAdapter);
 
         FloatingActionButton fab = view.findViewById(R.id.add_server);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                addServerDialog();
+                showAddServerDialog();
             }
         });
 
@@ -66,103 +73,94 @@ public class ServerListFragment extends ListFragment implements AdapterView.OnIt
         return view;
     }
 
-    private void addServerDialog() {
-        //TODO make own dialog fragment for
-        // 1- make text field mandatory (disable Positive Button if not valid
-        // 2- Positive Button PHASE_1 = "test" (call /api/hello), and if valid, set positive button to PHASE_2 : "add server"
-        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-        View addServerDialogView = requireActivity().getLayoutInflater().inflate(R.layout.add_server_dialog, null);
-        CheckBox rememberLoginCb = addServerDialogView.findViewById(R.id.add_server_dialog_remember_login);
-        EditText loginField = addServerDialogView.findViewById(R.id.add_server_dialog_login);
-        CheckBox rememberPasswordCb = addServerDialogView.findViewById(R.id.add_server_dialog_remember_password);
-        EditText passwordField = addServerDialogView.findViewById(R.id.add_server_dialog_password);
-        rememberLoginCb.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                loginField.setEnabled(isChecked);
-                rememberPasswordCb.setEnabled(isChecked);
-                passwordField.setEnabled(isChecked);
-            }
-        });
-        rememberPasswordCb.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                passwordField.setEnabled(isChecked);
-            }
-        });
-
-        builder
-                .setTitle(R.string.add_server_dialog_title)
-                .setView(addServerDialogView)
-                .setPositiveButton(R.string.add_server_dialog_confirm, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        addServer(addServerDialogView);
-                    }
-                })
-                .setNeutralButton(R.string.cancel, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        //Do nothing
-                    }
-                })
-                .show();
-
-    }
-
-    private void addServer(View dialogView) {
-        EditText serverNameField = dialogView.findViewById(R.id.add_server_dialog_server_name);
-        String serverName = serverNameField.getText().toString();
-
-        EditText serverBaseUriField = dialogView.findViewById(R.id.add_server_dialog_server_base_uri);
-        String serverBaseUri = serverBaseUriField.getText().toString();
-
-        EditText loginField = dialogView.findViewById(R.id.add_server_dialog_login);
-        String login = loginField.getText().toString();
-
-        EditText passwordField = dialogView.findViewById(R.id.add_server_dialog_password);
-        String password = serverNameField.getText().toString();
-
-        CheckBox rememberLoginField = dialogView.findViewById(R.id.add_server_dialog_remember_login);
-        boolean rememberLogin = rememberLoginField.isChecked();
-
-        CheckBox rememberPasswordField = dialogView.findViewById(R.id.add_server_dialog_remember_password);
-        boolean rememberPassword = rememberLogin && rememberPasswordField.isChecked();
-
-        model.addServer(serverName, serverBaseUri, rememberLogin, login, rememberPassword, password);
-        //TODO invalidate adapter
-    }
-
-
     @Override
-    public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-
-        setListAdapter(serverListAdapter);
-        getListView().setOnItemClickListener(this);
-        serverListRefreshLayout.setOnRefreshListener(this::refreshServers);
-
-//        view.findViewById(R.id.button_first).setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View view) {
-//                NavHostFragment.findNavController(ServerListFragment.this)
-//                        .navigate(R.id.action_FirstFragment_to_SecondFragment);
-//            }
-//        });
+        refreshServers();
     }
 
     @Override
-    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+    public void onResume() {
+        super.onResume();
+        ((AppCompatActivity)getActivity()).getSupportActionBar().setTitle(R.string.main_activity_title);
+    }
+
+    private void showAddServerDialog() {
+        showAddServerDialog(null);
+    }
+
+    private void showAddServerDialog(@Nullable JordanServer prefillServer) {
+        final AddServerDialog dialog = new AddServerDialog();
+        dialog.setAddServerDialogListener(this);
+        dialog.setModel(model);
+        if(prefillServer != null){
+            dialog.setServerToBeUpdated(prefillServer);
+        }
+        dialog.show(getChildFragmentManager(), "addServerDialog");
+    }
+
+    @Override
+    public void addServer(JordanServer jordanServer) {
+        model.addServer(jordanServer, this);
+    }
+
+    @Override
+    public void updateServer(JordanServer entity) {
+        model.update(entity, this);
+    }
+
+    @Override
+    public void onServerClicked(JordanServer selectedServer) {
         final Bundle selectedServerBundle = new Bundle();
-        selectedServerBundle.putString("server_name", SERVERS[position]);
-            NavHostFragment.findNavController(ServerListFragment.this)
+        selectedServerBundle.putLong(JordanClientModel.SERVER_ID, selectedServer.getId());
+        selectedServerBundle.putString(JordanClientModel.SERVER_BASE_URL, selectedServer.getUrl());
+        selectedServerBundle.putString(JordanClientModel.SERVER_NAME, selectedServer.getName());
+        NavHostFragment.findNavController(ServerListFragment.this)
                 .navigate(R.id.action_server_to_client, selectedServerBundle);
     }
 
+    @Override
+    public void onServerToBeUpdated(JordanServer selectedServer) {
+        showAddServerDialog(selectedServer);
+    }
+
     private void refreshServers() {
-        //start async refresh clients
-        Snackbar.make(getView(), "Refreshing servers...", Snackbar.LENGTH_SHORT).show();
+        if(!serverListRefreshLayout.isRefreshing()){
+            serverListRefreshLayout.setRefreshing(true);
+        }
+        serverListAdapter.refresh(this);
+    }
+
+    @Override
+    public void onServersLoaded(List<JordanServer> servers) {
         serverListRefreshLayout.setRefreshing(false);
+        serversList = servers;
+        if(servers.isEmpty()){
+            if(getView() != null){
+                Snackbar.make(getView(), R.string.no_server_to_display, Snackbar.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    @Override
+    public void onServersLoadingError(Throwable error) {
+        serverListRefreshLayout.setRefreshing(false);
+        if(getView() != null && getContext() != null) {
+            Snackbar.make(getView(), R.string.server_refresh_failure, Snackbar.LENGTH_LONG)
+                    .setAction(R.string.server_refresh_failure_details, new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            new MaterialAlertDialogBuilder(getContext())
+                                    .setTitle(R.string.server_refresh_failure_details_dialog)
+                                    .setItems(new String[]{
+                                            error.toString(),
+                                            error.getLocalizedMessage() != null ? error.getLocalizedMessage() : error.getMessage()
+                                    }, null)
+                                    .show();
+                        }
+                    })
+                    .show();
+        }
     }
 
 
@@ -177,8 +175,14 @@ public class ServerListFragment extends ListFragment implements AdapterView.OnIt
         switch (item.getItemId()) {
 
             case R.id.refresh_server:
-                serverListRefreshLayout.setRefreshing(true);
                 refreshServers();
+                return true;
+
+            case R.id.import_server_list:
+                importDialog();
+                return true;
+            case R.id.export_server_list:
+                exportServersClicked();
                 return true;
         }
 
@@ -187,4 +191,95 @@ public class ServerListFragment extends ListFragment implements AdapterView.OnIt
 
     }
 
+    private void exportServersClicked() {
+        if(serversList.isEmpty()){
+            if(getView() != null && getContext() != null) {
+                Snackbar.make(getView(), R.string.no_server_to_export,
+                        Snackbar.LENGTH_SHORT).show();
+            }
+        } else {
+            exportDialog(serversList);
+        }
+    }
+  private void exportDialog(List<JordanServer> serversList) {
+        ExportServerDialog dialog = new ExportServerDialog();
+        dialog.setItems(serversList);
+        dialog.setCallback(this);
+        dialog.show(getChildFragmentManager(), "exportServerDialog");
+    }
+
+    private void importDialog() {
+        ImportServerDialog dialog = new ImportServerDialog();
+        dialog.setCallback(this);
+        dialog.show(getChildFragmentManager(), "importServerDialog");
+    }
+
+    @Override
+    public void onServerAdded(JordanServer[] entities) {
+        refreshServers();
+        if(getView() != null && getContext() != null && entities != null && entities.length > 0) {
+            String serverAddedMessage = entities.length == 1 ?
+                    getContext().getString(R.string.server_added, entities[0].getName())
+                    : getContext().getString(R.string.server_multi_added, entities.length);
+            Snackbar.make(getView(),
+                    serverAddedMessage,
+                    Snackbar.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onServerUpdated(JordanServer entity) {
+        refreshServers();
+        if(getView() != null && getContext() != null){
+            Snackbar.make(getView(),
+                    getContext().getString(R.string.server_updated, entity.getName()),
+                    Snackbar.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onServerDeleted(JordanServer entity) {
+        refreshServers();
+        if(getView() != null && getContext() != null){
+            Snackbar.make(getView(),
+                    getContext().getString(R.string.server_deleted, entity.getName()),
+                    Snackbar.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onServerUpdateError(Throwable error, JordanServer... entities) {
+
+    }
+
+    @Override
+    public void onServerExported(int count) {
+        if(getView() != null && getContext() != null){
+            Snackbar.make(getView(),
+                    getContext().getString(R.string.server_exported_clipboard, count),
+                    Snackbar.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onServerImportParsed(JordanServer[] servers) {
+        model.addServers(servers, this);
+    }
+
+    @Override
+    public void onServerImportError(String... errorMessages) {
+        if(getView() != null && getContext() != null) {
+            Snackbar.make(getView(), R.string.server_import_failure, Snackbar.LENGTH_LONG)
+                    .setAction(R.string.server_import_failure_details, new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            new MaterialAlertDialogBuilder(getContext())
+                                    .setTitle(R.string.server_import_failure_details_dialog)
+                                    .setItems(errorMessages, null)
+                                    .show();
+                        }
+                    })
+                    .show();
+        }
+    }
 }

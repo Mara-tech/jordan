@@ -1,6 +1,8 @@
 package com.mara.jordan.app.adapter;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -8,6 +10,8 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
 
+import androidx.annotation.ArrayRes;
+import androidx.annotation.ColorInt;
 import androidx.core.content.ContextCompat;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -24,24 +28,28 @@ import org.apache.commons.collections4.MapUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
 
-    public static final String STATUS_TYPE_SUCCESS = "success";
-    public static final String STATUS_TYPE_FAILURE = "failure";
-    public static final String STATUS_TYPE_GENERAL = "general";
-    public static final String STATUS_TYPE_PROGRESS = "progress";
     private static final String TAG = "ReadStatusAdapter";
     private final LayoutInflater mInflater;
     private final JordanTaskModel model;
+    /**
+     * e.g "success" -> @ColorInt (ContextCompat.getColor(context, R.color.success))
+     */
+    private final Map<String, Integer> colorMapping;
     private float definedTextSizeSp = ReadStatusFragment.StatusTextSizeHelper.DEFAULT_TEXT_SIZE;
 
     public ReadStatusAdapter(Context ctx, JordanTaskModel model) {
         super(ctx, 0);
         this.model = model;
         mInflater = LayoutInflater.from(ctx);
+        colorMapping = makeMapping(ctx,
+                R.array.status_color_mapping,
+                ctx.getResources().getColor(R.color.status_type_default));
     }
 
     @Override
@@ -94,27 +102,11 @@ public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
         }
     }
 
-    //TODO use xml mapping ?
+    @ColorInt
     private int getStatusColor(String type) {
-        int colorResId;
-        switch (type) {
-            case STATUS_TYPE_SUCCESS:
-                colorResId = R.color.status_type_success;
-                break;
-            case STATUS_TYPE_FAILURE:
-                colorResId = R.color.status_type_failure;
-                break;
-            case STATUS_TYPE_GENERAL:
-                colorResId = R.color.status_type_general;
-                break;
-            case STATUS_TYPE_PROGRESS:
-                colorResId = R.color.status_type_progress;
-                break;
-            default:
-                colorResId = R.color.status_type_default;
-                break;
-        }
-        return ContextCompat.getColor(getContext(), colorResId);
+        return colorMapping.containsKey(type) && (colorMapping.get(type) != null) ?
+                colorMapping.get(type)
+                : ContextCompat.getColor(getContext(), R.color.status_type_default);
     }
 
     public void changeTextSize(int textSizeSp) {
@@ -179,5 +171,30 @@ public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
             }
         }
         return list;
+    }
+
+    /**
+     * from https://stackoverflow.com/questions/3013655/creating-hashmap-map-from-xml-resources/40137782#40137782 ?
+     */
+    private static Map<String, Integer> makeMapping(Context ctx, @ArrayRes int arrayMapping, @ColorInt int defaultValue){
+        TypedArray resMapping = ctx.getResources().obtainTypedArray(arrayMapping);
+        Map<String, Integer> map = new HashMap<>();
+        int len = resMapping.length();
+        for(int i = 0 ; i < len ; i++){
+            int kvMappingResId = resMapping.getResourceId(i, -1);
+            if(kvMappingResId == -1){
+                throw new IllegalArgumentException("Invalid array mapping : " + arrayMapping);
+            }
+            TypedArray kvMapping = ctx.getResources().obtainTypedArray(kvMappingResId);
+            if(kvMapping != null) {
+                String k = kvMapping.getString(0);
+                @SuppressLint("ResourceType")
+                int v = kvMapping.getColor(1, defaultValue);
+                map.put(k, v);
+                kvMapping.recycle();
+            }
+        }
+        resMapping.recycle();
+        return map;
     }
 }

@@ -135,6 +135,11 @@ class HelloWorld(Resource):
     def get(self):
         return "Hello World " + str(time())
 
+@admin_ns.route('/hello')
+class HelloAdmin(Resource):
+    def get(self):
+        return {'test': 'success', 'timestamp': int(time())}, 200
+
 
 @client_ns.route('/register')
 class Register(Resource):

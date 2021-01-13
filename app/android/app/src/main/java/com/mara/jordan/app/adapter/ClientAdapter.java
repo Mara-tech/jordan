@@ -16,21 +16,18 @@ import com.mara.jordan.app.R;
 import com.mara.jordan.app.api.JordanGetClientsCallback;
 import com.mara.jordan.app.model.JordanClientModel;
 import com.mara.jordan.app.model.dto.JordanClientDTO;
-import com.mara.jordan.app.model.dto.JordanTaskDTO;
 import com.mara.jordan.app.ui.OnClientClickListener;
 import com.mara.jordan.app.utils.JordanConstant;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import se.emilsjolander.stickylistheaders.StickyListHeadersAdapter;
 
-import static com.google.common.math.Stats.meanOf;
+import static com.mara.jordan.app.utils.JordanHelper.NO_TASK_WITH_PROGRESS_FLAG;
+import static com.mara.jordan.app.utils.JordanHelper.estimateClientProgress;
+import static com.mara.jordan.app.utils.JordanHelper.extractActiveTasksInfo;
 
 public class ClientAdapter extends ArrayAdapter<JordanClientDTO> implements StickyListHeadersAdapter, JordanGetClientsCallback, JordanConstant {
 
     private static final String TAG = "ClientAdapter";
-    private static final int NO_TASK_WITH_PROGRESS_FLAG = -1;
     private final OnClientClickListener clickListener;
     private JordanClientModel model;
     private final LayoutInflater mInflater;
@@ -52,8 +49,9 @@ public class ClientAdapter extends ArrayAdapter<JordanClientDTO> implements Stic
 
         JordanClientDTO client = getItem(position);
         clientName.setText(client.getName());
-        runningTasks.setText(getContext().getString(R.string.client_running_task, extractRunningTasks(client)));
-        int progress = extractRunningTasksProgress(client);
+        String[] activeTaskStates = getContext().getResources().getStringArray(R.array.active_task_states);
+        runningTasks.setText(getContext().getString(R.string.client_running_task, extractActiveTasksInfo(client, activeTaskStates)));
+        int progress = estimateClientProgress(client, activeTaskStates);
         if(progress == NO_TASK_WITH_PROGRESS_FLAG){
             clientProgress.setVisibility(View.INVISIBLE);
         } else {
@@ -64,38 +62,6 @@ public class ClientAdapter extends ArrayAdapter<JordanClientDTO> implements Stic
         view.setOnClickListener(v -> clickListener.onClientClicked(client));
 
         return view;
-    }
-
-    private int extractRunningTasksProgress(JordanClientDTO client) {
-//        List<Integer> eligibleTaskProgress = client.getTasks().stream().filter(t -> RUNNING_STATE.equals(t.getState()) && t.getProgress() != null).map(JordanTaskDTO::getProgress).collect(Collectors.toList());
-        List<Integer> eligibleTaskProgress = new ArrayList<>();
-        for (JordanTaskDTO t : client.getTasks()) {
-            if (RUNNING_STATE.equals(t.getState()) && t.getProgress() != null) {
-                Integer progress = t.getProgress();
-                eligibleTaskProgress.add(progress);
-            }
-        }
-        if(eligibleTaskProgress.size() == 0){
-            return NO_TASK_WITH_PROGRESS_FLAG;
-        }
-        return (int) meanOf(eligibleTaskProgress); //no need to round
-    }
-
-    /**
-     * return items :
-     * <ol>
-     *     <li>number of running tasks (state=RUNNING) in the client</li>
-     * </ol>
-     */
-    private Object[] extractRunningTasks(JordanClientDTO client) {
-//        long runningTaskCount = client.getTasks().stream().filter(t -> RUNNING_STATE.equals(t.getState())).count();
-        long runningTaskCount = 0L;
-        for (JordanTaskDTO t : client.getTasks()) {
-            if (RUNNING_STATE.equals(t.getState())) {
-                runningTaskCount++;
-            }
-        }
-        return new Object[]{String.valueOf(runningTaskCount)};
     }
 
     public void refresh(JordanGetClientsCallback callback) {

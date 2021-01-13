@@ -25,12 +25,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import static com.mara.jordan.app.utils.JordanHelper.getCurrentState;
+
 public class MessagesStateAdapter extends ArrayAdapter<JordanMessageStateDTO> {
 
     private static final String TAG = "MessageStateAdapter";
     private final JordanTaskModel model;
     private LayoutInflater mInflater;
-    private static final JordanMessageStateAuditDTO DEFAULT_MESSAGE = JordanMessageStateAuditDTO.builder().build();
 
     public MessagesStateAdapter(Context ctx, JordanTaskModel model) {
         super(ctx, 0);
@@ -113,21 +114,6 @@ public class MessagesStateAdapter extends ArrayAdapter<JordanMessageStateDTO> {
                 .create().show();
     }
 
-    public static String getCurrentState(List<JordanMessageStateAuditDTO> audit) {
-        //or last element if the list list construction ensures chronology
-//        return audit.stream().reduce((m1,m2) -> m1.getTimestamp() > m2.getTimestamp() ? m1 : m2).orElse(DEFAULT_MESSAGE).getState();
-        boolean seen = false;
-        JordanMessageStateAuditDTO acc = null;
-        for (JordanMessageStateAuditDTO jordanMessageStateAuditDTO : audit) {
-            if (!seen) {
-                seen = true;
-                acc = jordanMessageStateAuditDTO;
-            } else {
-                acc = acc.getTimestamp() > jordanMessageStateAuditDTO.getTimestamp() ? acc : jordanMessageStateAuditDTO;
-            }
-        }
-        return (seen ? acc : DEFAULT_MESSAGE).getState();
-    }
 
     public void refresh(JordanReadMessagesCallback callback, Map<String, Boolean> taskFilter, Map<String, Boolean> authorFilter, Map<String, Boolean> stateFilter) {
         model.readMessages(callback, new JordanReadMessagesCallback() {

@@ -9,6 +9,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
@@ -37,7 +38,9 @@ public class ClientListFragment extends Fragment implements OnClientClickListene
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        model = new JordanClientModel(getContext(), getArguments().getLong(JordanServerModel.SERVER_ID, -1L));
+//        long serverId = getArguments().getLong(JordanServerModel.SERVER_ID);
+        String serverBaseUrl = getArguments().getString(JordanServerModel.SERVER_BASE_URL);
+        model = new JordanClientModel(getContext(), serverBaseUrl);
         adapter = new ClientAdapter(getContext(), model, this);
     }
 
@@ -58,9 +61,13 @@ public class ClientListFragment extends Fragment implements OnClientClickListene
         }
         stickyList.setAdapter(adapter);
 
-        refreshClients();
-
         return view;
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        refreshClients();
     }
 
     private void refreshClients() {
@@ -74,7 +81,7 @@ public class ClientListFragment extends Fragment implements OnClientClickListene
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         if(getArguments() != null) {
-            ((AppCompatActivity) getActivity()).getSupportActionBar().setTitle(getArguments().getString("server_name", getString(R.string.clients_fragment_default_title)));
+            ((AppCompatActivity) getActivity()).getSupportActionBar().setTitle(getArguments().getString(JordanClientModel.SERVER_NAME, getString(R.string.clients_fragment_default_title)));
         }
         else {
             ((AppCompatActivity) getActivity()).getSupportActionBar().setTitle("ERROR : No server selected");
@@ -85,7 +92,7 @@ public class ClientListFragment extends Fragment implements OnClientClickListene
     public void onClientClicked(JordanClientDTO selectedClient) {
         final Bundle selectedClientBundle = new Bundle();
         selectedClientBundle.putLong(JordanClientModel.CLIENT_ID, selectedClient.getClientId());
-        selectedClientBundle.putString("client_name", selectedClient.getName());
+        selectedClientBundle.putString(JordanClientModel.CLIENT_NAME, selectedClient.getName());
         NavHostFragment.findNavController(ClientListFragment.this)
                 .navigate(R.id.action_client_to_task, selectedClientBundle);
     }
@@ -114,23 +121,27 @@ public class ClientListFragment extends Fragment implements OnClientClickListene
     public void onClientsLoaded(JordanClientDTO[] clients) {
         clientListRefreshLayout.setRefreshing(false);
         if(clients.length == 0){
-            Snackbar.make(getView(), R.string.no_client_to_display, Snackbar.LENGTH_SHORT).show();
+            if(getView() != null){
+                Snackbar.make(getView(), R.string.no_client_to_display, Snackbar.LENGTH_SHORT).show();
+            }
         }
     }
 
     @Override
     public void onClientsLoadingError(String errorMessage) {
         clientListRefreshLayout.setRefreshing(false);
-        Snackbar.make(getView(), R.string.client_refresh_failure, Snackbar.LENGTH_LONG)
-                .setAction(R.string.client_refresh_failure_details, new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        new MaterialAlertDialogBuilder(getContext())
-                                .setTitle(R.string.client_refresh_failure_details_dialog)
-                                .setItems(new String[]{errorMessage}, null)
-                                .show();
-                    }
-                })
-                .show();
+        if(getView() != null && getContext() != null) {
+            Snackbar.make(getView(), R.string.client_refresh_failure, Snackbar.LENGTH_LONG)
+                    .setAction(R.string.client_refresh_failure_details, new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            new MaterialAlertDialogBuilder(getContext())
+                                    .setTitle(R.string.client_refresh_failure_details_dialog)
+                                    .setItems(new String[]{errorMessage}, null)
+                                    .show();
+                        }
+                    })
+                    .show();
+        }
     }
 }
