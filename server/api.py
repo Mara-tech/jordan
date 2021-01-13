@@ -1,7 +1,7 @@
 from server.jordan_constants import *
 import server.jordan_log as log
 
-from server.mock import *
+from server.rejson_interface import *
 
 from flask import Flask
 from flask_restplus import Api, Resource, fields
@@ -94,7 +94,7 @@ status_model = api.model('Status', {
     'type': fields.String(required=True, description='status type', example='general'),
     'status': fields.String(required=True, description='status content, message', example='program still running'),
     'timestamp': fields.Integer(required=True, description='Seconds since 1970/1/1', example=int(time())),
-    'parentTask': fields.Nested(parent_task_model, required=True, description='quick description of the task sending this status')
+    'parentTask': fields.Nested(parent_task_model, required=False, description='quick description of the task sending this status')
 })
 
 status_sent_model = api.model('StatusSent', {
