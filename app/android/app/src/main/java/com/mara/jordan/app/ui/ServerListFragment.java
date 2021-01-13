@@ -19,6 +19,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
+import com.google.common.collect.ImmutableList;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.adapter.ServerAdapter;
 import com.mara.jordan.app.db.JordanListServersCallback;
@@ -29,11 +30,16 @@ import com.mara.jordan.app.model.JordanServerModel;
 
 import java.util.List;
 
-public class ServerListFragment extends Fragment implements JordanListServersCallback, OnServerClickListener, OnServerUpdateListener, ServerAddOrUpdateCallback {
+public class ServerListFragment extends Fragment implements JordanListServersCallback,
+        OnServerClickListener,
+        OnServerUpdateListener,
+        ServerAddOrUpdateCallback,
+        ServerImportExportCallback {
 
     private ServerAdapter serverListAdapter;
     private SwipeRefreshLayout serverListRefreshLayout;
     private JordanServerModel model;
+    private List<JordanServer> serversList = ImmutableList.of();
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -128,7 +134,8 @@ public class ServerListFragment extends Fragment implements JordanListServersCal
     @Override
     public void onServersLoaded(List<JordanServer> servers) {
         serverListRefreshLayout.setRefreshing(false);
-        if(servers.size() == 0){
+        serversList = servers;
+        if(servers.isEmpty()){
             if(getView() != null){
                 Snackbar.make(getView(), R.string.no_server_to_display, Snackbar.LENGTH_SHORT).show();
             }
@@ -175,7 +182,7 @@ public class ServerListFragment extends Fragment implements JordanListServersCal
                 importDialog();
                 return true;
             case R.id.export_server_list:
-                exportDialog();
+                exportServersClicked();
                 return true;
         }
 
@@ -184,20 +191,38 @@ public class ServerListFragment extends Fragment implements JordanListServersCal
 
     }
 
-    private void exportDialog() {
-        //TODO
+    private void exportServersClicked() {
+        if(serversList.isEmpty()){
+            if(getView() != null && getContext() != null) {
+                Snackbar.make(getView(), R.string.no_server_to_export,
+                        Snackbar.LENGTH_SHORT).show();
+            }
+        } else {
+            exportDialog(serversList);
+        }
+    }
+  private void exportDialog(List<JordanServer> serversList) {
+        ExportServerDialog dialog = new ExportServerDialog();
+        dialog.setItems(serversList);
+        dialog.setCallback(this);
+        dialog.show(getChildFragmentManager(), "exportServerDialog");
     }
 
     private void importDialog() {
-        //TODO
+        ImportServerDialog dialog = new ImportServerDialog();
+        dialog.setCallback(this);
+        dialog.show(getChildFragmentManager(), "importServerDialog");
     }
 
     @Override
-    public void onServerAdded(JordanServer entity) {
+    public void onServerAdded(JordanServer[] entities) {
         refreshServers();
-        if(getView() != null && getContext() != null) {
+        if(getView() != null && getContext() != null && entities != null && entities.length > 0) {
+            String serverAddedMessage = entities.length == 1 ?
+                    getContext().getString(R.string.server_added, entities[0].getName())
+                    : getContext().getString(R.string.server_multi_added, entities.length);
             Snackbar.make(getView(),
-                    getContext().getString(R.string.server_added, entity.getName()),
+                    serverAddedMessage,
                     Snackbar.LENGTH_SHORT).show();
         }
     }
@@ -223,8 +248,38 @@ public class ServerListFragment extends Fragment implements JordanListServersCal
     }
 
     @Override
-    public void onServerUpdateError(JordanServer entity, Throwable error) {
+    public void onServerUpdateError(Throwable error, JordanServer... entities) {
 
     }
 
+    @Override
+    public void onServerExported(int count) {
+        if(getView() != null && getContext() != null){
+            Snackbar.make(getView(),
+                    getContext().getString(R.string.server_exported_clipboard, count),
+                    Snackbar.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onServerImportParsed(JordanServer[] servers) {
+        model.addServers(servers, this);
+    }
+
+    @Override
+    public void onServerImportError(String... errorMessages) {
+        if(getView() != null && getContext() != null) {
+            Snackbar.make(getView(), R.string.server_import_failure, Snackbar.LENGTH_LONG)
+                    .setAction(R.string.server_import_failure_details, new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            new MaterialAlertDialogBuilder(getContext())
+                                    .setTitle(R.string.server_import_failure_details_dialog)
+                                    .setItems(errorMessages, null)
+                                    .show();
+                        }
+                    })
+                    .show();
+        }
+    }
 }

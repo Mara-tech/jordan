@@ -22,12 +22,14 @@
     <string name="server_refresh_failure">An error occurred while listing servers</string>
     <string name="server_refresh_failure_details_dialog">Error while listing servers</string>
     <string name="no_server_to_display">Add a server with \'+\' button</string>
+    <string name="server_cannot_connect">Cannot connect</string>
     <string name="server_no_active_client">No active client</string>
     <string name="server_active_clients">%d active client(s)</string>
     <string name="server_active_task_single">1 active task</string>
     <string name="server_active_tasks">%d active tasks</string>
     <string name="server_active_tasks_progress">, %d %%</string>
     <string name="server_added">Server %s added</string>
+    <string name="server_multi_added">%d servers added</string>
     <string name="server_updated">Server %s updated</string>
     <string name="server_deleted">Server %s deleted</string>
     <string name="update_server_dialog_confirm">Update</string>
@@ -45,6 +47,17 @@
     <string name="delete_server_confirmation_dialog">Do you want to delete server %s ?</string>
     <string name="delete_server_confirmation_positive">Delete</string>
     <string name="delete_server_confirmation_negative">@string/cancel</string>
+    <string name="server_export_confirm">Export</string>
+    <string name="server_import_confirm">Import</string>
+    <string name="no_server_to_export">Nothing to export. Start by adding a server</string>
+    <string name="export_server_dialog_title">Select servers to export</string>
+    <string name="server_exported_clipboard">%d server(s) exported to clipboard</string>
+    <string name="import_server_dialog_title">Select import method</string>
+    <string name="server_import_clipboard_invalid">Unreadable clipboard</string>
+    <string name="server_import_failure">Server import error</string>
+    <string name="server_import_failure_details">@string/details</string>
+    <string name="server_import_failure_details_dialog">Error during import</string>
+    <string name="server_import_clipboard_parse_error">Error while parsing clipboard</string>
 
     <string name="client_refresh_failure_details">@string/details</string>
     <string name="client_refresh_failure">An error occurred while reading clients</string>

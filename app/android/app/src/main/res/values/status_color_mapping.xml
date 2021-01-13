@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="jordan_status_type_success">success</string>
+    <string name="jordan_status_type_failure">failure</string>
+    <string name="jordan_status_type_general">general</string>
+    <string name="jordan_status_type_progress">progress</string>
+
+    <array name="status_color_mapping">
+        <item>@array/success_type_color_mapping</item>
+        <item>@array/failure_type_color_mapping</item>
+        <item>@array/general_type_color_mapping</item>
+        <item>@array/progress_type_color_mapping</item>
+        <item>@array/default_color_mapping</item>
+    </array>
+    <array name="success_type_color_mapping">
+        <item>@string/jordan_status_type_success</item>
+        <item>@color/status_type_success</item>
+    </array>
+
+    <array name="failure_type_color_mapping">
+        <item>@string/jordan_status_type_failure</item>
+        <item>@color/status_type_failure</item>
+    </array>
+
+    <array name="general_type_color_mapping">
+        <item>@string/jordan_status_type_general</item>
+        <item>@color/status_type_general</item>
+    </array>
+
+    <array name="progress_type_color_mapping">
+        <item>@string/jordan_status_type_progress</item>
+        <item>@color/status_type_progress</item>
+    </array>
+
+    <array name="default_color_mapping">
+        <item>default</item>
+        <item>@color/status_type_default</item>
+    </array>
+</resources>

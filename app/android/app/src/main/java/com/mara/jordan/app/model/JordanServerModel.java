@@ -44,15 +44,18 @@ public class JordanServerModel implements JordanModel {
         ;
     }
 
-    public void addServer(JordanServer entity, OnServerUpdateListener callback) {
-        Completable.fromAction(() -> serverDao.insertAll(entity))
+    public void addServers(JordanServer[] entities, OnServerUpdateListener callback) {
+        Completable.fromAction(() -> serverDao.insertAll(entities))
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribeOn(Schedulers.io())
                 .subscribe(
-                        () -> callback.onServerAdded(entity),
-                        error -> callback.onServerUpdateError(entity, error)
+                        () -> callback.onServerAdded(entities),
+                        error -> callback.onServerUpdateError(error, entities)
                 );
+    }
 
+    public void addServer(JordanServer entity, OnServerUpdateListener callback) {
+        addServers(new JordanServer[]{entity}, callback);
     }
 
     private void handleSuccess(List<JordanServer> response, JordanListServersCallback[] callbacks) {
@@ -75,7 +78,7 @@ public class JordanServerModel implements JordanModel {
                 .subscribeOn(Schedulers.io())
                 .subscribe(
                         () -> callback.onServerDeleted(server),
-                        error -> callback.onServerUpdateError(server, error)
+                        error -> callback.onServerUpdateError(error, server)
                 );
     }
 
@@ -85,7 +88,7 @@ public class JordanServerModel implements JordanModel {
                 .subscribeOn(Schedulers.io())
                 .subscribe(
                         () -> callback.onServerUpdated(server),
-                        error -> callback.onServerUpdateError(server, error)
+                        error -> callback.onServerUpdateError(error, server)
                 );
     }
 

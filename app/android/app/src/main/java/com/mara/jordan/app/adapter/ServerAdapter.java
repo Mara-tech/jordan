@@ -73,12 +73,18 @@ public class ServerAdapter extends ArrayAdapter<JordanServer> implements JordanL
             @Override
             public void onClientsLoadingError(String errorMessage) {
                 Log.w(TAG, "Cannot extract data from server " + server.getName() + " : " + server.getUrl(), new Throwable(errorMessage));
+                displayCannotConnect(activeClient, serverDetails, errorMessage);
             }
         });
 
         view.setOnClickListener(v -> clickListener.onServerClicked(server));
         view.setOnLongClickListener(v -> displayServerOptions(v, server));
         return view;
+    }
+
+    private void displayCannotConnect(TextView activeClient, TextView serverDetails, String errorMessage) {
+        activeClient.setText(R.string.server_cannot_connect);
+        serverDetails.setText(errorMessage);
     }
 
     private void displayActiveClients(TextView activeClient, JordanClientDTO[] clients, String[] activeClientStates) {

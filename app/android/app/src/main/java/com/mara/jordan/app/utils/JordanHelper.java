@@ -111,7 +111,7 @@ public class JordanHelper implements JordanConstant {
 
     public static int estimateClientProgress(JordanClientDTO[] clients, String[] activeTaskStates){
         Collection<Integer> eligibleTaskProgress = extractActiveTasksProgress(clients, activeTaskStates).values();
-        if(eligibleTaskProgress.size() == 0){
+        if(eligibleTaskProgress.isEmpty()){
             return NO_TASK_WITH_PROGRESS_FLAG;
         }
         return (int) meanOf(eligibleTaskProgress); //no need to round
@@ -119,7 +119,7 @@ public class JordanHelper implements JordanConstant {
 
     public static int estimateClientProgress(JordanClientDTO client, String[] activeTaskStates){
         Collection<Integer> eligibleTaskProgress = extractActiveTasksProgress(client, activeTaskStates).values();
-        if(eligibleTaskProgress.size() == 0){
+        if(eligibleTaskProgress.isEmpty()){
             return NO_TASK_WITH_PROGRESS_FLAG;
         }
         return (int) meanOf(eligibleTaskProgress); //no need to round
