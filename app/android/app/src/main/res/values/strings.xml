@@ -34,7 +34,7 @@
     <string name="server_deleted">Server %s deleted</string>
     <string name="update_server_dialog_confirm">Update</string>
     <string name="add_server_dialog_confirm">Add server</string>
-    <string name="add_server_dialog_test">Test</string>
+    <string name="add_server_dialog_test">Try</string>
     <string name="add_server_dialog_server_name_hint">Server name… (only you will see this name)</string>
     <string name="add_server_dialog_title">Server setup</string>
     <string name="add_server_dialog_server_base_uri_hint">https://example.com/jordan/admin</string>
@@ -73,6 +73,11 @@
     <string name="filter_message">Filter</string>
     <string name="status_text_size">Font size</string>
     <string name="status_search">Search</string>
+    <string name="status_settings">Display settings</string>
+    <string name="status_parameters_depth">Depth :</string>
+    <string name="status_parameters_auto_refresh_enable">Auto-refresh</string>
+    <string name="status_parameters_auto_refresh_period_title">Period (in sec) :</string>
+    <string name="status_parameters_confirm">Apply</string>
 
 
     <string name="status_details_id">ID : %d</string>

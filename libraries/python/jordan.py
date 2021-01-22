@@ -16,6 +16,7 @@ PARAMETER_TYPE_FLOAT = 'float'
 FAILURE_STATUS_TYPE = 'failure'
 SUCCESS_STATUS_TYPE = 'success'
 GENERAL_STATUS_TYPE = 'general'
+PROGRESS_STATUS_TYPE = 'progress'
 DEFAULT_STATUS_TYPE = GENERAL_STATUS_TYPE
 
 CLIENT_NAMESPACE = 'client/'
@@ -23,6 +24,8 @@ REGISTER_RESOURCE = CLIENT_NAMESPACE + "register"
 
 TASK_ID = '{}/'
 NEW_TASK_RESOURCE = CLIENT_NAMESPACE + TASK_ID + 'task'
+TASK_STATE = '{}'
+UPDATE_TASK_STATE_RESOURCE = CLIENT_NAMESPACE + TASK_ID + TASK_STATE
 STATUS_RESOURCE = CLIENT_NAMESPACE + TASK_ID + 'status'
 MESSAGE_RESOURCE = CLIENT_NAMESPACE + TASK_ID + 'message'
 MESSAGE_ID = '{}/'
@@ -31,7 +34,8 @@ UPDATE_MESSAGE_STATE_RESOURCE = CLIENT_NAMESPACE + TASK_ID + MESSAGE_ID + MESSAG
 CLIENT_ID = '{}/'
 UNREGISTER_RESOURCE = CLIENT_NAMESPACE + CLIENT_ID + 'unregister'
 
-
+TASK_STATE_COMPLETE = "COMPLETE"
+TASK_STATE_ERROR = "ERROR"
 MESSAGE_STATE_ACKNOWLEDGED = 'MESSAGE_ACKNOWLEDGED'
 MESSAGE_STATE_PROCESSED = 'MESSAGE_PROCESSED'
 MESSAGE_CLIENT_RECEIVED = 'CLIENT_RECEIVED'
@@ -140,11 +144,14 @@ class JordanInstance():
 
         if r.status_code == 201:
             new_task_output = json.loads(r.text)
-            return JordanInstance(self.base_url, new_task_output['taskId'], self.auth_token)
+            return JordanTaskInstance(self.base_url, new_task_output['taskId'], self.auth_token)
         return None
 
     def send_status(self, status, **kwargs):
         return self.send_typed_status(DEFAULT_STATUS_TYPE, status, **kwargs)
+
+    def send_progress(self, status, **kwargs):
+        return self.send_typed_status(PROGRESS_STATUS_TYPE, status, **kwargs)
 
     def send_success_status(self, status, **kwargs):
         return self.send_typed_status(SUCCESS_STATUS_TYPE, status, **kwargs)
@@ -197,6 +204,27 @@ class JordanInstance():
         UNREGISTER_ENDPOINT = self.base_url + UNREGISTER_RESOURCE.format(self.task_id)
         r = requests.post(UNREGISTER_ENDPOINT, **kwargs)
         return r.status_code == 200
+
+    def fatal(self, exception, **kwargs):
+        self.send_failure_status(str(exception))
+        self.update_task(TASK_STATE_ERROR)
+        self.unregister()
+
+    def update_task(self, task_state, **kwargs):
+        UPDATE_TASK_STATE_ENDPOINT = self.base_url + UPDATE_TASK_STATE_RESOURCE.format(self.task_id, task_state)
+        r = requests.put(UPDATE_TASK_STATE_ENDPOINT, **kwargs)
+        return r.status_code == 202
+
+
+    def complete(self, **kwargs):
+        return self.update_task(TASK_STATE_COMPLETE)
+
+
+class JordanTaskInstance(JordanInstance):
+
+    def fatal(self, exception, **kwargs):
+        self.send_failure_status(str(exception))
+        self.update_task(TASK_STATE_ERROR)
 
 
 def register(server_base_url, client_name=DEFAULT_CLIENT_NAME, actions=DEFAULT_NO_ACTION, password=DEFAULT_NO_PASSWORD, **kwargs):

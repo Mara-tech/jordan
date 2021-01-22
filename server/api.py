@@ -171,6 +171,20 @@ class NewTask(Resource):
         except:
             client_ns.abort(500, 'Could not create task')
 
+@client_ns.route('/<int:task_id>/<string:task_state>')
+@client_ns.param('task_id', 'The task identifier', default=123)
+@client_ns.param('task_state', 'The new state', default="COMPLETE")
+class UpdateTaskState(Resource):
+
+    @client_ns.doc(description="Update the task state",
+                   responses={202: 'Update is valid',
+                              400: 'Update is invalid'})
+    def put(self, task_id, task_state):
+        try:
+            update_valid = update_task(task_id, task_state)
+            return None, 202 if update_valid else 400
+        except:
+            client_ns.abort(500, 'Could not update state')
 
 @client_ns.route('/<int:task_id>/status')
 @client_ns.param('task_id', 'The task identifier', default=123)

@@ -70,7 +70,6 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         JordanActionDefinitionWithTaskDTO actionDefinition = getItem(position);
-        Log.i(TAG, "getView for pos " + position + "->" + actionDefinition.getActionName());
         View view = reuseView(actionDefinition);
         if(view == null) {
             view = createView(actionDefinition, parent);

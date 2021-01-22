@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <TextView android:id="@+id/status_parameters_depth_title"
+        app:layout_constraintTop_toTopOf="parent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/status_parameters_depth"
+        android:textSize="@dimen/dialog_title_size"
+        android:layout_margin="@dimen/text_margin"
+        />
+
+    <NumberPicker android:id="@+id/status_parameters_depth"
+        app:layout_constraintTop_toBottomOf="@id/status_parameters_depth_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        />
+
+    <CheckBox android:id="@+id/status_parameters_auto_refresh_cb"
+        app:layout_constraintTop_toBottomOf="@id/status_parameters_depth"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/status_parameters_auto_refresh_enable"
+        />
+
+    <TextView android:id="@+id/status_parameters_auto_refresh_period_title"
+        app:layout_constraintTop_toBottomOf="@id/status_parameters_auto_refresh_cb"
+        android:text="@string/status_parameters_auto_refresh_period_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="@dimen/dialog_title_size"
+        android:layout_margin="@dimen/text_margin"
+        />
+
+    <NumberPicker android:id="@+id/status_parameters_auto_refresh_period"
+        app:layout_constraintTop_toBottomOf="@id/status_parameters_auto_refresh_period_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.api.JordanReadStatusCallback;
 import com.mara.jordan.app.model.JordanTaskModel;
@@ -115,8 +116,8 @@ public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
 
     }
 
-    public void refresh(String query, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter, JordanReadStatusCallback callback) {
-        model.readStatus(callback, new JordanReadStatusCallback() {
+    public void refresh(String query, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter, int depth, JordanReadStatusCallback callback) {
+        model.readStatus(depth, callback, new JordanReadStatusCallback() {
             @Override
             public void onStatusLoaded(JordanStatusDTO[] statuses) {
                 select(query, typeFilter, taskFilter, statuses);
@@ -170,7 +171,7 @@ public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
                 list.add(s);
             }
         }
-        return list;
+        return Lists.reverse(list); //read as logs : the later the lower (the older the higher)
     }
 
     /**

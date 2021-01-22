@@ -79,10 +79,6 @@ public class ClientInteractionsFragment extends Fragment {
         return view;
     }
 
-    @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-    }
 
     public void openFragment(Fragment fragment) {
         currentFragment = fragment;
@@ -92,13 +88,5 @@ public class ClientInteractionsFragment extends Fragment {
         transaction.commit();
     }
 
-    @Override
-    public void onStop() {
-        super.onStop();
-        FragmentTransaction transaction = getActivity().getSupportFragmentManager().beginTransaction();
-        transaction.detach(currentFragment);
-        transaction.addToBackStack(null);
-        transaction.commit();
-    }
 
 }

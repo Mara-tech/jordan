@@ -12,6 +12,7 @@ rj = Client(host='redis-12323.c56.east-us.azure.cloud.redislabs.com', port=12323
 TASK_ACTIONS = 'actions'
 PARENT_TASK = 'parentTask'
 SUB_TASKS = 'tasks'
+STATUS_TYPE_PROGRESS = 'progress'
 
 #Redis keys
 CLIENT_SET = 'clients'
@@ -19,6 +20,44 @@ TASK_STATUS_LIST = '{}_status'
 TASK_MESSAGE_SLOT = '{}_message'
 TASK_ALL_MESSAGES_LIST = '{}_all_messages'
 
+MESSAGE_STATE_SERVER_RECEIVED = 'SERVER_RECEIVED'
+MESSAGE_STATE_MESSAGE_DELIVERED = 'MESSAGE_DELIVERED'
+MESSAGE_STATE_CLIENT_RECEIVED = 'CLIENT_RECEIVED'
+MESSAGE_STATE_MESSAGE_ACKNOWLEDGED = 'MESSAGE_ACKNOWLEDGED'
+MESSAGE_STATE_MESSAGE_PROCESSED = 'MESSAGE_PROCESSED'
+MESSAGE_STATE_MESSAGE_OVERRIDDEN = 'MESSAGE_OVERRIDDEN'
+MESSAGE_STATE_ERROR_MESSAGE_NOT_DELIVERED = 'ERROR_MESSAGE_NOT_DELIVERED'
+MESSAGE_STATE_ERROR_CANNOT_PROCESS_MESSAGE = 'ERROR_CANNOT_PROCESS_MESSAGE'
+MESSAGE_STATE_ERROR_MESSAGE_NOT_RECEIVED_BY_SERVER = 'ERROR_MESSAGE_NOT_RECEIVED_BY_SERVER'
+MessageStateEnum = [
+    MESSAGE_STATE_SERVER_RECEIVED,
+    MESSAGE_STATE_MESSAGE_DELIVERED,
+    MESSAGE_STATE_CLIENT_RECEIVED,
+    MESSAGE_STATE_MESSAGE_ACKNOWLEDGED,
+    MESSAGE_STATE_MESSAGE_PROCESSED,
+    MESSAGE_STATE_MESSAGE_OVERRIDDEN,
+    MESSAGE_STATE_ERROR_MESSAGE_NOT_DELIVERED,
+    MESSAGE_STATE_ERROR_CANNOT_PROCESS_MESSAGE,
+    MESSAGE_STATE_ERROR_MESSAGE_NOT_RECEIVED_BY_SERVER
+    ]
+
+CLIENT_STATE_REGISTERED = 'REGISTERED'
+CLIENT_STATE_UNREGISTERED = 'UNREGISTERED'
+
+TASK_STATE_STARTED = 'STARTED'
+TASK_STATE_RUNNING = 'RUNNING'
+TASK_STATE_PAUSED = 'PAUSED'
+TASK_STATE_COMPLETE = 'COMPLETE'
+TASK_STATE_ERROR = 'ERROR'
+TASK_STATE_TIME_OUT = 'TIME_OUT'
+TaskStateEnum = [
+    TASK_STATE_STARTED,
+    TASK_STATE_RUNNING,
+    TASK_STATE_PAUSED,
+    TASK_STATE_COMPLETE,
+    TASK_STATE_ERROR,
+    TASK_STATE_TIME_OUT
+    ]
 
 # obj = {
 #        'answer': 42,
@@ -72,7 +111,7 @@ def add_client(client_id, payload, token):
     payload['taskId'] = client_id
     payload['authToken'] = token
     payload[SUB_TASKS] = []
-    payload['state'] = 'REGISTERED'
+    payload['state'] = CLIENT_STATE_REGISTERED
     rp = rj.pipeline()
     rp.jsonset(client_id, Path.rootPath(), payload)
     rp.sadd(CLIENT_SET, client_id)
@@ -92,7 +131,9 @@ def create_task(parent_task_id, payload):
     rp = rj.pipeline()
     payload['taskId'] = task_id
     payload['parentTaskId'] = parent_task_id
-    rp.jsonarrappend(parent_task_id, Path('.tasks'), payload)
+    payload[SUB_TASKS] = []
+    payload['state'] = TASK_STATE_STARTED
+    rp.jsonarrappend(parent_task_id, Path(f'.{SUB_TASKS}'), task_id)
     rp.jsonset(task_id, Path.rootPath(), payload)
     rp.execute()
     log_redis_op(f"New task {task_id}:{payload['name']} created from task {parent_task_id}")
@@ -102,19 +143,24 @@ def create_task(parent_task_id, payload):
 def list_clients(role_payload):
     log_redis_op("list clients")
     client_ids = rj.smembers(CLIENT_SET)
-    return rj.jsonmget(Path.rootPath(), *client_ids)
+    clients = rj.jsonmget(Path.rootPath(), *client_ids)
+    for c in clients:
+        sub_tasks = rj.jsonmget(Path.rootPath(), *c[SUB_TASKS])
+        c[SUB_TASKS] = sub_tasks
+    return clients
 
 
 def append_actions_from_task(actions, task):
     if task is None:
         return
-    parent_task = extract_parent_task(task=task)
+    parent_task = as_parent_task(task=task)
     if TASK_ACTIONS in task:
         for taskAction in task[TASK_ACTIONS]:
             taskAction[PARENT_TASK] = parent_task
             actions.append(taskAction)
     if SUB_TASKS in task:
-        for sub_task in task[SUB_TASKS]:
+        for sub_task_id in task[SUB_TASKS]:
+            sub_task = rj.jsonget(sub_task_id)
             append_actions_from_task(actions, sub_task)
 
 
@@ -126,7 +172,7 @@ def list_actions(task_id, role_payload):
     return actions
 
 
-def extract_parent_task(task_id=None, task=None):
+def as_parent_task(task_id=None, task=None):
     if (task_id is None and task is None) or (task_id is not None and task is not None):
         raise ValueError('Pass either task_id or task to get parentTask info')
     if task_id is not None:
@@ -158,10 +204,13 @@ def post_status(task_id, payload):
     log_redis_op(f"post status for task {task_id} : {payload}")
     status_id = generate_status_id()
     payload['statusId'] = status_id
-    payload[PARENT_TASK] = extract_parent_task(task_id=task_id)
+    payload[PARENT_TASK] = as_parent_task(task_id=task_id)
     rp = rj.pipeline()
     push_status_to_parent_tasks_list(rp, task_id, status_id)
     rp.jsonset(status_id, Path.rootPath(), payload)
+    if payload['type'] == STATUS_TYPE_PROGRESS and type(payload['status']) is int:
+        rp.jsonset(task_id, Path('.progress'), payload['status'])
+        rp.jsonset(task_id, Path('.state'), TASK_STATE_RUNNING)
     rp.execute()
     return {'statusId': status_id}
 
@@ -170,18 +219,6 @@ def read_status(task_id, line_count):
     log_redis_op(f"read {line_count} status(es) for task {task_id} and children")
     keys = rj.lrange(TASK_STATUS_LIST.format(task_id), 0, line_count)
     return rj.jsonmget(Path.rootPath(), *keys)
-
-MessageStateEnum = [
-    'SERVER_RECEIVED',
-    'MESSAGE_DELIVERED',
-    'CLIENT_RECEIVED',
-    'MESSAGE_ACKNOWLEDGED',
-    'MESSAGE_PROCESSED',
-    'MESSAGE_OVERRIDDEN',
-    'ERROR_MESSAGE_NOT_DELIVERED',
-    'ERROR_CANNOT_PROCESS_MESSAGE',
-    'ERROR_MESSAGE_NOT_RECEIVED_BY_SERVER'
-    ]
 
 
 def create_message_audit(state):
@@ -196,7 +233,7 @@ def post_message(task_id, payload):
     log_redis_op(f"post message for task {task_id} : " + str(payload))
     message_id = generate_message_id()
     payload['messageId'] = message_id
-    parent_task = extract_parent_task(task_id=task_id)
+    parent_task = as_parent_task(task_id=task_id)
     payload[PARENT_TASK] = parent_task
     payload['audit'] = init_message_audit()
     rp = rj.pipeline()
@@ -212,6 +249,12 @@ def update_message(task_id, message_id, message_state):
     if message_state not in MessageStateEnum:
         return False
     return rj.jsonarrappend(message_id, '.audit', create_message_audit(message_state))
+
+def update_task(task_id, task_state):
+    log_redis_op(f"update task {task_id}. New state : {task_state}")
+    if task_state not in TaskStateEnum:
+        return False
+    return set_task_state(task_id, task_state)
 
 
 def read_message(task_id):
@@ -233,7 +276,10 @@ def list_messages(task_id):
     return rj.jsonmget(Path.rootPath(), *keys)
 
 
+def set_task_state(task_id, state):
+    return rj.jsonset(task_id, Path('.state'), state)
+
+
 def unregister(client_id):
     log_redis_op(f"unregister client {client_id}")
-    rj.jsonset(client_id, '.state', "UNREGISTERED")
-    return True
+    return set_task_state(client_id, CLIENT_STATE_UNREGISTERED)

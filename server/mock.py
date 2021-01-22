@@ -270,6 +270,17 @@ def update_message(task_id, message_id, message_state):
     mock_log(f"update message {message_id} for task {task_id}. New state : {message_state}")
     return message_state in MessageStateEnum
 
+TaskStateEnum = [
+    'STARTED',
+    'RUNNING',
+    'PAUSED',
+    'COMPLETE',
+    'ERROR',
+    'TIME_OUT'
+    ]
+def update_task(task_id, task_state):
+    mock_log(f"update task {task_id}. New state : {task_state}")
+    return task_state in TaskStateEnum
 
 
 def list_messages(task_id):

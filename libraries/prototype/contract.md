@@ -29,6 +29,20 @@ from JordanInstance or JordanTask
 #### Authentication
 TBD
 
+## Task Complete
+Update Task workflow status to COMPLETE.
+#### HTTP API v1
+PUT {taskId}/COMPLETE
+Success response : 202 Accepted
+#### API function(s)
+from JordanInstance or JordanTask 
+
+    complete(
+    ) : Void
+#### Authentication
+TBD
+
+
 ## Send Status
 Passive Client sends status which might be considered as logs useful on Active Client side.
 This can be performance, functional or whatever kind of information. It intends to be keys for decision-making. 

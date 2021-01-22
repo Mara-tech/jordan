@@ -47,9 +47,8 @@ public class JordanApi {
         return "pbaudet";
     }
 
-    public void readStatus(long taskId, JordanReadStatusCallback... callbacks) {
+    public void readStatus(long taskId, int lineCount, JordanReadStatusCallback... callbacks) {
         String endpoint = "status";
-        String lineCount = "10";
         String url = String.format("%s/%d/%s/%s", getServerBaseUrl(), taskId, endpoint, lineCount);
         GsonGetRequest<JordanStatusDTO[]> readStatusRequest = new GsonGetRequest<>(
                 url,

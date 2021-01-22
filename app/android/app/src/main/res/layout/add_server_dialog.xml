@@ -19,14 +19,14 @@
         <EditText android:id="@+id/add_server_dialog_server_base_uri"
             android:layout_height="wrap_content"
             android:layout_width="0dp"
-            android:layout_weight="80"
+            android:layout_weight="75"
             android:hint="@string/add_server_dialog_server_base_uri_hint"
             android:inputType="textUri"
             />
 
         <LinearLayout
             android:layout_width="0dp"
-            android:layout_weight="20"
+            android:layout_weight="25"
             android:layout_height="wrap_content"
             android:gravity="center"
             >

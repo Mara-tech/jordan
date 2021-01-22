@@ -44,8 +44,8 @@ public class JordanTaskModel implements JordanModel, JordanReadStatusCallback, J
         api = JordanApi.getInstance(ctx);
     }
 
-    public void readStatus(JordanReadStatusCallback... callbacks) {
-        api.readStatus(taskId, ArrayUtils.add(callbacks, this));
+    public void readStatus(int lineCount, JordanReadStatusCallback... callbacks) {
+        api.readStatus(taskId, lineCount, ArrayUtils.add(callbacks, this));
     }
 
     @Override

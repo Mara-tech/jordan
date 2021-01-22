@@ -7,6 +7,13 @@
         app:showAsAction="never"
         android:title="@string/menu_refresh"/>
     <item
+        android:id="@+id/status_settings"
+        app:showAsAction="ifRoom"
+        android:orderInCategory="80"
+        android:icon="@drawable/settings"
+        android:title="@string/status_settings"
+        />
+    <item
         android:id="@+id/filter_status"
         app:showAsAction="ifRoom"
         android:orderInCategory="60"

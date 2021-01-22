@@ -2,6 +2,8 @@ package com.mara.jordan.app.ui;
 
 import android.content.DialogInterface;
 import android.os.Bundle;
+import android.os.Handler;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -9,15 +11,17 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.ListView;
+import android.widget.NumberPicker;
 import android.widget.PopupWindow;
 import android.widget.SeekBar;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.SearchView;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.Lifecycle;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -35,6 +39,52 @@ import java.util.Map;
 public class ReadStatusFragment extends Fragment implements JordanReadStatusCallback {
 
     public static final String TAG = "STATUS_FRAG";
+    /**
+     * Displayed elements in the NumberPicker. These values will be the ones sent to Jordan API.
+     */
+    private static final String[] DEPTH_CHOICES = {"10", "20", "30", "50", "100", "200", "500", "1000"};
+    /**
+     * NumberPicker requires {@link ReadStatusFragment#DEPTH_CHOICES} is "{@link ReadStatusFragment#MAX_DEPTH_FOR_PICKER} - {@link ReadStatusFragment#MIN_DEPTH_FOR_PICKER} + 1" long
+     */
+    private static final int MIN_DEPTH_FOR_PICKER = 0;
+    /**
+     * NumberPicker requires {@link ReadStatusFragment#DEPTH_CHOICES} is "{@link ReadStatusFragment#MAX_DEPTH_FOR_PICKER} - {@link ReadStatusFragment#MIN_DEPTH_FOR_PICKER} + 1" long
+     */
+    private static final int MAX_DEPTH_FOR_PICKER = DEPTH_CHOICES.length - 1;
+    /**
+     * default element selected in {@link ReadStatusFragment#DEPTH_CHOICES}
+     */
+    private static final int DEFAULT_DEPTH = 1;
+    /**
+     * Default check box state.
+     */
+    private static final boolean DEFAULT_AUTO_REFRESH = false;
+    /**
+     * Displayed elements in the NumberPicker. It will set a Scheduler to run periodically.
+     */
+    private static final String[] PERIOD_CHOICES = {"1", "5", "10", "30", "60", "300"};
+    /**
+     * NumberPicker requires {@link ReadStatusFragment#PERIOD_CHOICES} is "{@link ReadStatusFragment#MAX_PERIOD_FOR_PICKER} - {@link ReadStatusFragment#MIN_PERIOD_FOR_PICKER} + 1" long
+     */
+    private static final int MIN_PERIOD_FOR_PICKER = 0;
+    /**
+     * NumberPicker requires {@link ReadStatusFragment#PERIOD_CHOICES} is "{@link ReadStatusFragment#MAX_PERIOD_FOR_PICKER} - {@link ReadStatusFragment#MIN_PERIOD_FOR_PICKER} + 1" long
+     */
+    private static final int MAX_PERIOD_FOR_PICKER = PERIOD_CHOICES.length - 1;
+    /**
+     * default element selected in {@link ReadStatusFragment#PERIOD_CHOICES}
+     */
+    private static final int DEFAULT_PERIOD = 2;
+
+    static {
+        //Ensure choices are valid integers
+        for(String p : DEPTH_CHOICES){
+            Integer.parseInt(p);
+        }
+        for(String p : PERIOD_CHOICES){
+            Integer.parseInt(p);
+        }
+    }
 
     private SwipeRefreshLayout statusListRefreshLayout;
     private ListView statusList;
@@ -48,6 +98,18 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
     private Map<String, Boolean> taskFilter;
     private JordanTaskModel model;
     private ReadStatusAdapter statusAdapter;
+    /**
+     * element selected by user in {@link ReadStatusFragment#DEPTH_CHOICES}
+     */
+    private int statusDepth = DEFAULT_DEPTH;
+    private boolean autoRefreshEnabled = DEFAULT_AUTO_REFRESH;
+    /**
+     * element selected by user in {@link ReadStatusFragment#PERIOD_CHOICES}
+     */
+    private int autoRefreshPeriod = DEFAULT_PERIOD;
+
+    private final Handler autoRefreshScheduler = new Handler();
+    private Runnable autoRefreshRunnable = null;
 
     /**
      * Mandatory empty constructor for the fragment manager to instantiate the
@@ -88,8 +150,8 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
     }
 
     @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
+    public void onResume() {
+        super.onResume();
         refreshStatus();
     }
 
@@ -155,6 +217,9 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
             case R.id.status_text_size:
                 createTextSizePopup();
                 return true;
+            case R.id.status_settings:
+                displayParameters();
+                return true;
             case R.id.status_search:
                 //handled with searchView.setOnQueryTextListener
                 return true;
@@ -163,6 +228,86 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
         // User didn't trigger a refresh, let the superclass handle this action
         return super.onOptionsItemSelected(item);
 
+    }
+
+    private void displayParameters() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        View parametersDialogView = requireActivity().getLayoutInflater().inflate(R.layout.status_parameters_dialog, null);
+        NumberPicker depthPicker = parametersDialogView.findViewById(R.id.status_parameters_depth);
+        depthPicker.setMinValue(MIN_DEPTH_FOR_PICKER);
+        depthPicker.setMaxValue(MAX_DEPTH_FOR_PICKER);
+        depthPicker.setDisplayedValues(DEPTH_CHOICES);
+        depthPicker.setValue(statusDepth);
+
+        CheckBox autoRefresh = parametersDialogView.findViewById(R.id.status_parameters_auto_refresh_cb);
+        autoRefresh.setChecked(autoRefreshEnabled);
+        NumberPicker periodPicker = parametersDialogView.findViewById(R.id.status_parameters_auto_refresh_period);
+        periodPicker.setEnabled(autoRefresh.isChecked());
+        periodPicker.setMinValue(MIN_PERIOD_FOR_PICKER);
+        periodPicker.setMaxValue(MAX_PERIOD_FOR_PICKER);
+        periodPicker.setDisplayedValues(PERIOD_CHOICES);
+        periodPicker.setValue(autoRefreshPeriod);
+
+
+        autoRefresh.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                periodPicker.setEnabled(isChecked);
+            }
+        });
+
+        builder.setView(parametersDialogView);
+        builder.setPositiveButton(R.string.status_parameters_confirm, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                statusDepth = depthPicker.getValue();
+                autoRefreshEnabled = autoRefresh.isChecked();
+                autoRefreshPeriod = periodPicker.getValue();
+                refreshStatus();
+            }
+        });
+
+        builder.show();
+
+
+    }
+
+    /**
+     * Decides whether next (auto-)refresh should be scheduled, or not.
+     */
+    private void setupAutoRefresh() {
+        if(getLifecycle().getCurrentState() == Lifecycle.State.RESUMED) {
+            if (autoRefreshRunnable == null) {
+                if (autoRefreshEnabled) {
+                    scheduleNextRefresh();
+                } else {
+                    //Do nothing, auto refresh stays disabled
+                }
+            } else {
+                if (autoRefreshEnabled) {
+                    cancelScheduledRefresh(); //Period may have changed, so cancel the previous period
+                    scheduleNextRefresh(); //and set the new one
+                } else {
+                    cancelScheduledRefresh();
+                }
+            }
+        } else {
+            //Fragment not visible, do not schedule anything
+        }
+    }
+
+    private void cancelScheduledRefresh() {
+        if (autoRefreshRunnable != null) {
+            autoRefreshScheduler.removeCallbacks(autoRefreshRunnable);
+            autoRefreshRunnable = null;
+//            stopped auto refresh
+        }
+    }
+
+    private void scheduleNextRefresh() {
+        autoRefreshRunnable = this::refreshStatus;
+        autoRefreshScheduler.postDelayed(autoRefreshRunnable, 1000 * Integer.parseInt(PERIOD_CHOICES[autoRefreshPeriod]));
+        Log.d(TAG, "Refresh scheduled in " + Integer.parseInt(PERIOD_CHOICES[autoRefreshPeriod]) + "sec");
     }
 
     private void createTextSizePopup() {
@@ -199,6 +344,7 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
         if(popup != null){
             popup.dismiss();
         }
+        cancelScheduledRefresh();
     }
 
     /**
@@ -236,7 +382,7 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
         if(!statusListRefreshLayout.isRefreshing()){
             statusListRefreshLayout.setRefreshing(true);
         }
-        statusAdapter.refresh(currentSearchQuery, typeFilter, taskFilter, this);
+        statusAdapter.refresh(currentSearchQuery, typeFilter, taskFilter, Integer.parseInt(DEPTH_CHOICES[statusDepth]), this);
     }
 
     @Override
@@ -249,6 +395,8 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
                 Snackbar.make(getView(), R.string.no_status_to_display, Snackbar.LENGTH_SHORT).show();
             }
         }
+        Log.i(TAG, "status loaded success");
+        setupAutoRefresh();
     }
 
     @Override
@@ -267,6 +415,8 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
                     })
                     .show();
         }
+        Log.i(TAG, "status loaded failure");
+        setupAutoRefresh();
     }
 
 
