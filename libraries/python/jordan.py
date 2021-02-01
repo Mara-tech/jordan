@@ -126,10 +126,11 @@ class JordanMessage():
 
 class JordanInstance():
 
-    def __init__(self, base_url, task_id, auth_token):
+    def __init__(self, base_url, task_id, auth_token, instance_name):
         self.base_url = base_url
         self.task_id = task_id
         self.auth_token = auth_token
+        self.instance_name = instance_name
 
     def create_task(self, task_name, actions=DEFAULT_NO_ACTION, password=DEFAULT_NO_PASSWORD, **kwargs):
         NEW_TASK_ENDPOINT = self.base_url + NEW_TASK_RESOURCE.format(self.task_id)
@@ -144,7 +145,7 @@ class JordanInstance():
 
         if r.status_code == 201:
             new_task_output = json.loads(r.text)
-            return JordanTaskInstance(self.base_url, new_task_output['taskId'], self.auth_token)
+            return JordanTaskInstance(self.base_url, new_task_output['taskId'], self.auth_token, task_name)
         return None
 
     def send_status(self, status, **kwargs):
@@ -177,7 +178,7 @@ class JordanInstance():
 
     def send_typed_status(self, status_type, status, async_call=False, async_callback=None, **kwargs):
         if async_call or async_callback:
-            threading.Thread(target=self._exec_send_typed_status, args=[status_type, status, async_callback], kwargs=kwargs).start()
+            threading.Thread(target=self._exec_send_typed_status, args=[status_type, status, async_callback], **kwargs).start()
         else:
             return self._exec_send_typed_status(status_type, status)
 
@@ -196,7 +197,7 @@ class JordanInstance():
 
     def read_message(self, async_call=False, async_callback=None, **kwargs):
         if async_call or async_callback:
-            threading.Thread(target=self._exec_read_message, args=[async_callback], kwargs=kwargs).start()
+            threading.Thread(target=self._exec_read_message, args=[async_callback], **kwargs).start()
         else:
             return self._exec_read_message()
 
@@ -240,6 +241,6 @@ def register(server_base_url, client_name=DEFAULT_CLIENT_NAME, actions=DEFAULT_N
 
     if r.status_code == 200:
         register_output = json.loads(r.text)
-        return JordanInstance(server_base_url, register_output['taskId'], register_output['authToken'])
+        return JordanInstance(server_base_url, register_output['taskId'], register_output['authToken'], client_name)
 
     return None

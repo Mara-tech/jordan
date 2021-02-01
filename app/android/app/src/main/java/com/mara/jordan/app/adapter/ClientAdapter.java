@@ -19,6 +19,8 @@ import com.mara.jordan.app.model.dto.JordanClientDTO;
 import com.mara.jordan.app.ui.OnClientClickListener;
 import com.mara.jordan.app.utils.JordanConstant;
 
+import java.util.Arrays;
+
 import se.emilsjolander.stickylistheaders.StickyListHeadersAdapter;
 
 import static com.mara.jordan.app.utils.JordanHelper.NO_TASK_WITH_PROGRESS_FLAG;
@@ -28,6 +30,7 @@ import static com.mara.jordan.app.utils.JordanHelper.extractActiveTasksInfo;
 public class ClientAdapter extends ArrayAdapter<JordanClientDTO> implements StickyListHeadersAdapter, JordanGetClientsCallback, JordanConstant {
 
     private static final String TAG = "ClientAdapter";
+    private static final ClientComparator CLIENT_COMPARATOR = new ClientComparator();
     private final OnClientClickListener clickListener;
     private JordanClientModel model;
     private final LayoutInflater mInflater;
@@ -70,7 +73,7 @@ public class ClientAdapter extends ArrayAdapter<JordanClientDTO> implements Stic
 
     @Override
     public void onClientsLoaded(JordanClientDTO[] clients) {
-        //TODO sort by state, name, progress ?
+        Arrays.sort(clients, CLIENT_COMPARATOR);
         display(clients);
     }
 

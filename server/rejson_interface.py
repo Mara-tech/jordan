@@ -140,13 +140,20 @@ def create_task(parent_task_id, payload):
     return {'taskId':task_id}
 
 
+def append_sub_tasks(tasks, role_payload):
+    if tasks and len(tasks):
+        for t in tasks:
+            if t[SUB_TASKS] and len(t[SUB_TASKS]):
+                sub_tasks = rj.jsonmget(Path.rootPath(), *t[SUB_TASKS])
+                append_sub_tasks(sub_tasks, role_payload)
+                t[SUB_TASKS] = sub_tasks
+
+
 def list_clients(role_payload):
     log_redis_op("list clients")
     client_ids = rj.smembers(CLIENT_SET)
     clients = rj.jsonmget(Path.rootPath(), *client_ids)
-    for c in clients:
-        sub_tasks = rj.jsonmget(Path.rootPath(), *c[SUB_TASKS])
-        c[SUB_TASKS] = sub_tasks
+    append_sub_tasks(clients, role_payload)
     return clients
 
 

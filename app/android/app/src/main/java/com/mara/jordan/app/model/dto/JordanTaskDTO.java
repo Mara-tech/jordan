@@ -19,4 +19,5 @@ public class JordanTaskDTO {
     private Integer progress;
     private String state;
     private List<JordanActionDefinitionDTO> actions;
+    private List<JordanTaskDTO> tasks;
 }
