@@ -358,3 +358,8 @@ def read_message(task_id):
 def unregister(client_id):
     mock_log(f"unregister client {client_id}")
     return True
+
+
+def delete_task(task_id):
+    mock_log(f"delete task {task_id}")
+    return True

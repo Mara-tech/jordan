@@ -64,6 +64,22 @@
     <string name="client_refresh_failure_details_dialog">Error while reading clients</string>
     <string name="no_client_to_display">No client to display</string>
     <string name="client_running_task">%s running task(s)</string>
+    <string name="infos_client">Information</string>
+    <string name="delete_client">Delete</string>
+    <string name="delete_client_confirmation_dialog">Do you want to delete client %s ?</string>
+    <string name="delete_client_confirmation_dialog_message">Warning : This action is irreversible for all users ! All tasks of this client will be deleted as well.</string>
+    <string name="delete_client_confirmation_positive">Delete</string>
+    <string name="delete_client_confirmation_negative">@string/cancel</string>
+    <string name="client_deleted">Client deleted</string>
+    <string name="client_delete_failure_details">@string/details</string>
+    <string name="client_delete_failure">An error occurred while deleting client</string>
+    <string name="client_delete_failure_details_dialog">Error while deleting client</string>
+    <string name="client_details_id">Client ID : %d</string>
+    <string name="client_details_state">State : %s</string>
+    <string name="client_details_no_task">No child task</string>
+    <string name="client_details_task_count">Having %d child task(s)</string>
+    <string name="client_details_task_details">    %d %s (state=%s)</string>
+
 
     <string name="default_task_name">Default task</string>
     <string name="client_tasks_and_actions">Tasks and Actions</string>

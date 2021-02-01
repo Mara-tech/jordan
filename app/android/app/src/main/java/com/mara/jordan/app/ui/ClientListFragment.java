@@ -29,7 +29,7 @@ import se.emilsjolander.stickylistheaders.StickyListHeadersListView;
 
 import static android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS;
 
-public class ClientListFragment extends Fragment implements OnClientClickListener, JordanGetClientsCallback {
+public class ClientListFragment extends Fragment implements OnClientClickListener, JordanGetClientsCallback, ClientDeletionCallback {
 
     private ClientAdapter adapter;
     private SwipeRefreshLayout clientListRefreshLayout;
@@ -41,7 +41,7 @@ public class ClientListFragment extends Fragment implements OnClientClickListene
 //        long serverId = getArguments().getLong(JordanServerModel.SERVER_ID);
         String serverBaseUrl = getArguments().getString(JordanServerModel.SERVER_BASE_URL);
         model = new JordanClientModel(getContext(), serverBaseUrl);
-        adapter = new ClientAdapter(getContext(), model, this);
+        adapter = new ClientAdapter(getContext(), model, this, this);
     }
 
 
@@ -142,6 +142,34 @@ public class ClientListFragment extends Fragment implements OnClientClickListene
                         }
                     })
                     .show();
+        }
+    }
+
+    @Override
+    public void onClientDeletionError(String errorMessage) {
+        if(getView() != null && getContext() != null) {
+            Snackbar.make(getView(), R.string.client_delete_failure, Snackbar.LENGTH_LONG)
+                    .setAction(R.string.client_delete_failure_details, new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            new MaterialAlertDialogBuilder(getContext())
+                                    .setTitle(R.string.client_delete_failure_details_dialog)
+                                    .setItems(new String[]{errorMessage}, null)
+                                    .show();
+                        }
+                    })
+                    .show();
+        }
+
+    }
+
+    @Override
+    public void onClientDeleted() {
+        refreshClients();
+        if(getView() != null && getContext() != null){
+            Snackbar.make(getView(),
+                    R.string.client_deleted,
+                    Snackbar.LENGTH_SHORT).show();
         }
     }
 }

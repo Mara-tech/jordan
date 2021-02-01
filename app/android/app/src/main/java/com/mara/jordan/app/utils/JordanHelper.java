@@ -4,6 +4,7 @@ import com.mara.jordan.app.model.dto.JordanClientDTO;
 import com.mara.jordan.app.model.dto.JordanMessageStateAuditDTO;
 import com.mara.jordan.app.model.dto.JordanTaskDTO;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.Collection;
@@ -45,9 +46,11 @@ public class JordanHelper implements JordanConstant {
         //TODO count client as task ?
         //        long activeTaskCount = client.getTasks().stream().filter(t -> ArrayUtils.contains(activeTaskStates, t.getState())).count();
         long activeTaskCount = 0L;
-        for (JordanTaskDTO t : client.getTasks()) {
-            if (ArrayUtils.contains(activeTaskStates, t.getState())) {
-                activeTaskCount++;
+        if(CollectionUtils.isNotEmpty(client.getTasks())) {
+            for (JordanTaskDTO t : client.getTasks()) {
+                if (ArrayUtils.contains(activeTaskStates, t.getState())) {
+                    activeTaskCount++;
+                }
             }
         }
         return activeTaskCount;
@@ -90,10 +93,12 @@ public class JordanHelper implements JordanConstant {
 //                        JordanTaskDTO::getProgress
 //                ));
         Map<JordanTaskDTO, Integer> eligibleTaskProgress = new HashMap<>();
-        for (JordanTaskDTO t : client.getTasks()) {
-            if (ArrayUtils.contains(activeTaskStates, t.getState()) && t.getProgress() != null) {
-                if (eligibleTaskProgress.put(t, t.getProgress()) != null) {
-                    throw new IllegalStateException("Duplicate key");
+        if (CollectionUtils.isNotEmpty(client.getTasks())) {
+            for (JordanTaskDTO t : client.getTasks()) {
+                if (ArrayUtils.contains(activeTaskStates, t.getState()) && t.getProgress() != null) {
+                    if (eligibleTaskProgress.put(t, t.getProgress()) != null) {
+                        throw new IllegalStateException("Duplicate key");
+                    }
                 }
             }
         }

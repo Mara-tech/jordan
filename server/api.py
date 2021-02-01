@@ -58,14 +58,22 @@ action_definition_model = api.model('ActionDefinition', {
     'parameters' : fields.List(fields.Nested(action_parameter_model), required=False, description='List of parameters and their type'),
 })
 
-task_model = api.model('Task', {
-    'taskId': fields.Integer(required=False, desciption="task identifier", example=456798),
-    'name': fields.String(required=True, desciption="task name", example='Loss evaluation'),
-    'progress': fields.Integer(required=False, desciption="task progress from 0 to 100", example=75),
-    'state': fields.String(required=False, desciption="state (e.g RUNNING, PAUSED, COMPLETE, ERROR, TIME_OUT, etc.)", example='RUNNING'),
-    'password': fields.String(required=False, description='Access password', example='pwd'),
-    'actions' : fields.List(fields.Nested(action_definition_model), required=False, description='Available actions')
-})
+
+# https://stackoverflow.com/questions/46171375/flask-restplus-recursive-json-mapping
+MAX_SUBTASK_RECURSION_NB=10
+def recursive_task_model(iteration_number=MAX_SUBTASK_RECURSION_NB):
+    recursive_task_mapping = {
+        'taskId': fields.Integer(required=False, desciption="task identifier", example=456798),
+        'name': fields.String(required=True, desciption="task name", example='Loss evaluation'),
+        'progress': fields.Integer(required=False, desciption="task progress from 0 to 100", example=75),
+        'state': fields.String(required=False, desciption="state (e.g RUNNING, PAUSED, COMPLETE, ERROR, TIME_OUT, etc.)", example='RUNNING'),
+        'password': fields.String(required=False, description='Access password', example='pwd'),
+        'actions' : fields.List(fields.Nested(action_definition_model), required=False, description='Available actions'),
+    }
+    if iteration_number:
+        recursive_task_mapping['tasks'] = fields.List(fields.Nested(recursive_task_model(iteration_number - 1)))
+    return api.model('Task' + str(iteration_number), recursive_task_mapping)
+task_model = recursive_task_model()
 
 task_created_model = api.model('TaskCreated', {
     'taskId': fields.Integer(required=True, desciption="task identifier", example=456798),
@@ -75,7 +83,7 @@ client_model = api.model('Client', {
     'clientId': fields.Integer(required=True, desciption="client identifier", example=123456),
     'name': fields.String(required=True, desciption="client name", example='IA Training Bot 01'),
     'state': fields.String(required=True, desciption="state (e.g REGISTERED, UNREGISTERED, COMPLETE, ERROR, TIME_OUT, etc.)", example='REGISTERED'),
-    'tasks': fields.List(fields.Nested(task_model), required=True)
+    'tasks': fields.List(fields.Nested(task_model), required=True, description='Child tasks')
 })
 
 client_registration_model = api.model('ClientRegistration', {
@@ -319,6 +327,20 @@ class ReadMessages(Resource):
             return message_list, 200 if len(message_list) > 0 else 204
         except:
             client_ns.abort(500, 'Could not access to any message')
+
+
+@admin_ns.route('/<int:task_id>')
+@admin_ns.param('task_id', 'The task identifier', default=123)
+class DeleteTask(Resource):
+
+    @admin_ns.doc(description='Delete task or client',
+                  responses={200: 'task/client is deleted'})
+    def delete(self, task_id):
+        try:
+            valid_deletion = delete_task(task_id)
+            return None, 200 if valid_deletion else 400
+        except:
+            client_ns.abort(500, 'Could not delete client')
 
 
 def start_api():

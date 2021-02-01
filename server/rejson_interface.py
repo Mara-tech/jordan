@@ -143,7 +143,7 @@ def create_task(parent_task_id, payload):
 def append_sub_tasks(tasks, role_payload):
     if tasks and len(tasks):
         for t in tasks:
-            if t[SUB_TASKS] and len(t[SUB_TASKS]):
+            if t and SUB_TASKS in t and len(t[SUB_TASKS]):
                 sub_tasks = rj.jsonmget(Path.rootPath(), *t[SUB_TASKS])
                 append_sub_tasks(sub_tasks, role_payload)
                 t[SUB_TASKS] = sub_tasks
@@ -290,3 +290,53 @@ def set_task_state(task_id, state):
 def unregister(client_id):
     log_redis_op(f"unregister client {client_id}")
     return set_task_state(client_id, CLIENT_STATE_UNREGISTERED)
+
+
+def delete_task(task_id):
+    log_redis_op(f"delete task {task_id}")
+    keys_to_delete = []
+    task = rj.jsonget(task_id)
+
+    # delete child tasks
+    recursive_delete_tasks(task, task_id, keys_to_delete)
+
+    # remove from subtasks list of parentTask
+    if PARENT_TASK in task:
+        siblings_id = rj.jsonget(task[PARENT_TASK], Path(f'.{SUB_TASKS}'))
+        if siblings_id and task_id in siblings_id:
+            index = siblings_id.index(task_id)
+            rj.jsonarrpop(task[PARENT_TASK], Path(f'.{SUB_TASKS}'), index)
+
+    # remove the task from clients set (if it is a client)
+    rj.srem(CLIENT_SET, task_id)
+
+    log_redis_op(f"deleting keys {keys_to_delete}")
+    return rj.delete(*keys_to_delete)
+
+
+def recursive_delete_tasks(task, task_id, to_delete):
+    if task_id is not None:
+        # delete task
+        to_delete.append(task_id)
+
+        # delete status
+        task_status_list = TASK_STATUS_LIST.format(task_id)
+        to_delete.append(task_status_list)
+        task_status_ids = rj.lrange(task_status_list, 0, -1)
+        to_delete.extend(task_status_ids)
+
+        # delete message slot
+        to_delete.append(TASK_MESSAGE_SLOT.format(task_id))
+
+        # delete messages
+        task_messages_list = TASK_ALL_MESSAGES_LIST.format(task_id)
+        to_delete.append(task_messages_list)
+        task_messages_ids = rj.lrange(task_messages_list, 0, -1)
+        to_delete.extend(task_messages_ids)
+
+        # delete sub tasks
+        if task is not None and SUB_TASKS in task:
+            for sub_task_id in task[SUB_TASKS]:
+                recursive_delete_tasks(sub_task_id, to_delete)
+
+

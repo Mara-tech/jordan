@@ -12,6 +12,7 @@ import com.mara.jordan.app.model.dto.JordanSendMessageActionDTO;
 import com.mara.jordan.app.model.dto.JordanSendMessageDTO;
 import com.mara.jordan.app.model.dto.JordanStatusDTO;
 import com.mara.jordan.app.model.dto.JordanTestDTO;
+import com.mara.jordan.app.ui.ClientDeletionCallback;
 import com.mara.jordan.app.ui.ServerConnectionTestCallback;
 import com.mara.jordan.app.utils.NetworkUtils;
 
@@ -62,7 +63,7 @@ public class JordanApi {
     }
 
     private void handleError(VolleyError error, JordanReadStatusCallback[] callbacks) {
-        for(JordanReadStatusCallback callback :callbacks){
+        for(JordanReadStatusCallback callback : callbacks){
             callback.onStatusLoadingError(extractErrorMessage(error));
         }
     }
@@ -90,7 +91,7 @@ public class JordanApi {
 
 
     private void handleError(VolleyError error, JordanReadMessagesCallback[] callbacks) {
-        for(JordanReadMessagesCallback callback :callbacks){
+        for(JordanReadMessagesCallback callback : callbacks){
             callback.onMessagesLoadingError(extractErrorMessage(error));
         }
     }
@@ -117,7 +118,7 @@ public class JordanApi {
     }
 
     private void handleError(VolleyError error, JordanGetActionsCallback[] callbacks) {
-        for(JordanGetActionsCallback callback :callbacks){
+        for(JordanGetActionsCallback callback : callbacks){
             callback.onActionsLoadingError(extractErrorMessage(error));
         }
     }
@@ -152,7 +153,7 @@ public class JordanApi {
     }
 
     private void handleError(VolleyError error, JordanSendMessageCallback[] callbacks) {
-        for(JordanSendMessageCallback callback :callbacks){
+        for(JordanSendMessageCallback callback : callbacks){
             callback.onMessageSendingError(extractErrorMessage(error));
         }
     }
@@ -183,7 +184,7 @@ public class JordanApi {
     }
 
     private void handleError(VolleyError error, JordanGetClientsCallback[] callbacks) {
-        for(JordanGetClientsCallback callback :callbacks){
+        for(JordanGetClientsCallback callback : callbacks){
             callback.onClientsLoadingError(extractErrorMessage(error));
         }
     }
@@ -210,7 +211,7 @@ public class JordanApi {
     }
 
     private void handleError(VolleyError error, ServerConnectionTestCallback[] callbacks) {
-        for(ServerConnectionTestCallback callback :callbacks){
+        for(ServerConnectionTestCallback callback : callbacks){
             callback.onConnectionTestError(error);
         }
     }
@@ -222,6 +223,32 @@ public class JordanApi {
             for (ServerConnectionTestCallback callback : callbacks) {
                 callback.onConnectionTestPassed(response);
             }
+        }
+    }
+
+    public void deleteClient(long clientId, ClientDeletionCallback... callbacks) {
+        String url = String.format("%s/%s", NetworkUtils.removeEndingSlash(serverBaseUrl), clientId);
+        GsonDeletetRequest<String> readClientsRequest = new GsonDeletetRequest<>(
+                url,
+                String.class,
+                NetworkUtils.makeHeaders(),
+                response -> handleResponse(response, callbacks),
+                error -> handleError(error, callbacks)
+        );
+        Log.i(TAG, "Queuing DELETE query : " + url);
+        VolleyInterfaceSingleton.getInstance(context).addToRequestQueue(readClientsRequest);
+    }
+
+
+    private void handleError(VolleyError error, ClientDeletionCallback[] callbacks) {
+        for(ClientDeletionCallback callback : callbacks){
+            callback.onClientDeletionError(extractErrorMessage(error));
+        }
+    }
+
+    private void handleResponse(String response, ClientDeletionCallback... callbacks) {
+        for (ClientDeletionCallback callback : callbacks) {
+            callback.onClientDeleted();
         }
     }
 

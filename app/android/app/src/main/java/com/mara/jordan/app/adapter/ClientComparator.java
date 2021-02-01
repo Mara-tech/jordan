@@ -13,7 +13,8 @@ public class ClientComparator implements Comparator<JordanClientDTO> {
     private static final List<String> STATE_ORDER = ImmutableList.of(
             "REGISTERED",
             "TIME_OUT",
-            "UNREGISTERED"
+            "UNREGISTERED",
+            ClientAdapter.DEFAULT_STATE
     );
 
     @Override
