@@ -94,6 +94,10 @@
     <string name="status_parameters_auto_refresh_enable">Auto-refresh</string>
     <string name="status_parameters_auto_refresh_period_title">Period (in sec) :</string>
     <string name="status_parameters_confirm">Apply</string>
+    <string name="infos_task">Information</string>
+    <string name="task_details_id">Task ID : %d</string>
+    <string name="task_details_state">State : %s</string>
+    <string name="task_details_progress">Known progress : %d</string>
 
 
     <string name="status_details_id">ID : %d</string>

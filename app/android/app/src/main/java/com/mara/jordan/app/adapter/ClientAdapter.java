@@ -129,12 +129,12 @@ public class ClientAdapter extends ArrayAdapter<JordanClientDTO> implements Stic
                 details.add(getContext().getString(R.string.client_details_task_details,
                         task.getTaskId(), task.getName(), task.getState()));
             }
-        };
+        }
         new MaterialAlertDialogBuilder(getContext())
                 .setTitle(client.getName())
                 .setItems(details.toArray(new String[]{}), (dialog, which) -> {
                 })
-                .create().show();
+                .show();
 
     }
 

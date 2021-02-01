@@ -3,17 +3,21 @@ package com.mara.jordan.app.adapter;
 import com.google.common.collect.ImmutableList;
 import com.mara.jordan.app.model.dto.JordanClientDTO;
 import com.mara.jordan.app.model.dto.JordanTaskDTO;
+import com.mara.jordan.app.utils.JordanConstant;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-public class ClientComparator implements Comparator<JordanClientDTO> {
+public class ClientComparator implements Comparator<JordanClientDTO>, JordanConstant {
 
     private static final List<String> STATE_ORDER = ImmutableList.of(
-            "REGISTERED",
-            "TIME_OUT",
-            "UNREGISTERED",
+            TASK_RUNNING_STATE,
+            TASK_STARTED_STATE,
+            CLIENT_REGISTERED_STATE,
+            TASK_COMPLETE_STATE,
+            TASK_TIME_OUT_STATE,
+            CLIENT_UNREGISTERED_STATE,
             ClientAdapter.DEFAULT_STATE
     );
 
