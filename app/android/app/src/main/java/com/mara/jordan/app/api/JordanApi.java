@@ -13,6 +13,8 @@ import com.mara.jordan.app.model.dto.JordanSendMessageDTO;
 import com.mara.jordan.app.model.dto.JordanStatusDTO;
 import com.mara.jordan.app.model.dto.JordanTestDTO;
 import com.mara.jordan.app.ui.ClientDeletionCallback;
+import com.mara.jordan.app.ui.FullDeletionCallback;
+import com.mara.jordan.app.ui.GenericQueryCallback;
 import com.mara.jordan.app.ui.ServerConnectionTestCallback;
 import com.mara.jordan.app.utils.NetworkUtils;
 
@@ -199,7 +201,7 @@ public class JordanApi {
     public void testConnection(String serverBaseUrl, ServerConnectionTestCallback... callbacks) {
         String endpoint = "hello";
         String url = String.format("%s/%s", NetworkUtils.removeEndingSlash(serverBaseUrl), endpoint);
-        GsonGetRequest<JordanTestDTO> readClientsRequest = new GsonGetRequest<>(
+        GsonGetRequest<JordanTestDTO> testConnectionRequest = new GsonGetRequest<>(
                 url,
                 JordanTestDTO.class,
                 NetworkUtils.makeHeaders(),
@@ -207,7 +209,7 @@ public class JordanApi {
                 error -> handleError(error, callbacks)
         );
         Log.i(TAG, "Queuing " + endpoint + " query : " + url);
-        VolleyInterfaceSingleton.getInstance(context).addToRequestQueue(readClientsRequest);
+        VolleyInterfaceSingleton.getInstance(context).addToRequestQueue(testConnectionRequest);
     }
 
     private void handleError(VolleyError error, ServerConnectionTestCallback[] callbacks) {
@@ -228,7 +230,7 @@ public class JordanApi {
 
     public void deleteClient(long clientId, ClientDeletionCallback... callbacks) {
         String url = String.format("%s/%s", NetworkUtils.removeEndingSlash(serverBaseUrl), clientId);
-        GsonDeletetRequest<String> readClientsRequest = new GsonDeletetRequest<>(
+        GsonDeletetRequest<String> deleteClientRequest = new GsonDeletetRequest<>(
                 url,
                 String.class,
                 NetworkUtils.makeHeaders(),
@@ -236,9 +238,8 @@ public class JordanApi {
                 error -> handleError(error, callbacks)
         );
         Log.i(TAG, "Queuing DELETE query : " + url);
-        VolleyInterfaceSingleton.getInstance(context).addToRequestQueue(readClientsRequest);
+        VolleyInterfaceSingleton.getInstance(context).addToRequestQueue(deleteClientRequest);
     }
-
 
     private void handleError(VolleyError error, ClientDeletionCallback[] callbacks) {
         for(ClientDeletionCallback callback : callbacks){
@@ -252,6 +253,56 @@ public class JordanApi {
         }
     }
 
+    public void genericQuery(String query, GenericQueryCallback... callbacks) {
+        String url = String.format("%s/%s", NetworkUtils.removeEndingSlash(serverBaseUrl), query);
+        StringRequest readClientsRequest = new StringRequest(
+                url,
+                NetworkUtils.makeHeaders(),
+                response -> handleResponse(response, callbacks),
+                error -> handleError(error, callbacks)
+        );
+        Log.i(TAG, "Queuing Generic query : " + url);
+        VolleyInterfaceSingleton.getInstance(context).addToRequestQueue(readClientsRequest);
+    }
+
+
+    private void handleError(VolleyError error, GenericQueryCallback[] callbacks) {
+        for(GenericQueryCallback callback : callbacks){
+            callback.onGenericQueryError(extractErrorMessage(error));
+        }
+    }
+
+    private void handleResponse(String response, GenericQueryCallback... callbacks) {
+        for (GenericQueryCallback callback : callbacks) {
+            callback.onGenericQueryResponse(response);
+        }
+    }
+
+    public void deleteAll(FullDeletionCallback... callbacks) {
+        String endpoint = "all";
+        String url = String.format("%s/%s", NetworkUtils.removeEndingSlash(serverBaseUrl), endpoint);
+        GsonDeletetRequest<String> deleteAllRequest = new GsonDeletetRequest<>(
+                url,
+                String.class,
+                NetworkUtils.makeHeaders(),
+                response -> handleResponse(response, callbacks),
+                error -> handleError(error, callbacks)
+        );
+        Log.i(TAG, "Queuing DELETE query : " + url);
+        VolleyInterfaceSingleton.getInstance(context).addToRequestQueue(deleteAllRequest);
+    }
+
+    private void handleError(VolleyError error, FullDeletionCallback[] callbacks) {
+        for(FullDeletionCallback callback : callbacks){
+            callback.onBaseDeletionError(extractErrorMessage(error));
+        }
+    }
+
+    private void handleResponse(String response, FullDeletionCallback... callbacks) {
+        for (FullDeletionCallback callback : callbacks) {
+            callback.onBaseDeleted();
+        }
+    }
     private static String extractErrorMessage(VolleyError error) {
         return String.format("%s %s", error.toString(), error.getMessage());
     }

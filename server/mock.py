@@ -363,3 +363,13 @@ def unregister(client_id):
 def delete_task(task_id):
     mock_log(f"delete task {task_id}")
     return True
+
+
+def delete_all():
+    mock_log(f"delete all")
+    return True
+
+
+def generic_query(id):
+    mock_log(f"generic query on {id}")
+    return False

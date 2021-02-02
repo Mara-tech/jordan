@@ -29,7 +29,7 @@ import se.emilsjolander.stickylistheaders.StickyListHeadersListView;
 
 import static android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS;
 
-public class ClientListFragment extends Fragment implements OnClientClickListener, JordanGetClientsCallback, ClientDeletionCallback {
+public class ClientListFragment extends InServerFragment implements OnClientClickListener, JordanGetClientsCallback, ClientDeletionCallback {
 
     private ClientAdapter adapter;
     private SwipeRefreshLayout clientListRefreshLayout;
@@ -118,6 +118,11 @@ public class ClientListFragment extends Fragment implements OnClientClickListene
     }
 
     @Override
+    protected JordanClientModel getModel() {
+        return model;
+    }
+
+    @Override
     public void onClientsLoaded(JordanClientDTO[] clients) {
         clientListRefreshLayout.setRefreshing(false);
         if(clients.length == 0){
@@ -171,5 +176,11 @@ public class ClientListFragment extends Fragment implements OnClientClickListene
                     R.string.client_deleted,
                     Snackbar.LENGTH_SHORT).show();
         }
+    }
+
+    @Override
+    public void onBaseDeleted() {
+        super.onBaseDeleted();
+        refreshClients();
     }
 }

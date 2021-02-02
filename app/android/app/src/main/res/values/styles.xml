@@ -17,6 +17,13 @@
         <item name="android:text">@string/add_server_dialog_test</item>
     </style>
 
+    <style name="generic_information_query_button" parent="@style/Widget.AppCompat.Button.Colored">
+        <item name="android:textColor">@color/white</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:text">@string/generic_information_query_button</item>
+    </style>
+
     <style name="dialog_title">
         <item name="android:textSize">@dimen/dialog_title_size</item>
         <item name="android:padding">13dp</item>

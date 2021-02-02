@@ -21,10 +21,9 @@ import lombok.Getter;
 /**
  * A client, as a root task, is also represented in {@link JordanTaskModel}.
  */
-public class JordanTaskModel implements JordanModel, JordanReadStatusCallback, JordanReadMessagesCallback, JordanGetActionsCallback {
+public class JordanTaskModel extends JordanClientModel implements JordanReadStatusCallback, JordanReadMessagesCallback, JordanGetActionsCallback {
 
     private static final String TAG = "JordanClientModel";
-    private final Context context;
     private final long taskId;
     private final Map<Long, JordanTaskModel> subTaskModelInstances = new HashMap<>();
     private final JordanApi api;
@@ -38,8 +37,7 @@ public class JordanTaskModel implements JordanModel, JordanReadStatusCallback, J
 
 
     public JordanTaskModel(Context ctx, long taskId) {
-        super();
-        this.context = ctx.getApplicationContext();
+        super(ctx);
         this.taskId = taskId;
         api = JordanApi.getInstance(ctx);
     }

@@ -12,7 +12,7 @@
     <string name="details">Details</string>
     <string name="cancel">Cancel</string>
     <string name="apply">Apply</string>
-
+    <string name="done">Done</string>
     <string name="menu_refresh">Refresh</string>
 
     <string name="import_server_menu">Import servers</string>
@@ -142,5 +142,21 @@
     <string name="message_not_sent_failure">An error occurred while sending message</string>
     <string name="message_not_sent_failure_details">@string/details</string>
     <string name="message_not_sent_failure_details_dialog">Error while sending message</string>
+
+    <string name="menu_generic_information">Generic Information</string>
+    <string name="generic_information_dialog_title">Generic query</string>
+    <string name="generic_information_query_field_hint">A task id…</string>
+    <string name="generic_information_query_button">Search</string>
+    <string name="generic_information_quit">@string/done</string>
+    <string name="generic_information_query_no_result">No result</string>
+    <string name="menu_delete_all">Delete All</string>
+    <string name="delete_all_confirmation_dialog">Do you want to delete all ?</string>
+    <string name="delete_all_confirmation_dialog_message">WARNING : This action is irreversible for all users ! All clients (including running tasks) will be deleted as well.</string>
+    <string name="delete_all_confirmation_positive">I\'m sure !</string>
+    <string name="delete_all_confirmation_negative">@string/cancel</string>
+    <string name="delete_all_success">Whole database has been cleaned</string>
+    <string name="delete_all_failure">An error occurred while deleting whole database</string>
+    <string name="delete_all_failure_details">@string/details</string>
+    <string name="delete_all_failure_details_dialog">Error while deleting whole database</string>
 
 </resources>

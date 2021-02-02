@@ -6,19 +6,26 @@ import com.mara.jordan.app.api.JordanApi;
 import com.mara.jordan.app.api.JordanGetClientsCallback;
 import com.mara.jordan.app.model.dto.JordanClientDTO;
 import com.mara.jordan.app.ui.ClientDeletionCallback;
+import com.mara.jordan.app.ui.FullDeletionCallback;
+import com.mara.jordan.app.ui.GenericQueryCallback;
 
 public class JordanClientModel implements JordanModel {
 
-
     private static final String TAG = "JordanServerModel";
-    private final Context context;
+    protected final Context context;
     private final JordanApi api;
 
     public JordanClientModel(Context ctx, String serverBaseUrl) {
-        context = ctx;
-
+        super();
+        context = ctx.getApplicationContext();
         api = JordanApi.getInstance(context);
-        api.setServerBaseUrl(serverBaseUrl);
+        if(serverBaseUrl != null){
+            api.setServerBaseUrl(serverBaseUrl);
+        }
+    }
+
+    protected JordanClientModel(Context ctx) {
+        this(ctx, null);
     }
 
     public void listClients(JordanGetClientsCallback... callbacks) {
@@ -27,5 +34,13 @@ public class JordanClientModel implements JordanModel {
 
     public void delete(JordanClientDTO client, ClientDeletionCallback... callbacks) {
         api.deleteClient(client.getClientId(), callbacks);
+    }
+
+    public void genericQuery(String query, GenericQueryCallback... callbacks) {
+        api.genericQuery(query, callbacks);
+    }
+
+    public void deleteAll(FullDeletionCallback... callbacks) {
+        api.deleteAll(callbacks);
     }
 }

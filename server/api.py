@@ -267,7 +267,7 @@ class ListClients(Resource):
             client_list = list_clients(api.authorizations)
             return client_list, 200
         except:
-            client_ns.abort(500, 'Could not access to any client')
+            admin_ns.abort(500, 'Could not access to any client')
 
 @admin_ns.route('/<int:task_id>/actions')
 @admin_ns.param('task_id', 'The task identifier', default=123)
@@ -281,7 +281,7 @@ class ListActions(Resource):
             actions_list = list_actions(task_id, api.authorizations)
             return actions_list, 200
         except:
-            client_ns.abort(500, 'Could not access to any client')
+            admin_ns.abort(500, 'Could not access to any client')
 
 @admin_ns.route('/<int:task_id>/status/<int:line_count>')
 @admin_ns.param('task_id', 'The task identifier', default=123)
@@ -297,7 +297,7 @@ class ReadStatus(Resource):
             status_list = read_status(task_id, line_count)
             return status_list, 200 if len(status_list) > 0 else 204
         except:
-            client_ns.abort(500, 'Could not read any status')
+            admin_ns.abort(500, 'Could not read any status')
 
 @admin_ns.route('/<int:task_id>/message')
 @admin_ns.param('task_id', 'The task identifier', default=123)
@@ -311,7 +311,7 @@ class SendMessage(Resource):
             message_id = post_message(task_id, api.payload)
             return message_id, 201
         except:
-            client_ns.abort(500, 'Could not receive message')
+            admin_ns.abort(500, 'Could not receive message')
 
 @admin_ns.route('/<int:task_id>/messages')
 @admin_ns.param('task_id', 'The task identifier', default=123)
@@ -326,7 +326,7 @@ class ReadMessages(Resource):
             message_list = list_messages(task_id)
             return message_list, 200 if len(message_list) > 0 else 204
         except:
-            client_ns.abort(500, 'Could not access to any message')
+            admin_ns.abort(500, 'Could not access to any message')
 
 
 @admin_ns.route('/<int:task_id>')
@@ -340,8 +340,34 @@ class DeleteTask(Resource):
             valid_deletion = delete_task(task_id)
             return None, 200 if valid_deletion else 400
         except:
-            client_ns.abort(500, 'Could not delete client')
+            admin_ns.abort(500, 'Could not delete client')
 
+
+@admin_ns.route('/all')
+class DeleteAll(Resource):
+
+    @admin_ns.doc(description='Delete everything',
+                  responses={200: 'everything is deleted'})
+    def delete(self):
+        try:
+            valid_deletion = delete_all(None)#api.payload)
+            return None, 200 if valid_deletion else 400
+        except:
+            admin_ns.abort(500, 'Could not delete base')
+
+
+@admin_ns.route('/<int:generic_id>')
+@admin_ns.param('generic_id', 'Any id (task, status, message)', default=123)
+class GenericQuery(Resource):
+
+    @admin_ns.doc(description='Return object identified by generic_id in json format',
+                  responses={200: 'Object found and returned', 204:'ID not found'})
+    def get(self, generic_id):
+        try:
+            serialized_object = generic_query(generic_id)
+            return (serialized_object, 200) if serialized_object else ('No result', 204)
+        except:
+            admin_ns.abort(500, 'Could not execute generic query')
 
 def start_api():
     #about starting twice : https://stackoverflow.com/questions/9449101/how-to-stop-flask-from-initialising-twice-in-debug-mode

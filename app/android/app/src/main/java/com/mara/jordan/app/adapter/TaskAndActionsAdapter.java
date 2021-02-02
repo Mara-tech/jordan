@@ -171,18 +171,12 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
                             new JordanSendMessageCallback() {
                                 @Override
                                 public void onMessageSent(long messageId) {
-                                    buttonClicked.doneLoadingAnimation(cpbh.getProgressionButtonFillColor(), cpbh.getSuccessBitmap());
-                                    waitAndResetButton(buttonClicked);
-                                }
-
-                                private void waitAndResetButton(CircularProgressButton button) {
-                                    new Handler().postDelayed(button::revertAnimation, DELAY_BEFORE_REVERT_ACTION_BUTTON_STATE_MS);
+                                    cpbh.successAndReset(buttonClicked);
                                 }
 
                                 @Override
                                 public void onMessageSendingError(String errorMessage) {
-                                    buttonClicked.doneLoadingAnimation(cpbh.getProgressionButtonFillColor(), cpbh.getErrorBitmap());
-                                    waitAndResetButton(buttonClicked);
+                                    cpbh.errorAndReset(buttonClicked);
                                 }
                             }
                             );

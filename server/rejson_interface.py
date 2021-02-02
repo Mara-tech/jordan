@@ -153,6 +153,7 @@ def list_clients(role_payload):
     log_redis_op("list clients")
     client_ids = rj.smembers(CLIENT_SET)
     clients = rj.jsonmget(Path.rootPath(), *client_ids)
+    clients = list(filter(lambda c : c is not None, clients))
     append_sub_tasks(clients, role_payload)
     return clients
 
@@ -297,24 +298,28 @@ def delete_task(task_id):
     keys_to_delete = []
     task = rj.jsonget(task_id)
 
-    # delete child tasks
-    recursive_delete_tasks(task, task_id, keys_to_delete)
+    if task:
+        # delete child tasks
+        recursive_delete_tasks(task, keys_to_delete)
 
-    # remove from subtasks list of parentTask
-    if PARENT_TASK in task:
-        siblings_id = rj.jsonget(task[PARENT_TASK], Path(f'.{SUB_TASKS}'))
-        if siblings_id and task_id in siblings_id:
-            index = siblings_id.index(task_id)
-            rj.jsonarrpop(task[PARENT_TASK], Path(f'.{SUB_TASKS}'), index)
+        # remove from subtasks list of parentTask
+        if PARENT_TASK in task:
+            siblings_id = rj.jsonget(task[PARENT_TASK], Path(f'.{SUB_TASKS}'))
+            if siblings_id and task_id in siblings_id:
+                index = siblings_id.index(task_id)
+                rj.jsonarrpop(task[PARENT_TASK], Path(f'.{SUB_TASKS}'), index)
 
     # remove the task from clients set (if it is a client)
     rj.srem(CLIENT_SET, task_id)
 
-    log_redis_op(f"deleting keys {keys_to_delete}")
-    return rj.delete(*keys_to_delete)
+    if len(keys_to_delete):
+        log_redis_op(f"deleting keys {keys_to_delete}")
+        return rj.delete(*keys_to_delete)
+    return False
 
 
-def recursive_delete_tasks(task, task_id, to_delete):
+def recursive_delete_tasks(task, to_delete):
+    task_id = task['taskId']
     if task_id is not None:
         # delete task
         to_delete.append(task_id)
@@ -336,7 +341,18 @@ def recursive_delete_tasks(task, task_id, to_delete):
 
         # delete sub tasks
         if task is not None and SUB_TASKS in task:
-            for sub_task_id in task[SUB_TASKS]:
-                recursive_delete_tasks(sub_task_id, to_delete)
+            sub_tasks = rj.jsonmget(Path.rootPath(), *task[SUB_TASKS])
+            if sub_tasks is not None:
+                for sub_task in sub_tasks:
+                    recursive_delete_tasks(sub_task, to_delete)
 
 
+def generic_query(id):
+    log_redis_op(f"generic query on {id}")
+    return rj.jsonget(id)
+
+
+def delete_all(payload):
+    log_redis_op(f"delete all")
+    # TODO check role
+    return rj.flushdb()
