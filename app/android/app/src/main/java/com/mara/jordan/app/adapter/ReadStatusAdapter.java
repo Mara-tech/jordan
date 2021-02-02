@@ -83,16 +83,17 @@ public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
 
     private void showStatusDetails(JordanStatusDTO status) {
         String[] details = new String[]{
+                status.getStatus(),
                 getContext().getString(R.string.status_details_id, status.getStatusId()),
                 getContext().getString(R.string.status_details_type, status.getType()),
                 getContext().getString(R.string.status_details_timestamp, DateUtils.formatTimestamp(status.getTimestamp(), true)),
                 getContext().getString(R.string.status_details_task, formatTask(status.getParentTask(), false))
         };
         new MaterialAlertDialogBuilder(getContext())
-                .setTitle(status.getStatus())
+                .setTitle(R.string.status_details_title)
                 .setItems(details, (dialog, which) -> {
                 })
-                .create().show();
+                .show();
     }
 
     private String formatTask(JordanParentTaskDTO parentTask, boolean shortTag) {

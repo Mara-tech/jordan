@@ -100,6 +100,7 @@
     <string name="task_details_progress">Known progress : %d</string>
 
 
+    <string name="status_details_title">Status</string>
     <string name="status_details_id">ID : %d</string>
     <string name="status_details_type">Type : %s</string>
     <string name="status_details_timestamp">Timestamp : %s</string>
@@ -111,6 +112,7 @@
     <string name="status_type">Type</string>
     <string name="status_task">Task</string>
 
+    <string name="message_state_details_title">Message</string>
     <string name="message_state_details_id">ID : %d</string>
     <string name="message_state_details_author">Sent by : %s</string>
     <string name="message_state_details_audit">State timeline :</string>

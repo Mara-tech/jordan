@@ -1,5 +1,6 @@
 package com.mara.jordan.app.api;
 
+import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Response;
 
 import java.util.Map;
@@ -23,7 +24,7 @@ public class GsonGetRequest<T> extends AGsonRequest<T> {
     public GsonGetRequest(String url, Class<T> clazz, Map<String, String> headers,
                           Response.Listener<T> listener, Response.ErrorListener errorListener) {
         super(Method.GET, url, clazz, headers, listener, errorListener);
-//        setRetryPolicy(new DefaultRetryPolicy(TIMEOUT_MS, RETRIES, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        setRetryPolicy(new DefaultRetryPolicy(TIMEOUT_MS, RETRIES, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
     }
 
     @Override
