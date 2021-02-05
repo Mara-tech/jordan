@@ -153,7 +153,7 @@ def list_clients(role_payload):
     log_redis_op("list clients")
     client_ids = rj.smembers(CLIENT_SET)
     clients = rj.jsonmget(Path.rootPath(), *client_ids)
-    clients = list(filter(lambda c : c is not None, clients))
+    clients = skip_nones(clients)
     append_sub_tasks(clients, role_payload)
     return clients
 
@@ -223,10 +223,16 @@ def post_status(task_id, payload):
     return {'statusId': status_id}
 
 
+def skip_nones(seq):
+    return list(filter(lambda i : i is not None, seq))
+
+
 def read_status(task_id, line_count):
     log_redis_op(f"read {line_count} status(es) for task {task_id} and children")
     keys = rj.lrange(TASK_STATUS_LIST.format(task_id), 0, line_count)
-    return rj.jsonmget(Path.rootPath(), *keys)
+    status_list = rj.jsonmget(Path.rootPath(), *keys)
+    status_list = skip_nones(status_list)
+    return status_list
 
 
 def create_message_audit(state):
@@ -281,7 +287,9 @@ def read_message(task_id):
 def list_messages(task_id):
     log_redis_op(f"read message(s) for task {task_id}" )
     keys = rj.lrange(TASK_ALL_MESSAGES_LIST.format(task_id), 0, -1)
-    return rj.jsonmget(Path.rootPath(), *keys)
+    messages = rj.jsonmget(Path.rootPath(), *keys)
+    messages = skip_nones(messages)
+    return messages
 
 
 def set_task_state(task_id, state):
