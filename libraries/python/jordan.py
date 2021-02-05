@@ -57,11 +57,11 @@ class ActionBuilder():
         self.current_action_name = action_name
         return self
 
-    def with_parameter(self, parameter_name, parameter_type=PARAMETER_TYPE_STRING):
+    def with_parameter(self, parameter_name, parameter_type=PARAMETER_TYPE_STRING, default_value=None):
         valid_parameter_types = [PARAMETER_TYPE_STRING, PARAMETER_TYPE_INT, PARAMETER_TYPE_FLOAT]
         if parameter_type not in valid_parameter_types:
             raise ValueError(f"Parameter {parameter_name} of type {parameter_type} must be one of {valid_parameter_types}")
-        self.actions[self.current_action_name][parameter_name] = parameter_type
+        self.actions[self.current_action_name][parameter_name] = parameter_type, default_value
         return self
 
     def build(self):
@@ -71,8 +71,10 @@ class ActionBuilder():
             action_definition = {'actionName':action_name}
             if len(parameters) > 0:
                 action_definition['parameters'] = []
-                for param_name, param_type in parameters.items():
+                for param_name, (param_type, param_default_value) in parameters.items():
                     action_parameter_definition = {'name' : param_name, 'type': param_type}
+                    if param_default_value:
+                        action_parameter_definition['defaultValue'] = param_default_value
                     action_definition['parameters'].append(action_parameter_definition)
             actions.append(action_definition)
         return actions
