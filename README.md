@@ -26,4 +26,4 @@ Usage :
     
     from jordan_py import jordan
     
-Refer to specific [README](libraries/python/jordan_py/README.txt) for usage.
+Refer to specific [README](libraries/python/jordan_py/README.md) for usage.

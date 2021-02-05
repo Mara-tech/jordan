@@ -9,7 +9,7 @@ setup(
     license='LICENSE.txt',
     url='https://github.com/Mara-tech/jordan',
     description='A Python library easing use of Jordan in your Python code.',
-    long_description=open('README.txt').read(),
+    long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     install_requires=[
         "requests",
