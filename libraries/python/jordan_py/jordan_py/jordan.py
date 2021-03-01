@@ -134,7 +134,9 @@ class JordanInstance():
         self.auth_token = auth_token
         self.instance_name = instance_name
 
-    def create_task(self, task_name, actions=DEFAULT_NO_ACTION, password=DEFAULT_NO_PASSWORD, **kwargs):
+    def create_task(self, task_name, actions=None, password=DEFAULT_NO_PASSWORD, **kwargs):
+        if actions is None:
+            actions = DEFAULT_NO_ACTION
         NEW_TASK_ENDPOINT = self.base_url + NEW_TASK_RESOURCE.format(self.task_id)
 
         payload = {'name': task_name}
@@ -150,8 +152,9 @@ class JordanInstance():
             return JordanTaskInstance(self.base_url, new_task_output['taskId'], self.auth_token, task_name)
         return None
 
-    def send_status(self, status, **kwargs):
-        return self.send_typed_status(DEFAULT_STATUS_TYPE, status, **kwargs)
+    def send_status(self, status, status_type=DEFAULT_STATUS_TYPE, **kwargs):
+        """Equivalent to send_typed_status(status_type, status)"""
+        return self.send_typed_status(status_type, status, **kwargs)
 
     def send_progress(self, status, **kwargs):
         return self.send_typed_status(PROGRESS_STATUS_TYPE, status, **kwargs)
@@ -161,6 +164,12 @@ class JordanInstance():
 
     def send_failure_status(self, status, **kwargs):
         return self.send_typed_status(FAILURE_STATUS_TYPE, status, **kwargs)
+
+    def send_typed_status(self, status_type, status, async_call=False, async_callback=None, **kwargs):
+        if async_call or async_callback:
+            threading.Thread(target=self._exec_send_typed_status, args=[status_type, status, async_callback], **kwargs).start()
+        else:
+            return self._exec_send_typed_status(status_type, status, **kwargs)
 
     def _exec_send_typed_status(self, status_type, status, async_callback=None, **kwargs):
         STATUS_ENDPOINT = self.base_url + STATUS_RESOURCE.format(self.task_id)
@@ -177,12 +186,6 @@ class JordanInstance():
             return status_output['statusId']
 
         return None
-
-    def send_typed_status(self, status_type, status, async_call=False, async_callback=None, **kwargs):
-        if async_call or async_callback:
-            threading.Thread(target=self._exec_send_typed_status, args=[status_type, status, async_callback], **kwargs).start()
-        else:
-            return self._exec_send_typed_status(status_type, status)
 
     def _exec_read_message(self, async_callback=None, **kwargs):
         MESSAGE_ENDPOINT = self.base_url + MESSAGE_RESOURCE.format(self.task_id)
