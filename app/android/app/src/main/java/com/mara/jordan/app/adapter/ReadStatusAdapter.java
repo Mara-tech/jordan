@@ -67,7 +67,7 @@ public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
         JordanStatusDTO status = getItem(position);
         String timestamp = DateUtils.formatTimestamp(status.getTimestamp(), false);
         String taskTag = formatTask(status.getParentTask(), true);
-        statusView.setText(String.format("%s %s %s", taskTag, timestamp, status.getStatus()));
+        statusView.setText(String.format("%s %s %s", timestamp, taskTag, status.getStatus()));
         statusView.setTextSize(definedTextSizeSp);
         statusView.setTextColor(getStatusColor(status.getType()));
 
