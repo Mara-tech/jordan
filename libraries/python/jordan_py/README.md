@@ -1,6 +1,6 @@
 # Jordan ?
 
-Jordan project let an executing program being interacted with, from anywhere.
+Jordan project lets an executing program being interacted with, from anywhere.
 Once registered to a Jordan server, a program instance becomes a Jordan client 
 which may emit statuses (such as logs and progress details), and may react to some user action.
 For example, a Human user may want to trigger an email sending for reporting purpose.
