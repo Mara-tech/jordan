@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/infos_client"
+        android:title="@string/infos_client"/>
+
+    <item
+        android:id="@+id/delete_client"
+        android:title="@string/delete_client"
+        />
+</menu>

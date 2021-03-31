@@ -12,7 +12,7 @@
     <string name="details">Details</string>
     <string name="cancel">Cancel</string>
     <string name="apply">Apply</string>
-
+    <string name="done">Done</string>
     <string name="menu_refresh">Refresh</string>
 
     <string name="import_server_menu">Import servers</string>
@@ -34,7 +34,7 @@
     <string name="server_deleted">Server %s deleted</string>
     <string name="update_server_dialog_confirm">Update</string>
     <string name="add_server_dialog_confirm">Add server</string>
-    <string name="add_server_dialog_test">Test</string>
+    <string name="add_server_dialog_test">Try</string>
     <string name="add_server_dialog_server_name_hint">Server name… (only you will see this name)</string>
     <string name="add_server_dialog_title">Server setup</string>
     <string name="add_server_dialog_server_base_uri_hint">https://example.com/jordan/admin</string>
@@ -64,6 +64,22 @@
     <string name="client_refresh_failure_details_dialog">Error while reading clients</string>
     <string name="no_client_to_display">No client to display</string>
     <string name="client_running_task">%s running task(s)</string>
+    <string name="infos_client">Information</string>
+    <string name="delete_client">Delete</string>
+    <string name="delete_client_confirmation_dialog">Do you want to delete client %s ?</string>
+    <string name="delete_client_confirmation_dialog_message">Warning : This action is irreversible for all users ! All tasks of this client will be deleted as well.</string>
+    <string name="delete_client_confirmation_positive">Delete</string>
+    <string name="delete_client_confirmation_negative">@string/cancel</string>
+    <string name="client_deleted">Client deleted</string>
+    <string name="client_delete_failure_details">@string/details</string>
+    <string name="client_delete_failure">An error occurred while deleting client</string>
+    <string name="client_delete_failure_details_dialog">Error while deleting client</string>
+    <string name="client_details_id">Client ID : %d</string>
+    <string name="client_details_state">State : %s</string>
+    <string name="client_details_no_task">No child task</string>
+    <string name="client_details_task_count">Having %d child task(s)</string>
+    <string name="client_details_task_details">    %d %s (state=%s)</string>
+
 
     <string name="default_task_name">Default task</string>
     <string name="client_tasks_and_actions">Tasks and Actions</string>
@@ -73,8 +89,18 @@
     <string name="filter_message">Filter</string>
     <string name="status_text_size">Font size</string>
     <string name="status_search">Search</string>
+    <string name="status_settings">Display settings</string>
+    <string name="status_parameters_depth">Depth :</string>
+    <string name="status_parameters_auto_refresh_enable">Auto-refresh</string>
+    <string name="status_parameters_auto_refresh_period_title">Period (in sec) :</string>
+    <string name="status_parameters_confirm">Apply</string>
+    <string name="infos_task">Information</string>
+    <string name="task_details_id">Task ID : %d</string>
+    <string name="task_details_state">State : %s</string>
+    <string name="task_details_progress">Known progress : %d</string>
 
 
+    <string name="status_details_title">Status</string>
     <string name="status_details_id">ID : %d</string>
     <string name="status_details_type">Type : %s</string>
     <string name="status_details_timestamp">Timestamp : %s</string>
@@ -86,6 +112,7 @@
     <string name="status_type">Type</string>
     <string name="status_task">Task</string>
 
+    <string name="message_state_details_title">Message</string>
     <string name="message_state_details_id">ID : %d</string>
     <string name="message_state_details_author">Sent by : %s</string>
     <string name="message_state_details_audit">State timeline :</string>
@@ -117,5 +144,21 @@
     <string name="message_not_sent_failure">An error occurred while sending message</string>
     <string name="message_not_sent_failure_details">@string/details</string>
     <string name="message_not_sent_failure_details_dialog">Error while sending message</string>
+
+    <string name="menu_generic_information">Generic Information</string>
+    <string name="generic_information_dialog_title">Generic query</string>
+    <string name="generic_information_query_field_hint">A task id…</string>
+    <string name="generic_information_query_button">Search</string>
+    <string name="generic_information_quit">@string/done</string>
+    <string name="generic_information_query_no_result">No result</string>
+    <string name="menu_delete_all">Delete All</string>
+    <string name="delete_all_confirmation_dialog">Do you want to delete all ?</string>
+    <string name="delete_all_confirmation_dialog_message">WARNING : This action is irreversible for all users ! All clients (including running tasks) will be deleted as well.</string>
+    <string name="delete_all_confirmation_positive">I\'m sure !</string>
+    <string name="delete_all_confirmation_negative">@string/cancel</string>
+    <string name="delete_all_success">Whole database has been cleaned</string>
+    <string name="delete_all_failure">An error occurred while deleting whole database</string>
+    <string name="delete_all_failure_details">@string/details</string>
+    <string name="delete_all_failure_details_dialog">Error while deleting whole database</string>
 
 </resources>

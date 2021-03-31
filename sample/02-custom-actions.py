@@ -1,6 +1,5 @@
 import time
-import libraries.python.jordan as jordan
-
+from jordan_py import jordan
 
 JORDAN_SERVER_BASE_URL = 'http://192.168.1.41:5000/jordan/'
 
@@ -12,7 +11,7 @@ actions = jordan\
         .with_parameter('recipient')\
     .with_action('break_loop')\
     .with_action('shoot')\
-        .with_parameter('player_name', jordan.PARAMETER_TYPE_STRING)\
+        .with_parameter('player_name', jordan.PARAMETER_TYPE_STRING, default_value='Jordan')\
         .with_parameter('points', jordan.PARAMETER_TYPE_INT)\
     .build()
 

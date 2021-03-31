@@ -110,6 +110,7 @@ public class MessagesStateAdapter extends ArrayAdapter<JordanMessageStateDTO> {
         }
 
         new MaterialAlertDialogBuilder(getContext())
+                .setTitle(R.string.message_state_details_title)
                 .setItems(details.toArray(new String[]{}), (dialog, which) -> {})
                 .create().show();
     }

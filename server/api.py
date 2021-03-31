@@ -58,14 +58,22 @@ action_definition_model = api.model('ActionDefinition', {
     'parameters' : fields.List(fields.Nested(action_parameter_model), required=False, description='List of parameters and their type'),
 })
 
-task_model = api.model('Task', {
-    'taskId': fields.Integer(required=False, desciption="task identifier", example=456798),
-    'name': fields.String(required=True, desciption="task name", example='Loss evaluation'),
-    'progress': fields.Integer(required=False, desciption="task progress from 0 to 100", example=75),
-    'state': fields.String(required=False, desciption="state (e.g RUNNING, PAUSED, COMPLETE, ERROR, TIME_OUT, etc.)", example='RUNNING'),
-    'password': fields.String(required=False, description='Access password', example='pwd'),
-    'actions' : fields.List(fields.Nested(action_definition_model), required=False, description='Available actions')
-})
+
+# https://stackoverflow.com/questions/46171375/flask-restplus-recursive-json-mapping
+MAX_SUBTASK_RECURSION_NB=10
+def recursive_task_model(iteration_number=MAX_SUBTASK_RECURSION_NB):
+    recursive_task_mapping = {
+        'taskId': fields.Integer(required=False, desciption="task identifier", example=456798),
+        'name': fields.String(required=True, desciption="task name", example='Loss evaluation'),
+        'progress': fields.Integer(required=False, desciption="task progress from 0 to 100", example=75),
+        'state': fields.String(required=False, desciption="state (e.g RUNNING, PAUSED, COMPLETE, ERROR, TIME_OUT, etc.)", example='RUNNING'),
+        'password': fields.String(required=False, description='Access password', example='pwd'),
+        'actions' : fields.List(fields.Nested(action_definition_model), required=False, description='Available actions'),
+    }
+    if iteration_number:
+        recursive_task_mapping['tasks'] = fields.List(fields.Nested(recursive_task_model(iteration_number - 1)))
+    return api.model('Task' + str(iteration_number), recursive_task_mapping)
+task_model = recursive_task_model()
 
 task_created_model = api.model('TaskCreated', {
     'taskId': fields.Integer(required=True, desciption="task identifier", example=456798),
@@ -75,7 +83,7 @@ client_model = api.model('Client', {
     'clientId': fields.Integer(required=True, desciption="client identifier", example=123456),
     'name': fields.String(required=True, desciption="client name", example='IA Training Bot 01'),
     'state': fields.String(required=True, desciption="state (e.g REGISTERED, UNREGISTERED, COMPLETE, ERROR, TIME_OUT, etc.)", example='REGISTERED'),
-    'tasks': fields.List(fields.Nested(task_model), required=True)
+    'tasks': fields.List(fields.Nested(task_model), required=True, description='Child tasks')
 })
 
 client_registration_model = api.model('ClientRegistration', {
@@ -171,6 +179,20 @@ class NewTask(Resource):
         except:
             client_ns.abort(500, 'Could not create task')
 
+@client_ns.route('/<int:task_id>/<string:task_state>')
+@client_ns.param('task_id', 'The task identifier', default=123)
+@client_ns.param('task_state', 'The new state', default="COMPLETE")
+class UpdateTaskState(Resource):
+
+    @client_ns.doc(description="Update the task state",
+                   responses={202: 'Update is valid',
+                              400: 'Update is invalid'})
+    def put(self, task_id, task_state):
+        try:
+            update_valid = update_task(task_id, task_state)
+            return None, 202 if update_valid else 400
+        except:
+            client_ns.abort(500, 'Could not update state')
 
 @client_ns.route('/<int:task_id>/status')
 @client_ns.param('task_id', 'The task identifier', default=123)
@@ -245,7 +267,7 @@ class ListClients(Resource):
             client_list = list_clients(api.authorizations)
             return client_list, 200
         except:
-            client_ns.abort(500, 'Could not access to any client')
+            admin_ns.abort(500, 'Could not access to any client')
 
 @admin_ns.route('/<int:task_id>/actions')
 @admin_ns.param('task_id', 'The task identifier', default=123)
@@ -259,7 +281,7 @@ class ListActions(Resource):
             actions_list = list_actions(task_id, api.authorizations)
             return actions_list, 200
         except:
-            client_ns.abort(500, 'Could not access to any client')
+            admin_ns.abort(500, 'Could not access to any client')
 
 @admin_ns.route('/<int:task_id>/status/<int:line_count>')
 @admin_ns.param('task_id', 'The task identifier', default=123)
@@ -275,7 +297,7 @@ class ReadStatus(Resource):
             status_list = read_status(task_id, line_count)
             return status_list, 200 if len(status_list) > 0 else 204
         except:
-            client_ns.abort(500, 'Could not read any status')
+            admin_ns.abort(500, 'Could not read any status')
 
 @admin_ns.route('/<int:task_id>/message')
 @admin_ns.param('task_id', 'The task identifier', default=123)
@@ -289,7 +311,7 @@ class SendMessage(Resource):
             message_id = post_message(task_id, api.payload)
             return message_id, 201
         except:
-            client_ns.abort(500, 'Could not receive message')
+            admin_ns.abort(500, 'Could not receive message')
 
 @admin_ns.route('/<int:task_id>/messages')
 @admin_ns.param('task_id', 'The task identifier', default=123)
@@ -304,8 +326,48 @@ class ReadMessages(Resource):
             message_list = list_messages(task_id)
             return message_list, 200 if len(message_list) > 0 else 204
         except:
-            client_ns.abort(500, 'Could not access to any message')
+            admin_ns.abort(500, 'Could not access to any message')
 
+
+@admin_ns.route('/<int:task_id>')
+@admin_ns.param('task_id', 'The task identifier', default=123)
+class DeleteTask(Resource):
+
+    @admin_ns.doc(description='Delete task or client',
+                  responses={200: 'task/client is deleted'})
+    def delete(self, task_id):
+        try:
+            valid_deletion = delete_task(task_id)
+            return None, 200 if valid_deletion else 400
+        except:
+            admin_ns.abort(500, 'Could not delete client')
+
+
+@admin_ns.route('/all')
+class DeleteAll(Resource):
+
+    @admin_ns.doc(description='Delete everything',
+                  responses={200: 'everything is deleted'})
+    def delete(self):
+        try:
+            valid_deletion = delete_all(None)#api.payload)
+            return None, 200 if valid_deletion else 400
+        except:
+            admin_ns.abort(500, 'Could not delete base')
+
+
+@admin_ns.route('/<int:generic_id>')
+@admin_ns.param('generic_id', 'Any id (task, status, message)', default=123)
+class GenericQuery(Resource):
+
+    @admin_ns.doc(description='Return object identified by generic_id in json format',
+                  responses={200: 'Object found and returned', 204:'ID not found'})
+    def get(self, generic_id):
+        try:
+            serialized_object = generic_query(generic_id)
+            return (serialized_object, 200) if serialized_object else ('No result', 204)
+        except:
+            admin_ns.abort(500, 'Could not execute generic query')
 
 def start_api():
     #about starting twice : https://stackoverflow.com/questions/9449101/how-to-stop-flask-from-initialising-twice-in-debug-mode

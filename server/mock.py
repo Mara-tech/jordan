@@ -270,6 +270,17 @@ def update_message(task_id, message_id, message_state):
     mock_log(f"update message {message_id} for task {task_id}. New state : {message_state}")
     return message_state in MessageStateEnum
 
+TaskStateEnum = [
+    'STARTED',
+    'RUNNING',
+    'PAUSED',
+    'COMPLETE',
+    'ERROR',
+    'TIME_OUT'
+    ]
+def update_task(task_id, task_state):
+    mock_log(f"update task {task_id}. New state : {task_state}")
+    return task_state in TaskStateEnum
 
 
 def list_messages(task_id):
@@ -347,3 +358,18 @@ def read_message(task_id):
 def unregister(client_id):
     mock_log(f"unregister client {client_id}")
     return True
+
+
+def delete_task(task_id):
+    mock_log(f"delete task {task_id}")
+    return True
+
+
+def delete_all():
+    mock_log(f"delete all")
+    return True
+
+
+def generic_query(id):
+    mock_log(f"generic query on {id}")
+    return False

@@ -29,6 +29,20 @@ from JordanInstance or JordanTask
 #### Authentication
 TBD
 
+## Task Complete
+Update Task workflow status to COMPLETE.
+#### HTTP API v1
+PUT {taskId}/COMPLETE
+Success response : 202 Accepted
+#### API function(s)
+from JordanInstance or JordanTask 
+
+    complete(
+    ) : Void
+#### Authentication
+TBD
+
+
 ## Send Status
 Passive Client sends status which might be considered as logs useful on Active Client side.
 This can be performance, functional or whatever kind of information. It intends to be keys for decision-making. 
@@ -265,6 +279,45 @@ TBD
 #### Nice to have
 search filters -> on server or client side ?
 
+## Delete Task
+Delete a task (including a client) and all information stored on this task.
+This includes :
+- child tasks
+- status and messages for this task
+- reference from client collection (if the taskId is a clientId)
+- reference from parent task (the parent task removes the taskId from its child tasks)
+#### HTTP API v1
+DELETE {taskId}
+Success response : 200 OK
+#### API function(s)
+from JordanClientInstance
 
+    delete(taskId) : Void
+#### Authentication
+TBD
+
+## Delete All
+Clear everything stored on the server.
+#### HTTP API v1
+DELETE /all
+Success response : 200 OK
+#### API function(s)
+from JordanInstance
+
+    deleteAll() : Void
+#### Authentication
+TBD
+
+## Generic Query
+Returns information stored for an ID.
+#### HTTP API v1
+GET {id}
+Success response : 200 OK, 204 No Content if ID does not exists
+#### API function(s)
+from JordanClientInstance
+
+    genericQuery(id) : String
+#### Authentication
+TBD
 
 

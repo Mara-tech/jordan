@@ -1,25 +1,18 @@
 package com.mara.jordan.app.api;
 
-import com.android.volley.AuthFailureError;
-import com.android.volley.NetworkResponse;
-import com.android.volley.ParseError;
-import com.android.volley.Request;
+import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Response;
-import com.android.volley.toolbox.HttpHeaderParser;
-import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
 
-import java.io.UnsupportedEncodingException;
 import java.util.Map;
 
 /**
  * https://developer.android.com/training/volley/request-custom#example:-gsonrequest
  */
-public class GsonGetRequest<T> extends Request<T> {
-    private final Gson gson = new Gson();
-    private final Class<T> clazz;
-    private final Map<String, String> headers;
-    private final Response.Listener<T> listener;
+public class GsonGetRequest<T> extends AGsonRequest<T> {
+    private static final String TAG = "GsonGetRequest";
+
+    private static final int TIMEOUT_MS = 5000;
+    private static final int RETRIES = 2;
 
     /**
      * Make a GET request and return a parsed object from JSON.
@@ -30,35 +23,12 @@ public class GsonGetRequest<T> extends Request<T> {
      */
     public GsonGetRequest(String url, Class<T> clazz, Map<String, String> headers,
                           Response.Listener<T> listener, Response.ErrorListener errorListener) {
-        super(Method.GET, url, errorListener);
-        this.clazz = clazz;
-        this.headers = headers;
-        this.listener = listener;
+        super(Method.GET, url, clazz, headers, listener, errorListener);
+        setRetryPolicy(new DefaultRetryPolicy(TIMEOUT_MS, RETRIES, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
     }
 
     @Override
-    public Map<String, String> getHeaders() throws AuthFailureError {
-        return headers != null ? headers : super.getHeaders();
-    }
-
-    @Override
-    protected void deliverResponse(T response) {
-        listener.onResponse(response);
-    }
-
-    @Override
-    protected Response<T> parseNetworkResponse(NetworkResponse response) {
-        try {
-            String json = new String(
-                    response.data,
-                    HttpHeaderParser.parseCharset(response.headers));
-            return Response.success(
-                    gson.fromJson(json, clazz),
-                    HttpHeaderParser.parseCacheHeaders(response));
-        } catch (UnsupportedEncodingException e) {
-            return Response.error(new ParseError(e));
-        } catch (JsonSyntaxException e) {
-            return Response.error(new ParseError(e));
-        }
+    protected String getLogTag() {
+        return TAG;
     }
 }

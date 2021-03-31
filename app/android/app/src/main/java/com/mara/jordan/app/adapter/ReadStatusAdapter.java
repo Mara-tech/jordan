@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.api.JordanReadStatusCallback;
 import com.mara.jordan.app.model.JordanTaskModel;
@@ -66,7 +67,7 @@ public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
         JordanStatusDTO status = getItem(position);
         String timestamp = DateUtils.formatTimestamp(status.getTimestamp(), false);
         String taskTag = formatTask(status.getParentTask(), true);
-        statusView.setText(String.format("%s %s %s", taskTag, timestamp, status.getStatus()));
+        statusView.setText(String.format("%s %s %s", timestamp, taskTag, status.getStatus()));
         statusView.setTextSize(definedTextSizeSp);
         statusView.setTextColor(getStatusColor(status.getType()));
 
@@ -82,16 +83,17 @@ public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
 
     private void showStatusDetails(JordanStatusDTO status) {
         String[] details = new String[]{
+                status.getStatus(),
                 getContext().getString(R.string.status_details_id, status.getStatusId()),
                 getContext().getString(R.string.status_details_type, status.getType()),
                 getContext().getString(R.string.status_details_timestamp, DateUtils.formatTimestamp(status.getTimestamp(), true)),
                 getContext().getString(R.string.status_details_task, formatTask(status.getParentTask(), false))
         };
         new MaterialAlertDialogBuilder(getContext())
-                .setTitle(status.getStatus())
+                .setTitle(R.string.status_details_title)
                 .setItems(details, (dialog, which) -> {
                 })
-                .create().show();
+                .show();
     }
 
     private String formatTask(JordanParentTaskDTO parentTask, boolean shortTag) {
@@ -115,8 +117,8 @@ public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
 
     }
 
-    public void refresh(String query, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter, JordanReadStatusCallback callback) {
-        model.readStatus(callback, new JordanReadStatusCallback() {
+    public void refresh(String query, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter, int depth, JordanReadStatusCallback callback) {
+        model.readStatus(depth, callback, new JordanReadStatusCallback() {
             @Override
             public void onStatusLoaded(JordanStatusDTO[] statuses) {
                 select(query, typeFilter, taskFilter, statuses);
@@ -170,7 +172,7 @@ public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
                 list.add(s);
             }
         }
-        return list;
+        return Lists.reverse(list); //read as logs : the later the lower (the older the higher)
     }
 
     /**

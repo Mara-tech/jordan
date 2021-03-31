@@ -2,7 +2,7 @@
 
 ## Objectives
 
-- Interact with un executing program
+- Interact with an executing program
 - From anywhere
 
 ## Basics
@@ -14,8 +14,16 @@
 
 ## Requirements
 ### Central server
-    pip install requests
     pip install flask-restplus
     pip install Werkzeug==0.16.1
     pip install redis
     pip install rejson
+
+### Python library
+    pip install jordan_py
+    
+Usage :
+    
+    from jordan_py import jordan
+    
+Refer to specific [README](libraries/python/jordan_py/README.md) for usage.

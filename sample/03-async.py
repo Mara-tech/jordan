@@ -1,6 +1,4 @@
-import time
-import libraries.python.jordan as jordan
-
+from jordan_py import jordan
 
 JORDAN_SERVER_BASE_URL = 'http://192.168.1.41:5000/jordan/'
 

@@ -5,6 +5,7 @@ import android.os.Handler;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -13,6 +14,10 @@ import android.widget.GridLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import androidx.appcompat.widget.PopupMenu;
+
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.common.collect.Lists;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.api.JordanGetActionsCallback;
 import com.mara.jordan.app.api.JordanSendMessageCallback;
@@ -22,10 +27,12 @@ import com.mara.jordan.app.model.dto.JordanActionParameterDTO;
 import com.mara.jordan.app.model.dto.JordanParentTaskDTO;
 import com.mara.jordan.app.ui.JordanSendMessageUiCallback;
 import com.mara.jordan.app.utils.CircularProgressButtonHelper;
+import com.mara.jordan.app.utils.JordanConstant;
 
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,12 +40,13 @@ import java.util.Map;
 import br.com.simplepass.loadingbutton.customViews.CircularProgressButton;
 import se.emilsjolander.stickylistheaders.StickyListHeadersAdapter;
 
-public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWithTaskDTO> implements StickyListHeadersAdapter, JordanGetActionsCallback{
+public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWithTaskDTO> implements StickyListHeadersAdapter, JordanGetActionsCallback, JordanConstant {
 
     private static final String TAG = "TaskAndActionsAdapter";
     private static final String IS_MANDATORY_INDICATOR = " *";
     private static final String NON_MANDATORY = "";
     private static final long DELAY_BEFORE_REVERT_ACTION_BUTTON_STATE_MS = 2500;
+    private static final ActionComparator ACTION_COMPARATOR = new ActionComparator();
 
     /**
      * model for client, aka root task
@@ -70,7 +78,6 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         JordanActionDefinitionWithTaskDTO actionDefinition = getItem(position);
-        Log.i(TAG, "getView for pos " + position + "->" + actionDefinition.getActionName());
         View view = reuseView(actionDefinition);
         if(view == null) {
             view = createView(actionDefinition, parent);
@@ -164,18 +171,12 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
                             new JordanSendMessageCallback() {
                                 @Override
                                 public void onMessageSent(long messageId) {
-                                    buttonClicked.doneLoadingAnimation(cpbh.getProgressionButtonFillColor(), cpbh.getSuccessBitmap());
-                                    waitAndResetButton(buttonClicked);
-                                }
-
-                                private void waitAndResetButton(CircularProgressButton button) {
-                                    new Handler().postDelayed(button::revertAnimation, DELAY_BEFORE_REVERT_ACTION_BUTTON_STATE_MS);
+                                    cpbh.successAndReset(buttonClicked);
                                 }
 
                                 @Override
                                 public void onMessageSendingError(String errorMessage) {
-                                    buttonClicked.doneLoadingAnimation(cpbh.getProgressionButtonFillColor(), cpbh.getErrorBitmap());
-                                    waitAndResetButton(buttonClicked);
+                                    cpbh.errorAndReset(buttonClicked);
                                 }
                             }
                             );
@@ -199,6 +200,12 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
         holder.taskNameView.setText(headerText);
 
 
+        if(parentTask.getState() != null && TASK_COMPLETE_STATE.equals(parentTask.getState())){
+            holder.taskNameView.setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0, R.drawable.task_complete, 0);
+        } else {
+            holder.taskNameView.setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0, 0, 0);
+        }
+
         if(parentTask.getProgress() != null){
             holder.taskProgressBar.setVisibility(View.VISIBLE);
             holder.taskProgressBar.setProgress(parentTask.getProgress());
@@ -206,7 +213,44 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
             holder.taskProgressBar.setVisibility(View.INVISIBLE);
         }
 
+        convertView.setOnLongClickListener(v -> displayTaskOptions(v, parentTask));
+
         return convertView;
+    }
+
+    private boolean displayTaskOptions(View view, JordanParentTaskDTO parentTask) {
+        PopupMenu popup = new PopupMenu(getContext(), view, Gravity.END);
+        popup.getMenuInflater().inflate(R.menu.task_popup_menu, popup.getMenu());
+        popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+            public boolean onMenuItemClick(MenuItem item) {
+                switch (item.getItemId()){
+                    case R.id.infos_task:
+                        showInfosDialog(parentTask);
+                        break;
+                    default:
+                        Log.e(TAG, "Unhandled menu item " + item.getTitle());
+                }
+                return true;
+            }
+        });
+        popup.show();
+        return true;
+    }
+
+    private void showInfosDialog(JordanParentTaskDTO parentTask) {
+        List<String> details = Lists.newArrayList(
+                getContext().getString(R.string.task_details_id, parentTask.getTaskId()),
+                getContext().getString(R.string.task_details_state, parentTask.getState()));
+
+        if(parentTask.getProgress() != null) {
+            details.add(getContext().getString(R.string.task_details_progress, parentTask.getProgress()));
+        }
+        new MaterialAlertDialogBuilder(getContext())
+                .setTitle(parentTask.getName())
+                .setItems(details.toArray(new String[]{}), (dialog, which) -> {
+                })
+                .show();
+
     }
 
     @Override
@@ -220,6 +264,7 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
 
     @Override
     public void onActionsLoaded(JordanActionDefinitionWithTaskDTO[] actions) {
+        Arrays.sort(actions, ACTION_COMPARATOR);
         display(actions);
     }
 

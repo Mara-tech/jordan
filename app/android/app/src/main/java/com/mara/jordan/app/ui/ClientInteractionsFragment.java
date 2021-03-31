@@ -11,6 +11,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
+import androidx.navigation.fragment.NavHostFragment;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.mara.jordan.app.R;
@@ -20,7 +21,7 @@ import com.mara.jordan.app.model.JordanTaskModel;
 /**
  * A fragment representing a list of Items.
  */
-public class ClientInteractionsFragment extends Fragment {
+public class ClientInteractionsFragment extends InServerFragment {
 
     private Fragment currentFragment = null;
     private JordanTaskModel model;
@@ -79,10 +80,6 @@ public class ClientInteractionsFragment extends Fragment {
         return view;
     }
 
-    @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-    }
 
     public void openFragment(Fragment fragment) {
         currentFragment = fragment;
@@ -93,12 +90,13 @@ public class ClientInteractionsFragment extends Fragment {
     }
 
     @Override
-    public void onStop() {
-        super.onStop();
-        FragmentTransaction transaction = getActivity().getSupportFragmentManager().beginTransaction();
-        transaction.detach(currentFragment);
-        transaction.addToBackStack(null);
-        transaction.commit();
+    protected JordanClientModel getModel() {
+        return model;
     }
 
+    @Override
+    public void onBaseDeleted() {
+        super.onBaseDeleted();
+        NavHostFragment.findNavController(ClientInteractionsFragment.this).popBackStack();
+    }
 }

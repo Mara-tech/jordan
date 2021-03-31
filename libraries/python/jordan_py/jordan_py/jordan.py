@@ -16,6 +16,7 @@ PARAMETER_TYPE_FLOAT = 'float'
 FAILURE_STATUS_TYPE = 'failure'
 SUCCESS_STATUS_TYPE = 'success'
 GENERAL_STATUS_TYPE = 'general'
+PROGRESS_STATUS_TYPE = 'progress'
 DEFAULT_STATUS_TYPE = GENERAL_STATUS_TYPE
 
 CLIENT_NAMESPACE = 'client/'
@@ -23,6 +24,8 @@ REGISTER_RESOURCE = CLIENT_NAMESPACE + "register"
 
 TASK_ID = '{}/'
 NEW_TASK_RESOURCE = CLIENT_NAMESPACE + TASK_ID + 'task'
+TASK_STATE = '{}'
+UPDATE_TASK_STATE_RESOURCE = CLIENT_NAMESPACE + TASK_ID + TASK_STATE
 STATUS_RESOURCE = CLIENT_NAMESPACE + TASK_ID + 'status'
 MESSAGE_RESOURCE = CLIENT_NAMESPACE + TASK_ID + 'message'
 MESSAGE_ID = '{}/'
@@ -31,7 +34,8 @@ UPDATE_MESSAGE_STATE_RESOURCE = CLIENT_NAMESPACE + TASK_ID + MESSAGE_ID + MESSAG
 CLIENT_ID = '{}/'
 UNREGISTER_RESOURCE = CLIENT_NAMESPACE + CLIENT_ID + 'unregister'
 
-
+TASK_STATE_COMPLETE = "COMPLETE"
+TASK_STATE_ERROR = "ERROR"
 MESSAGE_STATE_ACKNOWLEDGED = 'MESSAGE_ACKNOWLEDGED'
 MESSAGE_STATE_PROCESSED = 'MESSAGE_PROCESSED'
 MESSAGE_CLIENT_RECEIVED = 'CLIENT_RECEIVED'
@@ -53,11 +57,11 @@ class ActionBuilder():
         self.current_action_name = action_name
         return self
 
-    def with_parameter(self, parameter_name, parameter_type=PARAMETER_TYPE_STRING):
+    def with_parameter(self, parameter_name, parameter_type=PARAMETER_TYPE_STRING, default_value=None):
         valid_parameter_types = [PARAMETER_TYPE_STRING, PARAMETER_TYPE_INT, PARAMETER_TYPE_FLOAT]
         if parameter_type not in valid_parameter_types:
             raise ValueError(f"Parameter {parameter_name} of type {parameter_type} must be one of {valid_parameter_types}")
-        self.actions[self.current_action_name][parameter_name] = parameter_type
+        self.actions[self.current_action_name][parameter_name] = parameter_type, default_value
         return self
 
     def build(self):
@@ -67,8 +71,10 @@ class ActionBuilder():
             action_definition = {'actionName':action_name}
             if len(parameters) > 0:
                 action_definition['parameters'] = []
-                for param_name, param_type in parameters.items():
+                for param_name, (param_type, param_default_value) in parameters.items():
                     action_parameter_definition = {'name' : param_name, 'type': param_type}
+                    if param_default_value:
+                        action_parameter_definition['defaultValue'] = param_default_value
                     action_definition['parameters'].append(action_parameter_definition)
             actions.append(action_definition)
         return actions
@@ -122,12 +128,15 @@ class JordanMessage():
 
 class JordanInstance():
 
-    def __init__(self, base_url, task_id, auth_token):
+    def __init__(self, base_url, task_id, auth_token, instance_name):
         self.base_url = base_url
         self.task_id = task_id
         self.auth_token = auth_token
+        self.instance_name = instance_name
 
-    def create_task(self, task_name, actions=DEFAULT_NO_ACTION, password=DEFAULT_NO_PASSWORD, **kwargs):
+    def create_task(self, task_name, actions=None, password=DEFAULT_NO_PASSWORD, **kwargs):
+        if actions is None:
+            actions = DEFAULT_NO_ACTION
         NEW_TASK_ENDPOINT = self.base_url + NEW_TASK_RESOURCE.format(self.task_id)
 
         payload = {'name': task_name}
@@ -140,17 +149,27 @@ class JordanInstance():
 
         if r.status_code == 201:
             new_task_output = json.loads(r.text)
-            return JordanInstance(self.base_url, new_task_output['taskId'], self.auth_token)
+            return JordanTaskInstance(self.base_url, new_task_output['taskId'], self.auth_token, task_name)
         return None
 
-    def send_status(self, status, **kwargs):
-        return self.send_typed_status(DEFAULT_STATUS_TYPE, status, **kwargs)
+    def send_status(self, status, status_type=DEFAULT_STATUS_TYPE, **kwargs):
+        """Equivalent to send_typed_status(status_type, status)"""
+        return self.send_typed_status(status_type, status, **kwargs)
+
+    def send_progress(self, status, **kwargs):
+        return self.send_typed_status(PROGRESS_STATUS_TYPE, status, **kwargs)
 
     def send_success_status(self, status, **kwargs):
         return self.send_typed_status(SUCCESS_STATUS_TYPE, status, **kwargs)
 
     def send_failure_status(self, status, **kwargs):
         return self.send_typed_status(FAILURE_STATUS_TYPE, status, **kwargs)
+
+    def send_typed_status(self, status_type, status, async_call=False, async_callback=None, **kwargs):
+        if async_call or async_callback:
+            threading.Thread(target=self._exec_send_typed_status, args=[status_type, status, async_callback], **kwargs).start()
+        else:
+            return self._exec_send_typed_status(status_type, status, **kwargs)
 
     def _exec_send_typed_status(self, status_type, status, async_callback=None, **kwargs):
         STATUS_ENDPOINT = self.base_url + STATUS_RESOURCE.format(self.task_id)
@@ -168,12 +187,6 @@ class JordanInstance():
 
         return None
 
-    def send_typed_status(self, status_type, status, async_call=False, async_callback=None, **kwargs):
-        if async_call or async_callback:
-            threading.Thread(target=self._exec_send_typed_status, args=[status_type, status, async_callback], kwargs=kwargs).start()
-        else:
-            return self._exec_send_typed_status(status_type, status)
-
     def _exec_read_message(self, async_callback=None, **kwargs):
         MESSAGE_ENDPOINT = self.base_url + MESSAGE_RESOURCE.format(self.task_id)
         r = requests.get(MESSAGE_ENDPOINT, **kwargs)
@@ -189,7 +202,7 @@ class JordanInstance():
 
     def read_message(self, async_call=False, async_callback=None, **kwargs):
         if async_call or async_callback:
-            threading.Thread(target=self._exec_read_message, args=[async_callback], kwargs=kwargs).start()
+            threading.Thread(target=self._exec_read_message, args=[async_callback], **kwargs).start()
         else:
             return self._exec_read_message()
 
@@ -197,6 +210,27 @@ class JordanInstance():
         UNREGISTER_ENDPOINT = self.base_url + UNREGISTER_RESOURCE.format(self.task_id)
         r = requests.post(UNREGISTER_ENDPOINT, **kwargs)
         return r.status_code == 200
+
+    def fatal(self, exception, **kwargs):
+        self.send_failure_status(str(exception))
+        self.update_task(TASK_STATE_ERROR)
+        self.unregister()
+
+    def update_task(self, task_state, **kwargs):
+        UPDATE_TASK_STATE_ENDPOINT = self.base_url + UPDATE_TASK_STATE_RESOURCE.format(self.task_id, task_state)
+        r = requests.put(UPDATE_TASK_STATE_ENDPOINT, **kwargs)
+        return r.status_code == 202
+
+
+    def complete(self, **kwargs):
+        return self.update_task(TASK_STATE_COMPLETE)
+
+
+class JordanTaskInstance(JordanInstance):
+
+    def fatal(self, exception, **kwargs):
+        self.send_failure_status(str(exception))
+        self.update_task(TASK_STATE_ERROR)
 
 
 def register(server_base_url, client_name=DEFAULT_CLIENT_NAME, actions=DEFAULT_NO_ACTION, password=DEFAULT_NO_PASSWORD, **kwargs):
@@ -212,6 +246,6 @@ def register(server_base_url, client_name=DEFAULT_CLIENT_NAME, actions=DEFAULT_N
 
     if r.status_code == 200:
         register_output = json.loads(r.text)
-        return JordanInstance(server_base_url, register_output['taskId'], register_output['authToken'])
+        return JordanInstance(server_base_url, register_output['taskId'], register_output['authToken'], client_name)
 
     return None
