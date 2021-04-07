@@ -1,0 +1,160 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  python3.8
+
+  Sample SAM Template for jordan-server
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 3
+
+Resources:
+  JordanServerLambda:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      PackageType: Image
+      Events:
+        HelloWorld:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /jordan/hello
+            Method: get
+        ClientRegister:
+          Type: Api
+          Properties:
+            Path: /jordan/client/register
+            Method: post
+        ClientNewTask:
+          Type: Api
+          Properties:
+            Path: /jordan/client/{taskId}/task
+            Method: post
+        ClientUpdateTask:
+          Type: Api
+          Properties:
+            Path: /jordan/client/{taskId}/task/{taskState}
+            Method: put
+        ClientSendStatus:
+          Type: Api
+          Properties:
+            Path: /jordan/client/{taskId}/status
+            Method: post
+        ClientReadMessage:
+          Type: Api
+          Properties:
+            Path: /jordan/client/{taskId}/message
+            Method: get
+        ClientUpdateMessageState:
+          Type: Api
+          Properties:
+            Path: /jordan/client/{taskId}/message/{messageId}/{messageState}
+            Method: put
+        ClientUnregister:
+          Type: Api
+          Properties:
+            Path: /jordan/client/{taskId}/unregister
+            Method: post
+        AdminApi:
+          Type: Api
+          Properties:
+            Path: /jordan/admin/hello
+            Method: get
+        AdminApiListClient:
+          Type: Api
+          Properties:
+            Path: /jordan/admin/clients
+            Method: get
+        AdminApiListActions:
+          Type: Api
+          Properties:
+            Path: /jordan/admin/{taskId}/actions
+            Method: get
+        AdminApiSendMessage:
+          Type: Api
+          Properties:
+            Path: /jordan/admin/{taskId}/message
+            Method: post
+        AdminApiReadMessages:
+          Type: Api
+          Properties:
+            Path: /jordan/admin/{taskId}/messages
+            Method: get
+        AdminApiReadStatuses:
+          Type: Api
+          Properties:
+            Path: /jordan/admin/{taskId}/status
+            Method: get
+        AdminApiDeleteTask:
+          Type: Api
+          Properties:
+            Path: /jordan/admin/{taskId}
+            Method: delete
+        AdminApiDeleteAll:
+          Type: Api
+          Properties:
+            Path: /jordan/admin/all
+            Method: delete
+        AdminApiGenericQuery:
+          Type: Api
+          Properties:
+            Path: /jordan/admin/generic/{genericId}
+            Method: get
+#        SwaggerUi:
+#          Type: Api
+#          Properties:
+#            Path: /jordan/swagger-ui
+#            Method: get
+#        SwaggerModel:
+#          Type: Api
+#          Properties:
+#            Path: /jordan/swagger.json
+#            Method: get
+#        SwaggerUiDroidCss:
+#          Type: Api
+#          Properties:
+#            Path: /swaggerui/droid-sans.css
+#            Method: get
+#        SwaggerUiCss:
+#          Type: Api
+#          Properties:
+#            Path: /swaggerui/swagger-ui.css
+#            Method: get
+#        SwaggerUiStandaloneJs:
+#          Type: Api
+#          Properties:
+#            Path: /swaggerui/swagger-ui-standalone-preset.js
+#            Method: get
+#        SwaggerUiBundleJs:
+#          Type: Api
+#          Properties:
+#            Path: /swaggerui/swagger-ui-bundle.js
+#            Method: get
+#        SwaggerUiIcon:
+#          Type: Api
+#          Properties:
+#            Path: /swaggerui/favicon-16x16.png
+#            Method: get
+      Environment:
+        Variables:
+          JORDAN_BACKEND_HOST: '{{resolve:ssm:/jordan/RedisHostname:1}}'
+          JORDAN_BACKEND_PASSWORD: '{{resolve:secretsmanager:/jordan/RedisSecret:SecretString}}'
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ./server
+      DockerTag: python3.8-v1
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  HelloWorldApi:
+    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/jordan/hello/"
+  JordanServerLambda:
+    Description: "Jordan Server Stateless Lambda Function ARN"
+    Value: !GetAtt JordanServerLambda.Arn
+  JordanServerLambdaIamRole:
+    Description: "Implicit IAM Role created for Jordan Server function"
+    Value: !GetAtt JordanServerLambdaRole.Arn

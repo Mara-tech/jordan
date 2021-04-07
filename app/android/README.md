@@ -61,3 +61,7 @@ and handle messages (an action executed by the user).
           height="600"/>
 </p>
 
+
+# Library
+Reusable code part for Admin (Active client) interactions are located in [api package](app/src/main/java/com/mara/jordan/app/api).
+This is Java code, based on Volley framework.

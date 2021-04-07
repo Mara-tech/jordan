@@ -254,7 +254,7 @@ public class JordanApi {
     }
 
     public void genericQuery(String query, GenericQueryCallback... callbacks) {
-        String url = String.format("%s/%s", NetworkUtils.removeEndingSlash(serverBaseUrl), query);
+        String url = String.format("%s/generic/%s", NetworkUtils.removeEndingSlash(serverBaseUrl), query);
         StringRequest readClientsRequest = new StringRequest(
                 url,
                 NetworkUtils.makeHeaders(),

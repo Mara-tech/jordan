@@ -1,0 +1,10 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "jordan-secrets"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-1hsrudqja7wwd"
+s3_prefix = "jordan-secrets"
+region = "eu-west-3"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "RedisHost=\"redis-12323.c56.east-us.azure.cloud.redislabs.com\""

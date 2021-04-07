@@ -1,0 +1,11 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "jordan-server"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-1hsrudqja7wwd"
+s3_prefix = "jordan-server"
+region = "eu-west-3"
+capabilities = "CAPABILITY_IAM"
+image_repositories = ["JordanServerLambda=437541785552.dkr.ecr.eu-west-3.amazonaws.com/jordan-server"]
+confirm_changeset = false

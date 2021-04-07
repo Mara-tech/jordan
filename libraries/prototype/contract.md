@@ -2,7 +2,7 @@
 
 ## Register
 #### HTTP API v1
-POST /register
+POST /client/register
 Success response : client_id, session_auth_token. Code : 200 OK
 #### API function(s)
     static register(
@@ -15,9 +15,10 @@ Success response : client_id, session_auth_token. Code : 200 OK
 TBD
 
 ## New Task
-Client can optionally create several tasks. Default behaviour works with a single default task.
+Client can optionally create several tasks. Default behaviour works with a single default root task.
+Every new task has a parent.
 #### HTTP API v1
-POST {taskId}/task (or {clientId}/task ? would we want nested task ?)
+POST /client/{parentTaskId}/task
 Success response : 201 CREATED
 #### API function(s)
 from JordanInstance or JordanTask 
@@ -30,9 +31,9 @@ from JordanInstance or JordanTask
 TBD
 
 ## Task Complete
-Update Task workflow status to COMPLETE.
+Update Task workflow state to COMPLETE.
 #### HTTP API v1
-PUT {taskId}/COMPLETE
+PUT /client/{taskId}/task/{taskState}
 Success response : 202 Accepted
 #### API function(s)
 from JordanInstance or JordanTask 
@@ -47,7 +48,7 @@ TBD
 Passive Client sends status which might be considered as logs useful on Active Client side.
 This can be performance, functional or whatever kind of information. It intends to be keys for decision-making. 
 #### HTTP API v1
-POST {taskId}/status
+POST /client/{taskId}/status
 Success response : status_id. Code : 200 OK
 #### API function(s)
 from JordanInstance or JordanTask 
@@ -62,7 +63,7 @@ TBD
 ## Read Message
 Get action an Active Client commanded.
 #### HTTP API v1
-GET {taskId}/message
+GET /client/{taskId}/message
 Success response : JordanMessage or <empty>. Code : 200 OK if any, 204 No Content if no message
 #### API function(s)
 from JordanInstance or JordanTask 
@@ -78,7 +79,7 @@ Developers should use 'Acknowledge Message' and 'Processed Message' functions to
 ## Acknowledge Message
 Update Message workflow status to MESSAGE_ACKNOWLEDGED.
 #### HTTP API v1
-PUT {taskId}/{messageId}
+PUT /client/{taskId}/message/{messageId}/{messageState}
 Success response : 202 Accepted
 #### API function(s)
 from JordanMessage 
@@ -91,7 +92,7 @@ TBD
 ## Processed Message
 Update Message workflow status to MESSAGE_PROCESSED.
 #### HTTP API v1
-PUT {taskId}/{messageId}
+PUT /client/{taskId}/message/{messageId}/{messageState}
 Success response : 202 Accepted
 #### API function(s)
 from JordanMessage 
@@ -102,26 +103,12 @@ from JordanMessage
 TBD
 
 
-## Complete
-Tell a task(s) is(are) complete, but keep registration valid, so can create other tasks.
-#### HTTP API v1
-POST {taskId}/complete
-Success response : 200 OK
-#### API function(s)
-from JordanInstance or JordanTask 
-
-    complete(
-    ) : JordanSentComplete
-#### Authentication
-TBD
-
-
 ## Unregister
 Ends registration, no action will be accepted by the server from this client.
 The server considers registration with a limited Time-To-Live, 
 but Unregister function should be used before the program ends.
 #### HTTP API v1
-POST {clientId}/unregister
+POST /client/{clientId}/unregister
 Success response : 200 OK
 #### API function(s)
 from JordanInstance
@@ -201,7 +188,7 @@ A task may have one or several available actions.
 A structured DTO (from json object) describes all the above,
 according to the role of the authenticated user.
 #### HTTP API v1
-GET /clients
+GET /admin/clients
 Success response : 200 OK
 #### API function(s)
 from JordanServer
@@ -217,7 +204,7 @@ A client/task may have one or several available actions.
 A structured DTO (from json object) describes the above,
 according to the role of the authenticated user.
 #### HTTP API v1
-GET {taskId}/actions
+GET /admin/{taskId}/actions
 Success response : 200 OK
 #### API function(s)
 from JordanServer
@@ -231,7 +218,7 @@ TBD
 ## Send message
 Program an action which will be executed by Passive Client.
 #### HTTP API v1
-POST {taskId}/message
+POST /admin/{taskId}/message
 Success response message_id. Code : 201 CREATED
 #### API function(s)
 from JordanClientTask 
@@ -252,8 +239,7 @@ MESSAGE_PROCESSED
 ## Read Messages
 List the sent messages and their workflow state.
 #### HTTP API v1
-GET {taskId}/messages
-GET {clientId}/messages
+GET /admin/{taskId}/messages
 Success response : List<JordanMessage>. Code : 200 OK or 204 No Content if empty.
 #### API function(s)
 from JordanClientTask or JordanClientInstance
@@ -266,7 +252,7 @@ TBD
 ## Read status
 Get last statuses sent by the client/task.
 #### HTTP API v1
-GET {taskId}/status
+GET /admin/{taskId}/status
 Success response : List<JordanStatus>. Code : 200 OK, or 204 No Content if empty.
 #### API function(s)
 from JordanClientTask or JordanClientInstance
@@ -287,7 +273,7 @@ This includes :
 - reference from client collection (if the taskId is a clientId)
 - reference from parent task (the parent task removes the taskId from its child tasks)
 #### HTTP API v1
-DELETE {taskId}
+DELETE /admin/{taskId}
 Success response : 200 OK
 #### API function(s)
 from JordanClientInstance
@@ -299,7 +285,7 @@ TBD
 ## Delete All
 Clear everything stored on the server.
 #### HTTP API v1
-DELETE /all
+DELETE /admin/all
 Success response : 200 OK
 #### API function(s)
 from JordanInstance
@@ -311,7 +297,7 @@ TBD
 ## Generic Query
 Returns information stored for an ID.
 #### HTTP API v1
-GET {id}
+GET /admin/generic/{id}
 Success response : 200 OK, 204 No Content if ID does not exists
 #### API function(s)
 from JordanClientInstance

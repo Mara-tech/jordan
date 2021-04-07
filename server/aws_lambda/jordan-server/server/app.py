@@ -1,27 +1,34 @@
-from server.jordan_constants import *
-import server.jordan_log as log
-
-from rejson_interface import *
-
-from flask import Flask
+from flask_lambda import FlaskLambda
+import time
 from flask_restplus import Api, Resource, fields
+import jordan_log as log
+from jordan_backend import *
 
-from time import time
+JORDAN_API_PATH_PREFIX = '/jordan'
+JORDAN_OPEN_API_DOC_SUFFIX = JORDAN_API_PATH_PREFIX + '/swagger-ui'
 
-# Full example : https://flask-restplus.readthedocs.io/en/stable/example.html
-# --> namespace, marshall (serialize), docs, params, etc.
+
+def format_response(data=None, status_code=200):
+    if data is None or type(data) is str:
+        data = {'message': data}
+    return (
+        # json.dumps(data),
+        data,
+        status_code,
+        {'Content-Type': "application/json"}
+    )
+
 
 #--------------------
 #---API DEFINITION---
 #--------------------
-app = Flask(__name__)
+app = FlaskLambda(__name__)
 api = Api(app,
           version='2',
           title='Jordan Server API',
           description='Interactions with Jordan server',
-          # license='MIT',
-          # contact='Pupu',
-          # contact_url='https://github.com/Mara-tech/jordan',
+          license='MIT',
+          contact_url='https://github.com/Mara-tech/jordan',
           doc=JORDAN_OPEN_API_DOC_SUFFIX,
           prefix=JORDAN_API_PATH_PREFIX
           )
@@ -92,6 +99,11 @@ client_registration_model = api.model('ClientRegistration', {
     'actions': fields.List(fields.Nested(action_definition_model), required=False, description='Available actions')
 })
 
+create_task_model = api.model('CreateTask', {
+    'name': fields.String(required=False, description='Task name', example='IA Training Bot 01 - Validation'),
+    'actions': fields.List(fields.Nested(action_definition_model), required=False, description='Available actions')
+})
+
 client_registered_model = api.model('ClientRegistered', {
     'taskId': fields.Integer(required=True, description='Client identifier, which is the root task identifier', example=123),
     'authToken': fields.String(required=False, description='Authentication key for future calls on this client', example='f9bf78b9a18ce6d46a0cd2b0b86df9da'),
@@ -101,7 +113,7 @@ status_model = api.model('Status', {
     'statusId' : fields.Integer(required=False, description='status id in server database', example=123456),
     'type': fields.String(required=True, description='status type', example='general'),
     'status': fields.String(required=True, description='status content, message', example='program still running'),
-    'timestamp': fields.Integer(required=True, description='Seconds since 1970/1/1', example=int(time())),
+    'timestamp': fields.Integer(required=True, description='Seconds since 1970/1/1', example=time.time()),
     'parentTask': fields.Nested(parent_task_model, required=False, description='quick description of the task sending this status')
 })
 
@@ -118,12 +130,12 @@ action_model = api.model('Action', {
     'actionName': fields.String(required=True, description='refers to the action definition of the same name', example='send_email'),
     'placeholders': fields.Nested(
         wildcard_fields,
-            required=False, skip_none=True, description='mapping parameter_name->value_to_pass_in', example={"recipient" : "user@mail.com"}
+            required=False, skip_none=True, description='mapping parameter_name->value_to_pass_in', example={"recipient": "user@mail.com"}
     )
 })
 
 message_state_audit = api.model('ActionState', {
-    'timestamp': fields.Integer(required=True, description='Seconds since 1970/1/1', example=time()),
+    'timestamp': fields.Integer(required=True, description='Seconds since 1970/1/1', example=time.time()),
     'state': fields.String(required=True, description='state enum (SERVER_RECEIVED, MESSAGE_DELIVERED, CLIENT_RECEIVED, MESSAGE_ACKNOWLEDGED, MESSAGE_PROCESSED, MESSAGE_OVERRIDDEN, ERROR_MESSAGE_NOT_DELIVERED, ERROR_CANNOT_PROCESS_MESSAGE, ERROR_MESSAGE_NOT_RECEIVED_BY_SERVER', example='MESSAGE_DELIVERED')
 })
 
@@ -141,12 +153,12 @@ message_model = api.model('Message', {
 @api.route('/hello')
 class HelloWorld(Resource):
     def get(self):
-        return "Hello World " + str(time())
+        return format_response("Hello World " + str(time.time()))
 
 @admin_ns.route('/hello')
 class HelloAdmin(Resource):
     def get(self):
-        return {'test': 'success', 'timestamp': int(time())}, 200
+        return format_response({'test': 'success', 'timestamp': int(time.time())}, 200)
 
 
 @client_ns.route('/register')
@@ -159,7 +171,7 @@ class Register(Resource):
     def post(self):
         try:
             client_registered = register_client(api.payload)
-            return client_registered, 200
+            return format_response(client_registered, 200)
         except:
             client_ns.abort(500, 'Could not register client')
 
@@ -170,12 +182,12 @@ class NewTask(Resource):
 
     @client_ns.doc(description="Create a new task, can be see as a process.",
                    responses={201: 'Task created'})
-    @client_ns.expect(task_model)
+    @client_ns.expect(create_task_model)
     @client_ns.marshal_with(task_created_model)
     def post(self, parent_task_id):
         try:
             created_task = create_task(parent_task_id, api.payload)
-            return created_task, 201
+            return format_response(created_task, 201)
         except:
             client_ns.abort(500, 'Could not create task')
 
@@ -190,7 +202,7 @@ class UpdateTaskState(Resource):
     def put(self, task_id, task_state):
         try:
             update_valid = update_task(task_id, task_state)
-            return None, 202 if update_valid else 400
+            return format_response(None, 202 if update_valid else 400)
         except:
             client_ns.abort(500, 'Could not update state')
 
@@ -205,7 +217,7 @@ class SendStatus(Resource):
     def post(self, task_id):
         try:
             status_sent = post_status(task_id, api.payload)
-            return status_sent, 200
+            return format_response(status_sent, 200)
         except:
             client_ns.abort(500, 'Could not receive status')
 
@@ -220,7 +232,7 @@ class ReadMessage(Resource):
     def get(self, task_id):
         try:
             message = read_message(task_id)
-            return message, 200 if message is not None else 204
+            return format_response(message, 200 if message is not None else 204)
         except:
             client_ns.abort(500, 'Could not access to any message')
 
@@ -236,7 +248,7 @@ class UpdateMessageState(Resource):
     def put(self, task_id, message_id, message_state):
         try:
             update_valid = update_message(task_id, message_id, message_state)
-            return None, 202 if update_valid else 400
+            return format_response(None, 202 if update_valid else 400)
         except:
             client_ns.abort(500, 'Could not update state')
 
@@ -250,7 +262,7 @@ class Unregister(Resource):
     def post(self, client_id):
         try:
             valid_unregister = unregister(client_id)
-            return None, 200 if valid_unregister else 400
+            return format_response(None, 200 if valid_unregister else 400)
         except:
             client_ns.abort(500, 'Could not update state')
 
@@ -265,7 +277,7 @@ class ListClients(Resource):
     def get(self):
         try:
             client_list = list_clients(api.authorizations)
-            return client_list, 200
+            return format_response(client_list, 200)
         except:
             admin_ns.abort(500, 'Could not access to any client')
 
@@ -279,7 +291,7 @@ class ListActions(Resource):
     def get(self, task_id):
         try:
             actions_list = list_actions(task_id, api.authorizations)
-            return actions_list, 200
+            return format_response(actions_list, 200)
         except:
             admin_ns.abort(500, 'Could not access to any client')
 
@@ -295,7 +307,7 @@ class ReadStatus(Resource):
     def get(self, task_id, line_count):
         try:
             status_list = read_status(task_id, line_count)
-            return status_list, 200 if len(status_list) > 0 else 204
+            return format_response(status_list, 200 if len(status_list) > 0 else 204)
         except:
             admin_ns.abort(500, 'Could not read any status')
 
@@ -309,7 +321,7 @@ class SendMessage(Resource):
     def post(self, task_id):
         try:
             message_id = post_message(task_id, api.payload)
-            return message_id, 201
+            return format_response(message_id, 201)
         except:
             admin_ns.abort(500, 'Could not receive message')
 
@@ -324,7 +336,7 @@ class ReadMessages(Resource):
     def get(self, task_id):
         try:
             message_list = list_messages(task_id)
-            return message_list, 200 if len(message_list) > 0 else 204
+            return format_response(message_list, 200 if len(message_list) > 0 else 204)
         except:
             admin_ns.abort(500, 'Could not access to any message')
 
@@ -338,7 +350,7 @@ class DeleteTask(Resource):
     def delete(self, task_id):
         try:
             valid_deletion = delete_task(task_id)
-            return None, 200 if valid_deletion else 400
+            return format_response(None, 200 if valid_deletion else 400)
         except:
             admin_ns.abort(500, 'Could not delete client')
 
@@ -351,7 +363,7 @@ class DeleteAll(Resource):
     def delete(self):
         try:
             valid_deletion = delete_all(None)#api.payload)
-            return None, 200 if valid_deletion else 400
+            return format_response(None, 200 if valid_deletion else 400)
         except:
             admin_ns.abort(500, 'Could not delete base')
 
@@ -365,11 +377,15 @@ class GenericQuery(Resource):
     def get(self, generic_id):
         try:
             serialized_object = generic_query(generic_id)
-            return (serialized_object, 200) if serialized_object else ('No result', 204)
+            return format_response(serialized_object, 200) if serialized_object else format_response('No result', 204)
         except:
             admin_ns.abort(500, 'Could not execute generic query')
 
+
 def start_api():
-    #about starting twice : https://stackoverflow.com/questions/9449101/how-to-stop-flask-from-initialising-twice-in-debug-mode
-    log.info(f"Swagger UI available on {JORDAN_OPEN_API_URL}")
-    app.run(host=IPAddr, port=JORDAN_API_PORT, debug=True, use_reloader=False)
+    app.run(host='0.0.0.0', debug=True, use_reloader=False)
+
+
+if __name__ == '__main__':
+    log.info("Starting API from main")
+    start_api()

@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Secrets for Jordan
+#https://github.com/aws-samples/sessions-with-aws-sam/tree/master/secrets
+
+Parameters:
+  RedisHost:
+    Type: String
+    NoEcho: false
+
+  RedisPassword:
+    Type: String
+    NoEcho: true
+
+Resources:
+  RedisHostname:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /jordan/RedisHostname
+      Type: String
+      Description: Address of Redis DB to use
+      Value: !Ref RedisHost
+
+  RedisSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: /jordan/RedisSecret
+      Description: Password for Redis
+      SecretString: !Ref RedisPassword

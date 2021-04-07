@@ -1,12 +1,16 @@
 from rejson import Client, Path
-import server.jordan_log as log
+import jordan_log as log
 import random
 import time
 from secrets import token_hex
+import os
 
+redis_host = os.environ['JORDAN_BACKEND_HOST']
+redis_pwd = os.environ['JORDAN_BACKEND_PASSWORD']
+if redis_host is None or redis_pwd is None:
+    log.error('JORDAN_BACKEND_HOST and JORDAN_BACKEND_PASSWORD environment variables must be set.')
 
-rj = Client(host='redis-12323.c56.east-us.azure.cloud.redislabs.com', port=12323, decode_responses=True,
-                 db=0, password='***', socket_timeout=None)
+rj = Client(host=redis_host, port=12323, decode_responses=True, db=0, password=redis_pwd, socket_timeout=None)
 
 #Jordan keywords
 TASK_ACTIONS = 'actions'
