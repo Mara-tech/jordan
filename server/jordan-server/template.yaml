@@ -142,7 +142,7 @@ Resources:
           JORDAN_BACKEND_PASSWORD: '{{resolve:secretsmanager:/jordan/RedisSecret:SecretString}}'
     Metadata:
       Dockerfile: Dockerfile
-      DockerContext: ./server
+      DockerContext: ./src
       DockerTag: python3.8-v1
 
 Outputs:

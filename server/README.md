@@ -5,9 +5,9 @@
 - Select a backend implementation file. For example, for Redis-json implementation : 
 
     
-    cd jordan-server/server
+    cd jordan-server/src
     cp backend_impl/rejson_interface.py jordan_backend.py
-    cd ..
+    cd ../..
 
 For AWS Lambda :
 - Have AWS CLI and SAM CLI installed and configured
@@ -61,3 +61,5 @@ List of supported backend (such as databases), and associated implementations :
     - rejson_interface.py
 - Nothing :
     - mock.py
+    
+One may use interface `base_file.py` to start a new implementation.
