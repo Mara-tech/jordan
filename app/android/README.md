@@ -8,7 +8,8 @@ In other words, with a few lines of code in any program (aiming long-time execut
 
 
 ## Jordan Server list
-Add the base URI of a Jordan server API.
+Add the admin base URI of a Jordan server API, ending by **/jordan/admin**. 
+For example : `https://abcdef1234.execute-api.us-east-1.amazonaws.com/Prod/jordan/admin`
 
 <p align="center">
     <img src="data/server_list.png" 
