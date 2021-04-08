@@ -84,7 +84,7 @@ Resources:
         AdminApiReadStatuses:
           Type: Api
           Properties:
-            Path: /jordan/admin/{taskId}/status
+            Path: /jordan/admin/{taskId}/status/{lineCount}
             Method: get
         AdminApiDeleteTask:
           Type: Api
@@ -101,41 +101,6 @@ Resources:
           Properties:
             Path: /jordan/admin/generic/{genericId}
             Method: get
-#        SwaggerUi:
-#          Type: Api
-#          Properties:
-#            Path: /jordan/swagger-ui
-#            Method: get
-#        SwaggerModel:
-#          Type: Api
-#          Properties:
-#            Path: /jordan/swagger.json
-#            Method: get
-#        SwaggerUiDroidCss:
-#          Type: Api
-#          Properties:
-#            Path: /swaggerui/droid-sans.css
-#            Method: get
-#        SwaggerUiCss:
-#          Type: Api
-#          Properties:
-#            Path: /swaggerui/swagger-ui.css
-#            Method: get
-#        SwaggerUiStandaloneJs:
-#          Type: Api
-#          Properties:
-#            Path: /swaggerui/swagger-ui-standalone-preset.js
-#            Method: get
-#        SwaggerUiBundleJs:
-#          Type: Api
-#          Properties:
-#            Path: /swaggerui/swagger-ui-bundle.js
-#            Method: get
-#        SwaggerUiIcon:
-#          Type: Api
-#          Properties:
-#            Path: /swaggerui/favicon-16x16.png
-#            Method: get
       Environment:
         Variables:
           JORDAN_BACKEND_HOST: '{{resolve:ssm:/jordan/RedisHostname:1}}'
