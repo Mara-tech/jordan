@@ -1,5 +1,5 @@
 Werkzeug==0.16.1
-flask-lambda-python36==0.1.0
+flask-lambda-python36-lb==0.4.0
 flask-restplus==0.13.0
 rejson==0.5.4
 pyyaml==5.3.1

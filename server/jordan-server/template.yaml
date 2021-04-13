@@ -8,7 +8,7 @@ Description: >
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 3
+    Timeout: 10
 
 Resources:
   JordanServerLambda:
@@ -16,91 +16,12 @@ Resources:
     Properties:
       PackageType: Image
       Events:
-        HelloWorld:
+        AllEndpoints:
           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
           Properties:
-            Path: /jordan/hello
-            Method: get
-        ClientRegister:
-          Type: Api
-          Properties:
-            Path: /jordan/client/register
-            Method: post
-        ClientNewTask:
-          Type: Api
-          Properties:
-            Path: /jordan/client/{taskId}/task
-            Method: post
-        ClientUpdateTask:
-          Type: Api
-          Properties:
-            Path: /jordan/client/{taskId}/task/{taskState}
-            Method: put
-        ClientSendStatus:
-          Type: Api
-          Properties:
-            Path: /jordan/client/{taskId}/status
-            Method: post
-        ClientReadMessage:
-          Type: Api
-          Properties:
-            Path: /jordan/client/{taskId}/message
-            Method: get
-        ClientUpdateMessageState:
-          Type: Api
-          Properties:
-            Path: /jordan/client/{taskId}/message/{messageId}/{messageState}
-            Method: put
-        ClientUnregister:
-          Type: Api
-          Properties:
-            Path: /jordan/client/{taskId}/unregister
-            Method: post
-        AdminApi:
-          Type: Api
-          Properties:
-            Path: /jordan/admin/hello
-            Method: get
-        AdminApiListClient:
-          Type: Api
-          Properties:
-            Path: /jordan/admin/clients
-            Method: get
-        AdminApiListActions:
-          Type: Api
-          Properties:
-            Path: /jordan/admin/{taskId}/actions
-            Method: get
-        AdminApiSendMessage:
-          Type: Api
-          Properties:
-            Path: /jordan/admin/{taskId}/message
-            Method: post
-        AdminApiReadMessages:
-          Type: Api
-          Properties:
-            Path: /jordan/admin/{taskId}/messages
-            Method: get
-        AdminApiReadStatuses:
-          Type: Api
-          Properties:
-            Path: /jordan/admin/{taskId}/status/{lineCount}
-            Method: get
-        AdminApiDeleteTask:
-          Type: Api
-          Properties:
-            Path: /jordan/admin/{taskId}
-            Method: delete
-        AdminApiDeleteAll:
-          Type: Api
-          Properties:
-            Path: /jordan/admin/all
-            Method: delete
-        AdminApiGenericQuery:
-          Type: Api
-          Properties:
-            Path: /jordan/admin/generic/{genericId}
-            Method: get
+            Path: /{proxy+}
+            Method: any
+
       Environment:
         Variables:
           JORDAN_BACKEND_HOST: '{{resolve:ssm:/jordan/RedisHostname:1}}'
