@@ -2,11 +2,21 @@ from rejson import Client, Path
 import server.jordan_log as log
 import random
 import time
+import os
+from pathlib import Path as FilePath
 from secrets import token_hex
+from dotenv import load_dotenv
 
+load_dotenv(FilePath(__file__).parent / '.env')
 
-rj = Client(host='redis-12323.c56.east-us.azure.cloud.redislabs.com', port=12323, decode_responses=True,
-                 db=0, password='***', socket_timeout=None)
+rj = Client(
+    host=os.environ['REDIS_HOST'],
+    port=int(os.environ['REDIS_PORT']),
+    decode_responses=True,
+    db=0,
+    password=os.environ['REDIS_PASSWORD'],
+    socket_timeout=None,
+)
 
 #Jordan keywords
 TASK_ACTIONS = 'actions'

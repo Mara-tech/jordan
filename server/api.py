@@ -4,7 +4,7 @@ import server.jordan_log as log
 from server.rejson_interface import *
 
 from flask import Flask
-from flask_restplus import Api, Resource, fields
+from flask_restx import Api, Resource, fields
 
 from time import time
 
