@@ -144,5 +144,5 @@ All code, comments, commit messages, and documentation in this project are writt
 
 ### Rules
 
-- Keep documentation (README.md, CLAUDE.md and other Markdown files) up to date
+- Keep documentation (README.md, CLAUDE.md and other Markdown), deployment and other ci/cd files up to date
 
