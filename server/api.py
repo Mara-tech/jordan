@@ -3,7 +3,7 @@ import server.jordan_log as log
 
 from server.rejson_interface import *
 
-from flask import Flask
+from flask import Flask, request
 from flask_restx import Api, Resource, fields
 
 from time import time
@@ -28,6 +28,15 @@ api = Api(app,
 
 client_ns = api.namespace('client', description='Client-side operations')
 admin_ns = api.namespace('admin', description='Admin-side operations')
+
+
+def _require_client_auth(task_id):
+    auth = request.headers.get('Authorization', '')
+    if not auth.startswith('Bearer '):
+        client_ns.abort(401, 'Missing Authorization: Bearer <token> header')
+    token = auth[7:]
+    if not validate_auth_token(task_id, token):
+        client_ns.abort(401, 'Invalid authentication token')
 
 #----------------------
 #---MODEL DEFINITION---
@@ -173,6 +182,7 @@ class NewTask(Resource):
     @client_ns.expect(task_model)
     @client_ns.marshal_with(task_created_model)
     def post(self, parent_task_id):
+        _require_client_auth(parent_task_id)
         try:
             created_task = create_task(parent_task_id, api.payload)
             return created_task, 201
@@ -188,6 +198,7 @@ class UpdateTaskState(Resource):
                    responses={202: 'Update is valid',
                               400: 'Update is invalid'})
     def put(self, task_id, task_state):
+        _require_client_auth(task_id)
         try:
             update_valid = update_task(task_id, task_state)
             return None, 202 if update_valid else 400
@@ -203,6 +214,7 @@ class SendStatus(Resource):
     @client_ns.expect(status_model)
     @client_ns.marshal_with(status_sent_model)
     def post(self, task_id):
+        _require_client_auth(task_id)
         try:
             status_sent = post_status(task_id, api.payload)
             return status_sent, 200
@@ -218,6 +230,7 @@ class ReadMessage(Resource):
                               204: 'no message to read'})
     @client_ns.marshal_with(message_model)
     def get(self, task_id):
+        _require_client_auth(task_id)
         try:
             message = read_message(task_id)
             return message, 200 if message is not None else 204
@@ -234,6 +247,7 @@ class UpdateMessageState(Resource):
                    responses={202: 'Update is valid',
                               400: 'Update is invalid'})
     def put(self, task_id, message_id, message_state):
+        _require_client_auth(task_id)
         try:
             update_valid = update_message(task_id, message_id, message_state)
             return None, 202 if update_valid else 400
@@ -248,6 +262,7 @@ class Unregister(Resource):
                    responses={200: 'Unregistered',
                               400: 'client_id invalid'})
     def post(self, client_id):
+        _require_client_auth(client_id)
         try:
             valid_unregister = unregister(client_id)
             return None, 200 if valid_unregister else 400

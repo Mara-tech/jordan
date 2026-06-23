@@ -361,3 +361,16 @@ def recursive_delete_tasks(task, to_delete):
 def generic_query(id):
     log_redis_op(f"generic query on {id}")
     return rj.json().get(id)
+
+
+def validate_auth_token(task_id, token):
+    """Walk up from task_id to root client and compare authToken."""
+    obj = rj.json().get(task_id)
+    if obj is None:
+        return False
+    if 'authToken' in obj:
+        return obj['authToken'] == token
+    parent_id = obj.get('parentTaskId')
+    if parent_id is not None:
+        return validate_auth_token(parent_id, token)
+    return False

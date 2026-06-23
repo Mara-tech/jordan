@@ -94,12 +94,18 @@ class JordanMessagePlaceholders():
 
 
 class JordanMessage():
-    def __init__(self, base_url, task_id, msg):
+    def __init__(self, base_url, task_id, msg, auth_token=None):
         self.base_url = base_url
         self.task_id = task_id
+        self.auth_token = auth_token
         self.message_id = msg['messageId']
         self.action_name = msg['action']['actionName']
         self.placeholders = JordanMessagePlaceholders(msg['action']['placeholders'])
+
+    def _auth_headers(self):
+        if self.auth_token:
+            return {'Authorization': f'Bearer {self.auth_token}'}
+        return {}
 
     def acknowledge_and_processed(self):
         ack = self.acknowledge()
@@ -122,7 +128,7 @@ class JordanMessage():
 
     def update_message(self, message_state, **kwargs):
         UPDATE_MESSAGE_STATE_ENDPOINT = self.base_url + UPDATE_MESSAGE_STATE_RESOURCE.format(self.task_id, self.message_id, message_state)
-        r = requests.put(UPDATE_MESSAGE_STATE_ENDPOINT, **kwargs)
+        r = requests.put(UPDATE_MESSAGE_STATE_ENDPOINT, headers=self._auth_headers(), **kwargs)
         return r.status_code == 202
 
 
@@ -133,6 +139,9 @@ class JordanInstance():
         self.task_id = task_id
         self.auth_token = auth_token
         self.instance_name = instance_name
+
+    def _auth_headers(self):
+        return {'Authorization': f'Bearer {self.auth_token}'}
 
     def create_task(self, task_name, actions=None, password=DEFAULT_NO_PASSWORD, **kwargs):
         if actions is None:
@@ -145,7 +154,7 @@ class JordanInstance():
         if len(actions) > 0:
             payload['actions'] = actions
 
-        r = requests.post(NEW_TASK_ENDPOINT, json=payload, **kwargs)
+        r = requests.post(NEW_TASK_ENDPOINT, json=payload, headers=self._auth_headers(), **kwargs)
 
         if r.status_code == 201:
             new_task_output = json.loads(r.text)
@@ -177,7 +186,7 @@ class JordanInstance():
         payload = {'type':status_type,
                    'status':status,
                    'timestamp':timestamp}
-        r = requests.post(STATUS_ENDPOINT, json=payload, **kwargs)
+        r = requests.post(STATUS_ENDPOINT, json=payload, headers=self._auth_headers(), **kwargs)
 
         if r.status_code == 200:
             status_output = json.loads(r.text)
@@ -189,10 +198,10 @@ class JordanInstance():
 
     def _exec_read_message(self, async_callback=None, **kwargs):
         MESSAGE_ENDPOINT = self.base_url + MESSAGE_RESOURCE.format(self.task_id)
-        r = requests.get(MESSAGE_ENDPOINT, **kwargs)
+        r = requests.get(MESSAGE_ENDPOINT, headers=self._auth_headers(), **kwargs)
         if r.status_code == 200:
             message_output = json.loads(r.text)
-            msg = JordanMessage(self.base_url, self.task_id, message_output)
+            msg = JordanMessage(self.base_url, self.task_id, message_output, self.auth_token)
             msg.received()
             if async_callback:
                 async_callback(msg)
@@ -208,7 +217,7 @@ class JordanInstance():
 
     def unregister(self, **kwargs):
         UNREGISTER_ENDPOINT = self.base_url + UNREGISTER_RESOURCE.format(self.task_id)
-        r = requests.post(UNREGISTER_ENDPOINT, **kwargs)
+        r = requests.post(UNREGISTER_ENDPOINT, headers=self._auth_headers(), **kwargs)
         return r.status_code == 200
 
     def fatal(self, exception, **kwargs):
@@ -218,7 +227,7 @@ class JordanInstance():
 
     def update_task(self, task_state, **kwargs):
         UPDATE_TASK_STATE_ENDPOINT = self.base_url + UPDATE_TASK_STATE_RESOURCE.format(self.task_id, task_state)
-        r = requests.put(UPDATE_TASK_STATE_ENDPOINT, **kwargs)
+        r = requests.put(UPDATE_TASK_STATE_ENDPOINT, headers=self._auth_headers(), **kwargs)
         return r.status_code == 202
 
 

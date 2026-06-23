@@ -12,7 +12,7 @@ Success response : client_id, session_auth_token. Code : 200 OK
         [password : String,]
     ) : JordanInstance
 #### Authentication
-TBD
+None — registration is open. The response body contains `authToken`, which must be supplied as `Authorization: Bearer <authToken>` on all subsequent calls.
 
 ## New Task
 Client can optionally create several tasks. Default behaviour works with a single default task.
@@ -27,7 +27,7 @@ from JordanInstance or JordanTask
         [actions : JordanActionsDefinition,]
     ) : JordanTask
 #### Authentication
-TBD
+`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
 
 ## Task Complete
 Update Task workflow status to COMPLETE.
@@ -40,7 +40,7 @@ from JordanInstance or JordanTask
     complete(
     ) : Void
 #### Authentication
-TBD
+`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
 
 
 ## Send Status
@@ -56,7 +56,7 @@ from JordanInstance or JordanTask
         status : String/JordanStatus,
     ) : JordanSentStatus
 #### Authentication
-TBD
+`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
 
 
 ## Read Message
@@ -70,7 +70,7 @@ from JordanInstance or JordanTask
     read_message(
     ) : JordanMessage
 #### Authentication
-TBD
+`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
 #### Workflow
 When a message is received here, status on server-side becomes MESSAGE_DELIVERED.
 Developers should use 'Acknowledge Message' and 'Processed Message' functions to update Message workflow.
@@ -86,7 +86,7 @@ from JordanMessage
     acknowledge(
     ) : Void
 #### Authentication
-TBD
+`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
 
 ## Processed Message
 Update Message workflow status to MESSAGE_PROCESSED.
@@ -99,7 +99,7 @@ from JordanMessage
     processed(
     ) : Void
 #### Authentication
-TBD
+`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
 
 
 ## Complete
@@ -113,7 +113,7 @@ from JordanInstance or JordanTask
     complete(
     ) : JordanSentComplete
 #### Authentication
-TBD
+`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
 
 
 ## Unregister
@@ -129,7 +129,7 @@ from JordanInstance
     unregister(
     ) : JordanSentUnregister
 #### Authentication
-TBD
+`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
 
 
 ## DTOs
@@ -192,7 +192,7 @@ Start to follow/administrate clients/tasks hosted from this server.
         [password : String,]
     ) : JordanServer
 #### Authentication
-TBD
+`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
 
 ## List clients
 Reads clients registered on this server.
@@ -240,7 +240,7 @@ from JordanClientTask
         message : JordanMessage
     ) : JordanSentMessage
 #### Authentication
-TBD
+`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
 #### Workflow
 send_message()
 SERVER_RECEIVED
@@ -261,7 +261,7 @@ from JordanClientTask or JordanClientInstance
     get_messages(
     ) : list<JordanMessage>
 #### Authentication
-TBD
+`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
 
 ## Read status
 Get last statuses sent by the client/task.
@@ -275,7 +275,7 @@ from JordanClientTask or JordanClientInstance
         [line_count : int]
     ) : list<JordanStatus>
 #### Authentication
-TBD
+`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
 #### Nice to have
 search filters -> on server or client side ?
 
@@ -294,7 +294,7 @@ from JordanClientInstance
 
     delete(taskId) : Void
 #### Authentication
-TBD
+`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
 
 ## Delete All
 Clear everything stored on the server.
@@ -306,7 +306,7 @@ from JordanInstance
 
     deleteAll() : Void
 #### Authentication
-TBD
+`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
 
 ## Generic Query
 Returns information stored for an ID.
@@ -318,6 +318,6 @@ from JordanClientInstance
 
     genericQuery(id) : String
 #### Authentication
-TBD
+`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
 
 
