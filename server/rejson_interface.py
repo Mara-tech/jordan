@@ -358,6 +358,20 @@ def recursive_delete_tasks(task, to_delete):
                     recursive_delete_tasks(sub_task, to_delete)
 
 
+def delete_all(payload=None):
+    log_redis_op("delete all")
+    client_ids = list(rj.smembers(CLIENT_SET))
+    keys_to_delete = []
+    if client_ids:
+        clients = rj.json().mget(client_ids, '.')
+        for client in skip_nones(clients):
+            recursive_delete_tasks(client, keys_to_delete)
+        rj.srem(CLIENT_SET, *client_ids)
+    if keys_to_delete:
+        rj.delete(*keys_to_delete)
+    return True
+
+
 def generic_query(id):
     log_redis_op(f"generic query on {id}")
     return rj.json().get(id)
