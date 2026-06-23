@@ -38,7 +38,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install jordan_py and pytest
-        run: pip install -e libraries/python/jordan_py pytest
+      - name: Install jordan_py and test dependencies
+        run: pip install -e "libraries/python/jordan_py[test]"
       - name: Run library tests
         run: pytest libraries/python/
