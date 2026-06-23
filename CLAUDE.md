@@ -136,6 +136,28 @@ PARAMETER_TYPE_FLOAT  = 'float'
 
 ---
 
+## Release process
+
+Each component has its own prefixed tag. Only the matching workflow fires.
+
+| Component | Tag pattern | Workflow | Target |
+|---|---|---|---|
+| `jordan_py` | `jordan_py/v*` | `release.yml` | PyPI |
+| `server` | `server/v*` | `release-server.yml` | ghcr.io Docker image |
+| `app/android` | `android/v*` | `release-android.yml` | APK artifact |
+
+**To release `jordan_py`:**
+1. Bump `version` in [`libraries/python/jordan_py/pyproject.toml`](libraries/python/jordan_py/pyproject.toml)
+2. Commit and push
+3. Tag and push:
+   ```bash
+   git tag jordan_py/v1.1.0 && git push origin jordan_py/v1.1.0
+   ```
+
+The same pattern applies to `server` and `android` with their respective prefixes.
+
+---
+
 ## Language
 
 All code, comments, commit messages, and documentation in this project are written in **English**.
