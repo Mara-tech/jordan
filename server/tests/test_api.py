@@ -4,7 +4,7 @@ Each test patches only the interface functions it needs (via conftest fixtures),
 so no real Redis connection is required.
 """
 
-from .conftest import TASK_ID, TOKEN, STATUS_ID, MESSAGE_ID
+from .conftest import TASK_ID, STATUS_ID, MESSAGE_ID
 
 
 # ── Health / hello ────────────────────────────────────────────────────────────

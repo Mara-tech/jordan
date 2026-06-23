@@ -1,4 +1,3 @@
-import time
 from jordan_py import jordan
 
 JORDAN_SERVER_BASE_URL = 'http://192.168.1.41:5000/jordan/'
@@ -18,7 +17,7 @@ class Brain():
                 print(f"I'm thinking about {brain_message.placeholders.subject}")
             elif brain_message.action_name == 'IDLE':
                 brain_message.acknowledge()
-                print(f"I'm emptying my mind")
+                print("I'm emptying my mind")
                 brain_message.processed()
 
 brain_actions = jordan\
@@ -44,7 +43,7 @@ class Motor():
                     f"I'm heading toward {motor_message.placeholders.direction} at speed {motor_message.placeholders.speed}")
             elif motor_message.action_name == 'IDLE':
                 motor_message.acknowledge()
-                print(f"I'm good where I am")
+                print("I'm good where I am")
                 motor_message.processed()
 
 motor_actions = jordan\
