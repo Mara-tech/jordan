@@ -1,0 +1,6 @@
+[lint]
+ignore = [
+    "E501",  # line too long — not enforced in this codebase
+    "F403",  # star imports — used intentionally in server/api.py
+    "F405",  # may be undefined from star import — consequence of F403 above
+]

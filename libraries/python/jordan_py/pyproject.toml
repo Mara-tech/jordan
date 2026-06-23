@@ -1,6 +1,28 @@
 [build-system]
-requires = [
-    "setuptools>=42",
-    "wheel"
-]
+requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "jordan_py"
+version = "1.0.0"
+description = "A Python library easing use of Jordan in your Python code."
+readme = "README.md"
+license = { text = "MIT License (see LICENSE)" }
+authors = [
+    { name = "Pierrick Baudet", email = "pbaudet.enseirb@gmail.com" }
+]
+requires-python = ">=3.8"
+dependencies = ["requests"]
+
+[project.optional-dependencies]
+test = ["responses", "pytest"]
+
+[project.urls]
+Homepage = "https://github.com/Mara-tech/jordan"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["jordan_py*"]
+
+[tool.setuptools.package-data]
+jordan_py = ["py.typed"]

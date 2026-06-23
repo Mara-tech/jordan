@@ -1,0 +1,26 @@
+services:
+  redis:
+    image: redis/redis-stack-server:latest
+    ports:
+      - "6379:6379"
+    environment:
+      REDIS_ARGS: "--requirepass jordan_dev"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "jordan_dev", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  jordan-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: jordan_dev
+    depends_on:
+      redis:
+        condition: service_healthy

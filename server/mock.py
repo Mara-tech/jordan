@@ -2,6 +2,7 @@ import server.jordan_log as log
 import random
 import time
 from secrets import token_hex
+
 def mock_log(msg):
     log.info('[MOCK] ' + msg)
 
@@ -234,7 +235,7 @@ def read_status(task_id, line_count):
     brain_task = {"taskId":1, "name":"brain"}
     legs_task = {"taskId": 2, "name": "legs"}
     eyes_task = {"taskId": 3, "name": "eyes"}
-    arms_task = {"taskId": 4, "name": "arms"}
+    # arms_task = {"taskId": 4, "name": "arms"}
     return [
         {"statusId" : 1, "type":"general", "status":"I'm starting to think about Human condition.", "parentTask": brain_task, "timestamp":1607971392285, },
         {"statusId" : 2, "type":"general", "status":"My conclusion is : Humans suck", "parentTask": brain_task, "timestamp":1607971394285, },
@@ -366,7 +367,7 @@ def delete_task(task_id):
 
 
 def delete_all():
-    mock_log(f"delete all")
+    mock_log("delete all")
     return True
 
 

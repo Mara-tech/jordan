@@ -1,12 +1,22 @@
-from rejson import Client, Path
+import redis
 import server.jordan_log as log
 import random
 import time
+import os
+from pathlib import Path as FilePath
 from secrets import token_hex
+from dotenv import load_dotenv
 
+load_dotenv(FilePath(__file__).parent / '.env')
 
-rj = Client(host='redis-12323.c56.east-us.azure.cloud.redislabs.com', port=12323, decode_responses=True,
-                 db=0, password='***', socket_timeout=None)
+rj = redis.Redis(
+    host=os.environ['REDIS_HOST'],
+    port=int(os.environ['REDIS_PORT']),
+    decode_responses=True,
+    db=0,
+    password=os.environ['REDIS_PASSWORD'],
+    socket_timeout=None,
+)
 
 #Jordan keywords
 TASK_ACTIONS = 'actions'
@@ -59,19 +69,6 @@ TaskStateEnum = [
     TASK_STATE_TIME_OUT
     ]
 
-# obj = {
-#        'answer': 42,
-#        'arr': [None, True, 3.14],
-#        'truth': {
-#            'coord': 'out there'
-#        }
-#    }
-# rj.jsonset('obj', Path.rootPath(), obj)
-#
-# # Get something
-# print('Is there anybody... {}?'.format(
-#    rj.jsonget('obj', Path('.truth.coord'))
-# ))
 
 def log_redis_op(msg):
     log.info('[REDIS] ' + msg)
@@ -113,7 +110,7 @@ def add_client(client_id, payload, token):
     payload[SUB_TASKS] = []
     payload['state'] = CLIENT_STATE_REGISTERED
     rp = rj.pipeline()
-    rp.jsonset(client_id, Path.rootPath(), payload)
+    rp.json().set(client_id, '.', payload)
     rp.sadd(CLIENT_SET, client_id)
     rp.execute()
 
@@ -133,8 +130,8 @@ def create_task(parent_task_id, payload):
     payload['parentTaskId'] = parent_task_id
     payload[SUB_TASKS] = []
     payload['state'] = TASK_STATE_STARTED
-    rp.jsonarrappend(parent_task_id, Path(f'.{SUB_TASKS}'), task_id)
-    rp.jsonset(task_id, Path.rootPath(), payload)
+    rp.json().arrappend(parent_task_id, f'.{SUB_TASKS}', task_id)
+    rp.json().set(task_id, '.', payload)
     rp.execute()
     log_redis_op(f"New task {task_id}:{payload['name']} created from task {parent_task_id}")
     return {'taskId':task_id}
@@ -144,15 +141,17 @@ def append_sub_tasks(tasks, role_payload):
     if tasks and len(tasks):
         for t in tasks:
             if t and SUB_TASKS in t and len(t[SUB_TASKS]):
-                sub_tasks = rj.jsonmget(Path.rootPath(), *t[SUB_TASKS])
+                sub_tasks = rj.json().mget(t[SUB_TASKS], '.')
                 append_sub_tasks(sub_tasks, role_payload)
                 t[SUB_TASKS] = sub_tasks
 
 
 def list_clients(role_payload):
     log_redis_op("list clients")
-    client_ids = rj.smembers(CLIENT_SET)
-    clients = rj.jsonmget(Path.rootPath(), *client_ids)
+    client_ids = list(rj.smembers(CLIENT_SET))
+    if not client_ids:
+        return []
+    clients = rj.json().mget(client_ids, '.')
     clients = skip_nones(clients)
     append_sub_tasks(clients, role_payload)
     return clients
@@ -168,13 +167,13 @@ def append_actions_from_task(actions, task):
             actions.append(taskAction)
     if SUB_TASKS in task:
         for sub_task_id in task[SUB_TASKS]:
-            sub_task = rj.jsonget(sub_task_id)
+            sub_task = rj.json().get(sub_task_id)
             append_actions_from_task(actions, sub_task)
 
 
 def list_actions(task_id, role_payload):
     log_redis_op(f"list actions for task {task_id}")
-    task = rj.jsonget(task_id)
+    task = rj.json().get(task_id)
     actions = []
     append_actions_from_task(actions, task)
     return actions
@@ -184,7 +183,7 @@ def as_parent_task(task_id=None, task=None):
     if (task_id is None and task is None) or (task_id is not None and task is not None):
         raise ValueError('Pass either task_id or task to get parentTask info')
     if task_id is not None:
-        parent_task = rj.jsonget(task_id)
+        parent_task = rj.json().get(task_id)
     if task is not None:
         parent_task = task.copy()
     parent_task.pop('authToken', None)
@@ -196,14 +195,14 @@ def as_parent_task(task_id=None, task=None):
 
 def push_status_to_parent_tasks_list(pipeline, task_id, status_id):
     pipeline.lpush(TASK_STATUS_LIST.format(task_id), status_id)
-    task = rj.jsonget(task_id)
+    task = rj.json().get(task_id)
     if 'parentTaskId' in task and task['parentTaskId'] is not None:
         push_status_to_parent_tasks_list(pipeline, task['parentTaskId'], status_id)
 
 
 def push_message_to_parent_tasks_list(pipeline, task_id, message_id):
     pipeline.lpush(TASK_ALL_MESSAGES_LIST.format(task_id), message_id)
-    task = rj.jsonget(task_id)
+    task = rj.json().get(task_id)
     if 'parentTaskId' in task and task['parentTaskId'] is not None:
         push_message_to_parent_tasks_list(pipeline, task['parentTaskId'], message_id)
 
@@ -215,10 +214,10 @@ def post_status(task_id, payload):
     payload[PARENT_TASK] = as_parent_task(task_id=task_id)
     rp = rj.pipeline()
     push_status_to_parent_tasks_list(rp, task_id, status_id)
-    rp.jsonset(status_id, Path.rootPath(), payload)
+    rp.json().set(status_id, '.', payload)
     if payload['type'] == STATUS_TYPE_PROGRESS and type(payload['status']) is int:
-        rp.jsonset(task_id, Path('.progress'), payload['status'])
-        rp.jsonset(task_id, Path('.state'), TASK_STATE_RUNNING)
+        rp.json().set(task_id, '.progress', payload['status'])
+        rp.json().set(task_id, '.state', TASK_STATE_RUNNING)
     rp.execute()
     return {'statusId': status_id}
 
@@ -230,7 +229,9 @@ def skip_nones(seq):
 def read_status(task_id, line_count):
     log_redis_op(f"read {line_count} status(es) for task {task_id} and children")
     keys = rj.lrange(TASK_STATUS_LIST.format(task_id), 0, line_count)
-    status_list = rj.jsonmget(Path.rootPath(), *keys)
+    if not keys:
+        return []
+    status_list = rj.json().mget(keys, '.')
     status_list = skip_nones(status_list)
     return status_list
 
@@ -253,7 +254,7 @@ def post_message(task_id, payload):
     rp = rj.pipeline()
     rp.set(TASK_MESSAGE_SLOT.format(task_id), message_id)
     push_message_to_parent_tasks_list(rp, task_id, message_id)
-    rp.jsonset(message_id, Path.rootPath(), payload)
+    rp.json().set(message_id, '.', payload)
     rp.execute()
     return message_id
 
@@ -262,7 +263,7 @@ def update_message(task_id, message_id, message_state):
     log_redis_op(f"update message {message_id} for task {task_id}. New state : {message_state}")
     if message_state not in MessageStateEnum:
         return False
-    return rj.jsonarrappend(message_id, '.audit', create_message_audit(message_state))
+    return rj.json().arrappend(message_id, '.audit', create_message_audit(message_state))
 
 def update_task(task_id, task_state):
     log_redis_op(f"update task {task_id}. New state : {task_state}")
@@ -278,7 +279,7 @@ def read_message(task_id):
     if message_to_read_id:
         rj.delete(task_message_slot)
         update_message(task_id, message_to_read_id, 'MESSAGE_DELIVERED') #may be async
-        return rj.jsonget(message_to_read_id) #use pipeline ?
+        return rj.json().get(message_to_read_id)
     else:
         # no message to read, which is very normal behavior
         return None
@@ -287,13 +288,15 @@ def read_message(task_id):
 def list_messages(task_id):
     log_redis_op(f"read message(s) for task {task_id}" )
     keys = rj.lrange(TASK_ALL_MESSAGES_LIST.format(task_id), 0, -1)
-    messages = rj.jsonmget(Path.rootPath(), *keys)
+    if not keys:
+        return []
+    messages = rj.json().mget(keys, '.')
     messages = skip_nones(messages)
     return messages
 
 
 def set_task_state(task_id, state):
-    return rj.jsonset(task_id, Path('.state'), state)
+    return rj.json().set(task_id, '.state', state)
 
 
 def unregister(client_id):
@@ -304,7 +307,7 @@ def unregister(client_id):
 def delete_task(task_id):
     log_redis_op(f"delete task {task_id}")
     keys_to_delete = []
-    task = rj.jsonget(task_id)
+    task = rj.json().get(task_id)
 
     if task:
         # delete child tasks
@@ -312,10 +315,10 @@ def delete_task(task_id):
 
         # remove from subtasks list of parentTask
         if PARENT_TASK in task:
-            siblings_id = rj.jsonget(task[PARENT_TASK], Path(f'.{SUB_TASKS}'))
+            siblings_id = rj.json().get(task[PARENT_TASK], f'.{SUB_TASKS}')
             if siblings_id and task_id in siblings_id:
                 index = siblings_id.index(task_id)
-                rj.jsonarrpop(task[PARENT_TASK], Path(f'.{SUB_TASKS}'), index)
+                rj.json().arrpop(task[PARENT_TASK], f'.{SUB_TASKS}', index)
 
     # remove the task from clients set (if it is a client)
     rj.srem(CLIENT_SET, task_id)
@@ -348,19 +351,40 @@ def recursive_delete_tasks(task, to_delete):
         to_delete.extend(task_messages_ids)
 
         # delete sub tasks
-        if task is not None and SUB_TASKS in task:
-            sub_tasks = rj.jsonmget(Path.rootPath(), *task[SUB_TASKS])
+        if task is not None and SUB_TASKS in task and task[SUB_TASKS]:
+            sub_tasks = rj.json().mget(task[SUB_TASKS], '.')
             if sub_tasks is not None:
                 for sub_task in sub_tasks:
                     recursive_delete_tasks(sub_task, to_delete)
 
 
+def delete_all(payload=None):
+    log_redis_op("delete all")
+    client_ids = list(rj.smembers(CLIENT_SET))
+    keys_to_delete = []
+    if client_ids:
+        clients = rj.json().mget(client_ids, '.')
+        for client in skip_nones(clients):
+            recursive_delete_tasks(client, keys_to_delete)
+        rj.srem(CLIENT_SET, *client_ids)
+    if keys_to_delete:
+        rj.delete(*keys_to_delete)
+    return True
+
+
 def generic_query(id):
     log_redis_op(f"generic query on {id}")
-    return rj.jsonget(id)
+    return rj.json().get(id)
 
 
-def delete_all(payload):
-    log_redis_op(f"delete all")
-    # TODO check role
-    return rj.flushdb()
+def validate_auth_token(task_id, token):
+    """Walk up from task_id to root client and compare authToken."""
+    obj = rj.json().get(task_id)
+    if obj is None:
+        return False
+    if 'authToken' in obj:
+        return obj['authToken'] == token
+    parent_id = obj.get('parentTaskId')
+    if parent_id is not None:
+        return validate_auth_token(parent_id, token)
+    return False

@@ -3,8 +3,8 @@ import server.jordan_log as log
 
 from server.rejson_interface import *
 
-from flask import Flask
-from flask_restplus import Api, Resource, fields
+from flask import Flask, request
+from flask_restx import Api, Resource, fields
 
 from time import time
 
@@ -28,6 +28,15 @@ api = Api(app,
 
 client_ns = api.namespace('client', description='Client-side operations')
 admin_ns = api.namespace('admin', description='Admin-side operations')
+
+
+def _require_client_auth(task_id):
+    auth = request.headers.get('Authorization', '')
+    if not auth.startswith('Bearer '):
+        client_ns.abort(401, 'Missing Authorization: Bearer <token> header')
+    token = auth[7:]
+    if not validate_auth_token(task_id, token):
+        client_ns.abort(401, 'Invalid authentication token')
 
 #----------------------
 #---MODEL DEFINITION---
@@ -160,7 +169,7 @@ class Register(Resource):
         try:
             client_registered = register_client(api.payload)
             return client_registered, 200
-        except:
+        except Exception:
             client_ns.abort(500, 'Could not register client')
 
 
@@ -173,10 +182,11 @@ class NewTask(Resource):
     @client_ns.expect(task_model)
     @client_ns.marshal_with(task_created_model)
     def post(self, parent_task_id):
+        _require_client_auth(parent_task_id)
         try:
             created_task = create_task(parent_task_id, api.payload)
             return created_task, 201
-        except:
+        except Exception:
             client_ns.abort(500, 'Could not create task')
 
 @client_ns.route('/<int:task_id>/<string:task_state>')
@@ -188,10 +198,11 @@ class UpdateTaskState(Resource):
                    responses={202: 'Update is valid',
                               400: 'Update is invalid'})
     def put(self, task_id, task_state):
+        _require_client_auth(task_id)
         try:
             update_valid = update_task(task_id, task_state)
             return None, 202 if update_valid else 400
-        except:
+        except Exception:
             client_ns.abort(500, 'Could not update state')
 
 @client_ns.route('/<int:task_id>/status')
@@ -203,10 +214,11 @@ class SendStatus(Resource):
     @client_ns.expect(status_model)
     @client_ns.marshal_with(status_sent_model)
     def post(self, task_id):
+        _require_client_auth(task_id)
         try:
             status_sent = post_status(task_id, api.payload)
             return status_sent, 200
-        except:
+        except Exception:
             client_ns.abort(500, 'Could not receive status')
 
 @client_ns.route('/<int:task_id>/message')
@@ -218,10 +230,11 @@ class ReadMessage(Resource):
                               204: 'no message to read'})
     @client_ns.marshal_with(message_model)
     def get(self, task_id):
+        _require_client_auth(task_id)
         try:
             message = read_message(task_id)
             return message, 200 if message is not None else 204
-        except:
+        except Exception:
             client_ns.abort(500, 'Could not access to any message')
 
 @client_ns.route('/<int:task_id>/<int:message_id>/<string:message_state>')
@@ -234,10 +247,11 @@ class UpdateMessageState(Resource):
                    responses={202: 'Update is valid',
                               400: 'Update is invalid'})
     def put(self, task_id, message_id, message_state):
+        _require_client_auth(task_id)
         try:
             update_valid = update_message(task_id, message_id, message_state)
             return None, 202 if update_valid else 400
-        except:
+        except Exception:
             client_ns.abort(500, 'Could not update state')
 
 @client_ns.route('/<int:client_id>/unregister')
@@ -248,10 +262,11 @@ class Unregister(Resource):
                    responses={200: 'Unregistered',
                               400: 'client_id invalid'})
     def post(self, client_id):
+        _require_client_auth(client_id)
         try:
             valid_unregister = unregister(client_id)
             return None, 200 if valid_unregister else 400
-        except:
+        except Exception:
             client_ns.abort(500, 'Could not update state')
 
 
@@ -266,7 +281,7 @@ class ListClients(Resource):
         try:
             client_list = list_clients(api.authorizations)
             return client_list, 200
-        except:
+        except Exception:
             admin_ns.abort(500, 'Could not access to any client')
 
 @admin_ns.route('/<int:task_id>/actions')
@@ -280,7 +295,7 @@ class ListActions(Resource):
         try:
             actions_list = list_actions(task_id, api.authorizations)
             return actions_list, 200
-        except:
+        except Exception:
             admin_ns.abort(500, 'Could not access to any client')
 
 @admin_ns.route('/<int:task_id>/status/<int:line_count>')
@@ -296,7 +311,7 @@ class ReadStatus(Resource):
         try:
             status_list = read_status(task_id, line_count)
             return status_list, 200 if len(status_list) > 0 else 204
-        except:
+        except Exception:
             admin_ns.abort(500, 'Could not read any status')
 
 @admin_ns.route('/<int:task_id>/message')
@@ -310,7 +325,7 @@ class SendMessage(Resource):
         try:
             message_id = post_message(task_id, api.payload)
             return message_id, 201
-        except:
+        except Exception:
             admin_ns.abort(500, 'Could not receive message')
 
 @admin_ns.route('/<int:task_id>/messages')
@@ -325,7 +340,7 @@ class ReadMessages(Resource):
         try:
             message_list = list_messages(task_id)
             return message_list, 200 if len(message_list) > 0 else 204
-        except:
+        except Exception:
             admin_ns.abort(500, 'Could not access to any message')
 
 
@@ -339,7 +354,7 @@ class DeleteTask(Resource):
         try:
             valid_deletion = delete_task(task_id)
             return None, 200 if valid_deletion else 400
-        except:
+        except Exception:
             admin_ns.abort(500, 'Could not delete client')
 
 
@@ -352,7 +367,7 @@ class DeleteAll(Resource):
         try:
             valid_deletion = delete_all(None)#api.payload)
             return None, 200 if valid_deletion else 400
-        except:
+        except Exception:
             admin_ns.abort(500, 'Could not delete base')
 
 
@@ -366,7 +381,7 @@ class GenericQuery(Resource):
         try:
             serialized_object = generic_query(generic_id)
             return (serialized_object, 200) if serialized_object else ('No result', 204)
-        except:
+        except Exception:
             admin_ns.abort(500, 'Could not execute generic query')
 
 def start_api():
