@@ -139,3 +139,10 @@ PARAMETER_TYPE_FLOAT  = 'float'
 ## Language
 
 All code, comments, commit messages, and documentation in this project are written in **English**.
+
+---
+
+### Rules
+
+- Keep documentation (README.md, CLAUDE.md and other Markdown files) up to date
+
