@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jordan_cli"
+version = "1.0.0"
+description = "Jordan CLI — use Jordan without writing Python code."
+readme = "README.md"
+license = { text = "MIT License (see LICENSE)" }
+authors = [
+    { name = "Pierrick Baudet", email = "pbaudet.enseirb@gmail.com" }
+]
+requires-python = ">=3.8"
+dependencies = [
+    "jordan_py>=2.0.0",
+    "requests>=2.28.0",
+    "typer>=0.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "responses>=0.23.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Mara-tech/jordan"
+
+[project.scripts]
+jordan = "jordan_cli.cli:main"
+jordan-admin = "jordan_cli.admin:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["jordan_cli*"]
+
+[tool.setuptools.package-data]
+jordan_cli = ["py.typed"]

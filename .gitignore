@@ -132,3 +132,4 @@ dmypy.json
 .claude
 
 out/
+/libraries/.jordan_session

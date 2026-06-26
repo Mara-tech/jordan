@@ -79,7 +79,7 @@ def deny_auth(monkeypatch):
 def mock_register(monkeypatch):
     monkeypatch.setattr(
         'server.api.register_client',
-        lambda payload: {'auth_token': TOKEN, 'taskId': TASK_ID},
+        lambda payload: {'authToken': TOKEN, 'taskId': TASK_ID},
     )
 
 

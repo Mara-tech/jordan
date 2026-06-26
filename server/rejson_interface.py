@@ -120,7 +120,7 @@ def register_client(payload):
     token = token_hex()
     log_redis_op(f"register {str(payload)}. id={client_id}")
     add_client(client_id, payload, token)
-    return {'auth_token':token, 'taskId':client_id}
+    return {'authToken':token, 'taskId':client_id}
 
 
 def create_task(parent_task_id, payload):

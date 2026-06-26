@@ -39,6 +39,7 @@ server/             Flask-RESTX server + Redis interface
 libraries/
   prototype/contract.md   API specification (authoritative)
   python/jordan_py/       Python passive-client library (jordan_py on PyPI)
+  cli/jordan_cli/         CLI wrapping jordan_py (jordan_cli on PyPI)
   java/class_diagram.md   Planned Java client (not yet implemented)
 
 app/android/        Android active-client app (Gradle)
@@ -82,6 +83,25 @@ python sample/02-custom-actions.py          # custom actions with typed paramete
 python sample/03-async.py                   # async (non-blocking) message reading
 python sample/04-multi-tasks.py             # multiple sub-tasks in parallel
 ```
+
+---
+
+## Task hierarchy
+
+Every registered client is a **root task**. Tasks can be nested arbitrarily: a root task can have sub-tasks, which can have their own sub-tasks. This is the central organizational unit of Jordan.
+
+```
+root task  (created by register)
+├── sub-task A  (created by create_task / jordan task-create)
+│   └── sub-sub-task A1
+└── sub-task B
+```
+
+Key rules:
+- Status updates, messages, and state changes are always addressed to a specific `task_id`.
+- Only the root task is unregistered at the end of a session; sub-tasks are simply marked COMPLETE or ERROR.
+- In the Python library, `JordanInstance.create_task()` returns a `JordanTaskInstance` (same API as `JordanInstance`, but `fatal()` does not unregister).
+- In the CLI, `jordan task-create NAME` creates a sub-task and prints its ID. All commands accept `--task-id` to target a sub-task; omitting it targets the root task.
 
 ---
 
@@ -142,7 +162,8 @@ Each component has its own prefixed tag. Only the matching workflow fires.
 
 | Component | Tag pattern | Workflow | Target |
 |---|---|---|---|
-| `jordan_py` | `jordan_py/v*` | `release.yml` | PyPI |
+| `jordan_py` | `jordan_py/v*` | `release-library-python.yml` | PyPI |
+| `jordan_cli` | `jordan_cli/v*` | `release-cli-python.yml` | PyPI |
 | `server` | `server/v*` | `release-server.yml` | ghcr.io Docker image |
 | `app/android` | `android/v*` | `release-android.yml` | APK artifact |
 
@@ -152,6 +173,14 @@ Each component has its own prefixed tag. Only the matching workflow fires.
 3. Tag and push:
    ```bash
    git tag jordan_py/v1.1.0 && git push origin jordan_py/v1.1.0
+   ```
+
+**To release `jordan_cli`:**
+1. Bump `version` in [`libraries/cli/pyproject.toml`](libraries/cli/pyproject.toml)
+2. Commit and push
+3. Tag and push:
+   ```bash
+   git tag jordan_cli/v1.0.0 && git push origin jordan_cli/v1.0.0
    ```
 
 The same pattern applies to `server` and `android` with their respective prefixes.
