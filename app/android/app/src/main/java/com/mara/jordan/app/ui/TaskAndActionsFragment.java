@@ -93,11 +93,9 @@ public class TaskAndActionsFragment extends Fragment implements JordanGetActions
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-
-            case R.id.refresh_tasks:
-                refreshTasks();
-                return true;
+        if (item.getItemId() == R.id.refresh_tasks) {
+            refreshTasks();
+            return true;
         }
 
         // User didn't trigger a refresh, let the superclass handle this action

@@ -85,15 +85,13 @@ public class ClientAdapter extends ArrayAdapter<JordanClientDTO> implements Stic
         popup.getMenuInflater().inflate(R.menu.client_popup_menu, popup.getMenu());
         popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
             public boolean onMenuItemClick(MenuItem item) {
-                switch (item.getItemId()){
-                    case R.id.infos_client:
-                        showInfosDialog(client);
-                        break;
-                    case R.id.delete_client:
-                        showDeleteDialog(client);
-                        break;
-                    default:
-                        Log.e(TAG, "Unhandled menu item " + item.getTitle());
+                int itemId = item.getItemId();
+                if (itemId == R.id.infos_client) {
+                    showInfosDialog(client);
+                } else if (itemId == R.id.delete_client) {
+                    showDeleteDialog(client);
+                } else {
+                    Log.e(TAG, "Unhandled menu item " + item.getTitle());
                 }
                 return true;
             }

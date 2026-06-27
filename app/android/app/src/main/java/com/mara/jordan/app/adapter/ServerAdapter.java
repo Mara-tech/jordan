@@ -130,15 +130,13 @@ public class ServerAdapter extends ArrayAdapter<JordanServer> implements JordanL
         popup.getMenuInflater().inflate(R.menu.server_popup_menu, popup.getMenu());
         popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
             public boolean onMenuItemClick(MenuItem item) {
-                switch (item.getItemId()){
-                    case R.id.update_server:
-                        showUpdateDialog(server);
-                        break;
-                    case R.id.delete_server:
-                        showDeleteDialog(server);
-                        break;
-                    default:
-                        Log.e(TAG, "Unhandled menu item " + item.getTitle());
+                int itemId = item.getItemId();
+                if (itemId == R.id.update_server) {
+                    showUpdateDialog(server);
+                } else if (itemId == R.id.delete_server) {
+                    showDeleteDialog(server);
+                } else {
+                    Log.e(TAG, "Unhandled menu item " + item.getTitle());
                 }
                 return true;
             }

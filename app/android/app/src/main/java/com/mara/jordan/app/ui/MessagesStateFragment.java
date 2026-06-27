@@ -95,14 +95,13 @@ public class MessagesStateFragment extends Fragment implements JordanReadMessage
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-
-            case R.id.refresh_messages_state:
-                refreshMessages();
-                return true;
-            case R.id.filter_message:
-                filterMessageDialog();
-                return true;
+        int itemId = item.getItemId();
+        if (itemId == R.id.refresh_messages_state) {
+            refreshMessages();
+            return true;
+        } else if (itemId == R.id.filter_message) {
+            filterMessageDialog();
+            return true;
         }
 
         // User didn't trigger a refresh, let the superclass handle this action

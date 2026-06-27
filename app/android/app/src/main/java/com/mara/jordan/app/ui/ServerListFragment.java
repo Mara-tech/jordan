@@ -172,18 +172,16 @@ public class ServerListFragment extends Fragment implements JordanListServersCal
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-
-            case R.id.refresh_server:
-                refreshServers();
-                return true;
-
-            case R.id.import_server_list:
-                importDialog();
-                return true;
-            case R.id.export_server_list:
-                exportServersClicked();
-                return true;
+        int itemId = item.getItemId();
+        if (itemId == R.id.refresh_server) {
+            refreshServers();
+            return true;
+        } else if (itemId == R.id.import_server_list) {
+            importDialog();
+            return true;
+        } else if (itemId == R.id.export_server_list) {
+            exportServersClicked();
+            return true;
         }
 
         // User didn't trigger a refresh, let the superclass handle this action

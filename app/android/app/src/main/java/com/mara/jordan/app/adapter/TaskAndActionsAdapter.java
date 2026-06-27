@@ -223,12 +223,11 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
         popup.getMenuInflater().inflate(R.menu.task_popup_menu, popup.getMenu());
         popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
             public boolean onMenuItemClick(MenuItem item) {
-                switch (item.getItemId()){
-                    case R.id.infos_task:
-                        showInfosDialog(parentTask);
-                        break;
-                    default:
-                        Log.e(TAG, "Unhandled menu item " + item.getTitle());
+                int itemId = item.getItemId();
+                if (itemId == R.id.infos_task) {
+                    showInfosDialog(parentTask);
+                } else {
+                    Log.e(TAG, "Unhandled menu item " + item.getTitle());
                 }
                 return true;
             }
