@@ -12,26 +12,25 @@ import androidx.core.content.ContextCompat;
 
 import com.mara.jordan.app.R;
 
-import br.com.simplepass.loadingbutton.customViews.CircularProgressButton;
 import lombok.Getter;
 
-public class CircularProgressButtonHelper {
+public class LoadingButtonHelper {
 
-    private static final String TAG = "CircularProgressBtnHlpr";
-    private static CircularProgressButtonHelper INSTANCE;
+    private static final String TAG = "LoadingBtnHlpr";
+    private static LoadingButtonHelper INSTANCE;
     private static final long DELAY_BEFORE_REVERT_ACTION_BUTTON_STATE_MS = 2500;
 
     @Getter
     private final Context context;
 
-    private CircularProgressButtonHelper(Context ctx) {
+    private LoadingButtonHelper(Context ctx) {
         super();
         context = ctx.getApplicationContext();
     }
 
-    public static CircularProgressButtonHelper getInstance(Context ctx) {
+    public static LoadingButtonHelper getInstance(Context ctx) {
         if(INSTANCE == null){
-            INSTANCE = new CircularProgressButtonHelper(ctx);
+            INSTANCE = new LoadingButtonHelper(ctx);
         }
         return INSTANCE;
     }
@@ -62,41 +61,28 @@ public class CircularProgressButtonHelper {
         }
     }
 
-    public void waitAndResetButton(CircularProgressButton button, long delayMs) {
+    public void waitAndResetButton(LoadingButton button, long delayMs) {
         new Handler().postDelayed(button::revertAnimation, delayMs);
     }
 
-    public void waitAndResetButton(CircularProgressButton button) {
+    public void waitAndResetButton(LoadingButton button) {
         waitAndResetButton(button, DELAY_BEFORE_REVERT_ACTION_BUTTON_STATE_MS);
     }
 
-    public void successAndReset(CircularProgressButton buttonClicked) {
+    public void successAndReset(LoadingButton buttonClicked) {
         doneLoadingAnimationAndReset(buttonClicked, getProgressionButtonFillColor(), getSuccessBitmap());
     }
 
-    public void errorAndReset(CircularProgressButton buttonClicked) {
+    public void errorAndReset(LoadingButton buttonClicked) {
         doneLoadingAnimationAndReset(buttonClicked, getProgressionButtonFillColor(), getErrorBitmap());
     }
 
-    /**
-     *
-     * @param buttonClicked the button to animate
-     * @param fillColor background color of the button
-     * @param bitmap the bitmap to show before resetting the button
-     */
-    public void doneLoadingAnimationAndReset(CircularProgressButton buttonClicked, int fillColor, Bitmap bitmap) {
+    public void doneLoadingAnimationAndReset(LoadingButton buttonClicked, int fillColor, Bitmap bitmap) {
         buttonClicked.doneLoadingAnimation(fillColor, bitmap);
         waitAndResetButton(buttonClicked);
     }
 
-    /**
-     *
-     * @param buttonClicked the button to animate
-     * @param fillColor background color of the button
-     * @param bitmap the bitmap to show before resetting the button
-     * @param delayMs the delay in ms before resetting the button
-     */
-    public void doneLoadingAnimationAndReset(CircularProgressButton buttonClicked, int fillColor, Bitmap bitmap, long delayMs) {
+    public void doneLoadingAnimationAndReset(LoadingButton buttonClicked, int fillColor, Bitmap bitmap, long delayMs) {
         buttonClicked.doneLoadingAnimation(fillColor, bitmap);
         waitAndResetButton(buttonClicked, delayMs);
     }

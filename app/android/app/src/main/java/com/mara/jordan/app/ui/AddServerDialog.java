@@ -21,12 +21,12 @@ import com.mara.jordan.app.R;
 import com.mara.jordan.app.db.JordanServer;
 import com.mara.jordan.app.model.JordanServerModel;
 import com.mara.jordan.app.model.dto.JordanTestDTO;
-import com.mara.jordan.app.utils.CircularProgressButtonHelper;
+import com.mara.jordan.app.utils.LoadingButtonHelper;
 import com.mara.jordan.app.utils.NetworkUtils;
 
 import org.apache.commons.lang3.StringUtils;
 
-import br.com.simplepass.loadingbutton.customViews.CircularProgressButton;
+import com.mara.jordan.app.utils.LoadingButton;
 
 public class AddServerDialog extends DialogFragment implements ServerConnectionTestCallback {
 
@@ -40,13 +40,13 @@ public class AddServerDialog extends DialogFragment implements ServerConnectionT
     private CheckBox rememberPasswordCb;
     private EditText passwordField;
     private Button positiveButton;
-    private CircularProgressButton testConnectionButton;
-    private CircularProgressButtonHelper cpbh;
+    private LoadingButton testConnectionButton;
+    private LoadingButtonHelper cpbh;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        cpbh = CircularProgressButtonHelper.getInstance(getContext());
+        cpbh = LoadingButtonHelper.getInstance(getContext());
     }
 
     @NonNull

@@ -26,7 +26,7 @@ import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
 import com.mara.jordan.app.model.dto.JordanActionParameterDTO;
 import com.mara.jordan.app.model.dto.JordanParentTaskDTO;
 import com.mara.jordan.app.ui.JordanSendMessageUiCallback;
-import com.mara.jordan.app.utils.CircularProgressButtonHelper;
+import com.mara.jordan.app.utils.LoadingButtonHelper;
 import com.mara.jordan.app.utils.JordanConstant;
 
 import org.apache.commons.lang3.StringUtils;
@@ -37,7 +37,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import br.com.simplepass.loadingbutton.customViews.CircularProgressButton;
+import com.mara.jordan.app.utils.LoadingButton;
 import se.emilsjolander.stickylistheaders.StickyListHeadersAdapter;
 
 public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWithTaskDTO> implements StickyListHeadersAdapter, JordanGetActionsCallback, JordanConstant {
@@ -53,7 +53,7 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
      */
     private final JordanTaskModel rootTaskModel;
     private final JordanSendMessageUiCallback callback;
-    private final CircularProgressButtonHelper cpbh;
+    private final LoadingButtonHelper cpbh;
     private LayoutInflater mInflater;
     private final Map<View, Map<JordanActionParameterDTO, View>> actionVisualElementsMapping = new HashMap<>();
     private final Map<Integer, View> viewHolderMapping = new HashMap<>();
@@ -63,7 +63,7 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
         this.rootTaskModel = model;
         mInflater = LayoutInflater.from(ctx);
         this.callback = callback;
-        cpbh = CircularProgressButtonHelper.getInstance(ctx);
+        cpbh = LoadingButtonHelper.getInstance(ctx);
     }
 
     @Override
@@ -89,7 +89,7 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
     private void setupVisualElements(View view, JordanActionDefinitionWithTaskDTO actionDefinition) {
         ViewHolder holder = (ViewHolder) view.getTag();
         holder.actionButton.setText(actionDefinition.getActionName());
-        holder.actionButton.setOnClickListener(v -> actionClicked((CircularProgressButton) v, actionDefinition.getParentTask().getTaskId(), actionDefinition.getActionName()));
+        holder.actionButton.setOnClickListener(v -> actionClicked((LoadingButton) v, actionDefinition.getParentTask().getTaskId(), actionDefinition.getActionName()));
 
         final Map<JordanActionParameterDTO, View> placeholdersVisualElements = new HashMap<>();
         actionVisualElementsMapping.put(holder.actionButton, placeholdersVisualElements);
@@ -151,7 +151,7 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
         return parameter.getName().concat(parameter.isMandatory() ? IS_MANDATORY_INDICATOR : NON_MANDATORY);
     }
 
-    private void actionClicked(CircularProgressButton buttonClicked, long taskId, String actionName) {
+    private void actionClicked(LoadingButton buttonClicked, long taskId, String actionName) {
         final Map<JordanActionParameterDTO, View> placeholdersVisualElements = actionVisualElementsMapping.get(buttonClicked);
         final List<JordanActionParameterDTO> missingInput = new ArrayList<>();
         final Map<String, Object> placeholders = new HashMap<>();
@@ -290,7 +290,7 @@ public class TaskAndActionsAdapter extends ArrayAdapter<JordanActionDefinitionWi
     }
 
     class ViewHolder {
-        CircularProgressButton actionButton;
+        LoadingButton actionButton;
         GridLayout actionParametersLayout;
     }
 
