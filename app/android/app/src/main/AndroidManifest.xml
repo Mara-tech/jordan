@@ -5,7 +5,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@drawable/ic_whistle"
         android:label="@string/app_name"
         android:roundIcon="@drawable/ic_whistle"
@@ -13,6 +13,7 @@
         android:theme="@style/Theme.JordanApp">
         <activity
             android:name=".ui.MainActivity"
+            android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.JordanApp.NoActionBar">
             <intent-filter>

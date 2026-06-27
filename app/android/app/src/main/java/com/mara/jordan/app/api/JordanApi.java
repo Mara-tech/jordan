@@ -1,6 +1,7 @@
 package com.mara.jordan.app.api;
 
 import android.content.Context;
+import android.os.Build;
 import android.util.Log;
 
 import com.android.volley.ParseError;
@@ -47,7 +48,7 @@ public class JordanApi {
 
 
     private String getAuthor() {
-        return "pbaudet";
+        return Build.MODEL;
     }
 
     public void readStatus(long taskId, int lineCount, JordanReadStatusCallback... callbacks) {
