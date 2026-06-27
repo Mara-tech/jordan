@@ -133,3 +133,6 @@ dmypy.json
 
 out/
 /libraries/.jordan_session
+
+app/android/local.properties
+app/android/.gradle/
