@@ -1,7 +1,7 @@
-from server.jordan_constants import *
-import server.jordan_log as log
+from jordan_constants import *
+import jordan_log as log
 
-from server.rejson_interface import *
+from rejson_interface import *
 
 from flask import Flask, request
 from flask_restx import Api, Resource, fields

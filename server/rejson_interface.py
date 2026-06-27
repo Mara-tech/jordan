@@ -1,5 +1,5 @@
 import redis
-import server.jordan_log as log
+import jordan_log as log
 import random
 import time
 import os
