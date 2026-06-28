@@ -29,7 +29,8 @@ jobs:
       - name: Install server dependencies and pytest
         run: pip install -r server/requirements.txt pytest
       - name: Run server tests
-        run: pytest server/tests/
+        run: pytest tests/
+        working-directory: server
 
   test-library:
     runs-on: ubuntu-latest
