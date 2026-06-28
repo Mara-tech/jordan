@@ -136,3 +136,7 @@ out/
 
 app/android/local.properties
 app/android/.gradle/
+
+# Android signing keystore — never commit; stored as GitHub secret SIGNING_KEY
+*.keystore
+*.jks
