@@ -32,7 +32,7 @@ import com.mara.jordan.app.adapter.StatusFilterTaskAdapter;
 import com.mara.jordan.app.adapter.StatusFilterTypeAdapter;
 import com.mara.jordan.app.api.JordanReadStatusCallback;
 import com.mara.jordan.app.model.JordanTaskModel;
-import com.mara.jordan.app.model.dto.JordanStatusDTO;
+import com.mara.jordan.core.dto.JordanStatusDTO;
 
 import java.util.Map;
 
@@ -206,23 +206,22 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-
-            case R.id.refresh_status:
-                refreshStatus();
-                return true;
-            case R.id.filter_status:
-                filterStatusDialog();
-                return true;
-            case R.id.status_text_size:
-                createTextSizePopup();
-                return true;
-            case R.id.status_settings:
-                displayParameters();
-                return true;
-            case R.id.status_search:
-                //handled with searchView.setOnQueryTextListener
-                return true;
+        int itemId = item.getItemId();
+        if (itemId == R.id.refresh_status) {
+            refreshStatus();
+            return true;
+        } else if (itemId == R.id.filter_status) {
+            filterStatusDialog();
+            return true;
+        } else if (itemId == R.id.status_text_size) {
+            createTextSizePopup();
+            return true;
+        } else if (itemId == R.id.status_settings) {
+            displayParameters();
+            return true;
+        } else if (itemId == R.id.status_search) {
+            //handled with searchView.setOnQueryTextListener
+            return true;
         }
 
         // User didn't trigger a refresh, let the superclass handle this action

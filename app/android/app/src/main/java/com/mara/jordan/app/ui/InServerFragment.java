@@ -22,13 +22,13 @@ public abstract class InServerFragment extends Fragment implements FullDeletionC
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.generic_information:
-                displayGenericInformationDialog();
-                return true;
-            case R.id.delete_all:
-                displayDeleteAllDialog();
-                return true;
+        int itemId = item.getItemId();
+        if (itemId == R.id.generic_information) {
+            displayGenericInformationDialog();
+            return true;
+        } else if (itemId == R.id.delete_all) {
+            displayDeleteAllDialog();
+            return true;
         }
         return super.onOptionsItemSelected(item);
     }

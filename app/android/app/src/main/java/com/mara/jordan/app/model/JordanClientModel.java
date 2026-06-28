@@ -4,7 +4,7 @@ import android.content.Context;
 
 import com.mara.jordan.app.api.JordanApi;
 import com.mara.jordan.app.api.JordanGetClientsCallback;
-import com.mara.jordan.app.model.dto.JordanClientDTO;
+import com.mara.jordan.core.dto.JordanClientDTO;
 import com.mara.jordan.app.ui.ClientDeletionCallback;
 import com.mara.jordan.app.ui.FullDeletionCallback;
 import com.mara.jordan.app.ui.GenericQueryCallback;

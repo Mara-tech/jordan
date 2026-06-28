@@ -27,15 +27,11 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             >
-            <br.com.simplepass.loadingbutton.customViews.CircularProgressButton
+            <com.mara.jordan.app.utils.LoadingButton
                 android:id="@+id/generic_information_query_button"
                 style="@style/generic_information_query_button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                app:spinning_bar_width="4dp"
-                app:spinning_bar_color="@color/white"
-                app:spinning_bar_padding="0dp"
-                app:finalCornerAngle="50dp"
                 />
         </LinearLayout>
     </LinearLayout>

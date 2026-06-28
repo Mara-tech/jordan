@@ -1,6 +1,6 @@
 package com.mara.jordan.app.api;
 
-import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
+import com.mara.jordan.core.dto.JordanActionDefinitionWithTaskDTO;
 
 public interface JordanGetActionsCallback {
     void onActionsLoaded(JordanActionDefinitionWithTaskDTO[] actions);

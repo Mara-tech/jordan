@@ -1,7 +1,7 @@
 package com.mara.jordan.app.ui;
 
 import com.mara.jordan.app.api.JordanSendMessageCallback;
-import com.mara.jordan.app.model.dto.JordanActionParameterDTO;
+import com.mara.jordan.core.dto.JordanActionParameterDTO;
 
 import java.util.List;
 

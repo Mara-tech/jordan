@@ -1,6 +1,6 @@
 package com.mara.jordan.app.api;
 
-import com.mara.jordan.app.model.dto.JordanClientDTO;
+import com.mara.jordan.core.dto.JordanClientDTO;
 
 public interface JordanGetClientsCallback {
     void onClientsLoaded(JordanClientDTO[] clients);

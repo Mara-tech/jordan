@@ -23,7 +23,7 @@ import com.mara.jordan.app.adapter.ClientAdapter;
 import com.mara.jordan.app.api.JordanGetClientsCallback;
 import com.mara.jordan.app.model.JordanClientModel;
 import com.mara.jordan.app.model.JordanServerModel;
-import com.mara.jordan.app.model.dto.JordanClientDTO;
+import com.mara.jordan.core.dto.JordanClientDTO;
 
 import se.emilsjolander.stickylistheaders.StickyListHeadersListView;
 
@@ -105,11 +105,9 @@ public class ClientListFragment extends InServerFragment implements OnClientClic
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-
-            case R.id.refresh_clients:
-                refreshClients();
-                return true;
+        if (item.getItemId() == R.id.refresh_clients) {
+            refreshClients();
+            return true;
         }
 
         // User didn't trigger a refresh, let the superclass handle this action

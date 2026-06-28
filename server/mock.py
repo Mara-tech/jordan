@@ -1,4 +1,4 @@
-import server.jordan_log as log
+import jordan_log as log
 import random
 import time
 from secrets import token_hex

@@ -61,16 +61,16 @@ public class ClientInteractionsFragment extends InServerFragment {
         BottomNavigationView.OnNavigationItemSelectedListener navigationItemSelectedListener =
                 new BottomNavigationView.OnNavigationItemSelectedListener() {
                     @Override public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-                        switch (item.getItemId()) {
-                            case R.id.client_interaction_status:
-                                openFragment(ReadStatusFragment.newInstance(model));
-                                return true;
-                            case R.id.client_interaction_action:
-                                openFragment(TaskAndActionsFragment.newInstance(model));
-                                return true;
-                            case R.id.client_interaction_messages_state:
-                                openFragment(MessagesStateFragment.newInstance(model));
-                                return true;
+                        int itemId = item.getItemId();
+                        if (itemId == R.id.client_interaction_status) {
+                            openFragment(ReadStatusFragment.newInstance(model));
+                            return true;
+                        } else if (itemId == R.id.client_interaction_action) {
+                            openFragment(TaskAndActionsFragment.newInstance(model));
+                            return true;
+                        } else if (itemId == R.id.client_interaction_messages_state) {
+                            openFragment(MessagesStateFragment.newInstance(model));
+                            return true;
                         }
                         return false;
                     }

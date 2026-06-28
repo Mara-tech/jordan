@@ -40,7 +40,8 @@ libraries/
   prototype/contract.md   API specification (authoritative)
   python/jordan_py/       Python passive-client library (jordan_py on PyPI)
   cli/jordan_cli/         CLI wrapping jordan_py (jordan_cli on PyPI)
-  java/class_diagram.md   Planned Java client (not yet implemented)
+  java/jordan-core/       Shared DTOs, constants, and utilities (used by jordan-client and the Android app)
+  java/jordan-client/     Passive-client Java library — Java counterpart of jordan_py
 
 app/android/        Android active-client app (Gradle)
 
@@ -166,6 +167,7 @@ Each component has its own prefixed tag. Only the matching workflow fires.
 | `jordan_cli` | `jordan_cli/v*` | `release-cli-python.yml` | PyPI |
 | `server` | `server/v*` | `release-server.yml` | ghcr.io Docker image |
 | `app/android` | `android/v*` | `release-android.yml` | APK artifact |
+| `jordan-core` + `jordan-client` | `java/v*` | *(planned)* | GitHub Packages |
 
 **To release `jordan_py`:**
 1. Bump `version` in [`libraries/python/jordan_py/pyproject.toml`](libraries/python/jordan_py/pyproject.toml)

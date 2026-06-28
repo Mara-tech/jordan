@@ -1,17 +1,18 @@
 package com.mara.jordan.app.api;
 
 import android.content.Context;
+import android.os.Build;
 import android.util.Log;
 
 import com.android.volley.ParseError;
 import com.android.volley.VolleyError;
-import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
-import com.mara.jordan.app.model.dto.JordanClientDTO;
-import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
-import com.mara.jordan.app.model.dto.JordanSendMessageActionDTO;
-import com.mara.jordan.app.model.dto.JordanSendMessageDTO;
-import com.mara.jordan.app.model.dto.JordanStatusDTO;
-import com.mara.jordan.app.model.dto.JordanTestDTO;
+import com.mara.jordan.core.dto.JordanActionDefinitionWithTaskDTO;
+import com.mara.jordan.core.dto.JordanClientDTO;
+import com.mara.jordan.core.dto.JordanMessageStateDTO;
+import com.mara.jordan.core.dto.JordanSendMessageActionDTO;
+import com.mara.jordan.core.dto.JordanSendMessageDTO;
+import com.mara.jordan.core.dto.JordanStatusDTO;
+import com.mara.jordan.core.dto.JordanTestDTO;
 import com.mara.jordan.app.ui.ClientDeletionCallback;
 import com.mara.jordan.app.ui.FullDeletionCallback;
 import com.mara.jordan.app.ui.GenericQueryCallback;
@@ -47,7 +48,7 @@ public class JordanApi {
 
 
     private String getAuthor() {
-        return "pbaudet";
+        return Build.MODEL;
     }
 
     public void readStatus(long taskId, int lineCount, JordanReadStatusCallback... callbacks) {

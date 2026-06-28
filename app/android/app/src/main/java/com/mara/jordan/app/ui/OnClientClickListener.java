@@ -1,6 +1,6 @@
 package com.mara.jordan.app.ui;
 
-import com.mara.jordan.app.model.dto.JordanClientDTO;
+import com.mara.jordan.core.dto.JordanClientDTO;
 
 public interface OnClientClickListener {
     void onClientClicked(JordanClientDTO selectedClient);

@@ -25,7 +25,7 @@ import com.mara.jordan.app.adapter.MessageFilterTaskAdapter;
 import com.mara.jordan.app.adapter.MessagesStateAdapter;
 import com.mara.jordan.app.api.JordanReadMessagesCallback;
 import com.mara.jordan.app.model.JordanTaskModel;
-import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
+import com.mara.jordan.core.dto.JordanMessageStateDTO;
 
 import java.util.Map;
 
@@ -95,14 +95,13 @@ public class MessagesStateFragment extends Fragment implements JordanReadMessage
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-
-            case R.id.refresh_messages_state:
-                refreshMessages();
-                return true;
-            case R.id.filter_message:
-                filterMessageDialog();
-                return true;
+        int itemId = item.getItemId();
+        if (itemId == R.id.refresh_messages_state) {
+            refreshMessages();
+            return true;
+        } else if (itemId == R.id.filter_message) {
+            filterMessageDialog();
+            return true;
         }
 
         // User didn't trigger a refresh, let the superclass handle this action

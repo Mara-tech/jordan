@@ -1,6 +1,6 @@
 package com.mara.jordan.app.ui;
 
-import com.mara.jordan.app.model.dto.JordanTestDTO;
+import com.mara.jordan.core.dto.JordanTestDTO;
 
 public interface ServerConnectionTestCallback {
     void onConnectionTestError(Throwable error);

@@ -31,11 +31,7 @@
     </GridLayout>
 
 
-    <br.com.simplepass.loadingbutton.customViews.CircularProgressButton
+    <com.mara.jordan.app.utils.LoadingButton
         android:id="@+id/action_execute"
-        style="@style/action_button"
-        app:spinning_bar_width="4dp"
-        app:spinning_bar_color="@color/white"
-        app:spinning_bar_padding="0dp"
-        app:finalCornerAngle="50dp" />
+        style="@style/action_button" />
 </LinearLayout>

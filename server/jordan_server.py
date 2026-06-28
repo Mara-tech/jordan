@@ -1,5 +1,5 @@
 # from threading import Thread
-import server.api as jordan_api
+import api as jordan_api
 
 def start_api():
     print("Starting API")

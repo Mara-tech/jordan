@@ -20,8 +20,8 @@ import com.google.common.collect.Lists;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.api.JordanGetClientsCallback;
 import com.mara.jordan.app.model.JordanClientModel;
-import com.mara.jordan.app.model.dto.JordanClientDTO;
-import com.mara.jordan.app.model.dto.JordanTaskDTO;
+import com.mara.jordan.core.dto.JordanClientDTO;
+import com.mara.jordan.core.dto.JordanTaskDTO;
 import com.mara.jordan.app.ui.ClientDeletionCallback;
 import com.mara.jordan.app.ui.OnClientClickListener;
 import com.mara.jordan.app.utils.JordanConstant;
@@ -33,9 +33,9 @@ import java.util.List;
 
 import se.emilsjolander.stickylistheaders.StickyListHeadersAdapter;
 
-import static com.mara.jordan.app.utils.JordanHelper.NO_TASK_WITH_PROGRESS_FLAG;
-import static com.mara.jordan.app.utils.JordanHelper.estimateClientProgress;
-import static com.mara.jordan.app.utils.JordanHelper.extractActiveTasksInfo;
+import static com.mara.jordan.core.JordanHelper.NO_TASK_WITH_PROGRESS_FLAG;
+import static com.mara.jordan.core.JordanHelper.estimateClientProgress;
+import static com.mara.jordan.core.JordanHelper.extractActiveTasksInfo;
 
 public class ClientAdapter extends ArrayAdapter<JordanClientDTO> implements StickyListHeadersAdapter, JordanGetClientsCallback, JordanConstant {
 
@@ -85,15 +85,13 @@ public class ClientAdapter extends ArrayAdapter<JordanClientDTO> implements Stic
         popup.getMenuInflater().inflate(R.menu.client_popup_menu, popup.getMenu());
         popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
             public boolean onMenuItemClick(MenuItem item) {
-                switch (item.getItemId()){
-                    case R.id.infos_client:
-                        showInfosDialog(client);
-                        break;
-                    case R.id.delete_client:
-                        showDeleteDialog(client);
-                        break;
-                    default:
-                        Log.e(TAG, "Unhandled menu item " + item.getTitle());
+                int itemId = item.getItemId();
+                if (itemId == R.id.infos_client) {
+                    showInfosDialog(client);
+                } else if (itemId == R.id.delete_client) {
+                    showDeleteDialog(client);
+                } else {
+                    Log.e(TAG, "Unhandled menu item " + item.getTitle());
                 }
                 return true;
             }

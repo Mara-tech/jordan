@@ -1,8 +1,8 @@
 package com.mara.jordan.app.adapter;
 
 import com.google.common.collect.ImmutableList;
-import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
-import com.mara.jordan.app.model.dto.JordanParentTaskDTO;
+import com.mara.jordan.core.dto.JordanActionDefinitionWithTaskDTO;
+import com.mara.jordan.core.dto.JordanParentTaskDTO;
 import com.mara.jordan.app.utils.JordanConstant;
 
 import java.util.Comparator;
@@ -88,7 +88,11 @@ public class ActionComparator implements Comparator<JordanActionDefinitionWithTa
         if(o1.equals(o2))
             return 0;
 
-        return STATE_ORDER.indexOf(o1) - STATE_ORDER.indexOf(o2);
+        int i1 = STATE_ORDER.indexOf(o1);
+        int i2 = STATE_ORDER.indexOf(o2);
+        if (i1 < 0) i1 = STATE_ORDER.size();
+        if (i2 < 0) i2 = STATE_ORDER.size();
+        return Integer.compare(i1, i2);
     }
 
     private static int compareByName(String o1, String o2) {

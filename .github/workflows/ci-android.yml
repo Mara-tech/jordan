@@ -1,0 +1,43 @@
+name: CI Android
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/android/**"
+      - "libraries/java/jordan-core/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/android/**"
+      - "libraries/java/jordan-core/**"
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: temurin
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+        working-directory: app/android
+
+      - name: Lint
+        run: ./gradlew lint
+        working-directory: app/android
+
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest
+        working-directory: app/android
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
+        working-directory: app/android

@@ -19,22 +19,22 @@ import androidx.fragment.app.DialogFragment;
 
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.model.JordanClientModel;
-import com.mara.jordan.app.utils.CircularProgressButtonHelper;
+import com.mara.jordan.app.utils.LoadingButtonHelper;
 
 import org.apache.commons.lang3.StringUtils;
 
-import br.com.simplepass.loadingbutton.customViews.CircularProgressButton;
+import com.mara.jordan.app.utils.LoadingButton;
 
 public class GenericInformationDialog extends DialogFragment implements GenericQueryCallback {
     private JordanClientModel model;
     private TextView resultField;
-    private CircularProgressButton queryButton;
-    private CircularProgressButtonHelper cpbh;
+    private LoadingButton queryButton;
+    private LoadingButtonHelper cpbh;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        cpbh = CircularProgressButtonHelper.getInstance(getContext());
+        cpbh = LoadingButtonHelper.getInstance(getContext());
     }
 
     @NonNull
