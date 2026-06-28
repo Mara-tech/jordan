@@ -1,8 +1,8 @@
 package com.mara.jordan.app.adapter;
 
 import com.google.common.collect.ImmutableList;
-import com.mara.jordan.app.model.dto.JordanClientDTO;
-import com.mara.jordan.app.model.dto.JordanTaskDTO;
+import com.mara.jordan.core.dto.JordanClientDTO;
+import com.mara.jordan.core.dto.JordanTaskDTO;
 import com.mara.jordan.app.utils.JordanConstant;
 
 import java.util.ArrayList;
@@ -57,7 +57,7 @@ public class ClientComparator implements Comparator<JordanClientDTO>, JordanCons
         if(o1.isEmpty() && o2.isEmpty())
             return 0;
 
-        // use com.mara.jordan.app.utils.JordanHelper.extractActiveTasksProgress(com.mara.jordan.app.model.dto.JordanClientDTO, java.lang.String[]) ?
+        // use com.mara.jordan.app.utils.JordanHelper.extractActiveTasksProgress(com.mara.jordan.core.dto.JordanClientDTO, java.lang.String[]) ?
         int p1 = sumProgress(o1);
         int p2 = sumProgress(o2);
 
@@ -108,7 +108,11 @@ public class ClientComparator implements Comparator<JordanClientDTO>, JordanCons
         if(o1.equals(o2))
             return 0;
 
-        return STATE_ORDER.indexOf(o1) - STATE_ORDER.indexOf(o2);
+        int i1 = STATE_ORDER.indexOf(o1);
+        int i2 = STATE_ORDER.indexOf(o2);
+        if (i1 < 0) i1 = STATE_ORDER.size();
+        if (i2 < 0) i2 = STATE_ORDER.size();
+        return Integer.compare(i1, i2);
     }
 
 }

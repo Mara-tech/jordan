@@ -1,7 +1,7 @@
 package com.mara.jordan.app.adapter;
 
-import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
-import com.mara.jordan.app.model.dto.JordanParentTaskDTO;
+import com.mara.jordan.core.dto.JordanActionDefinitionWithTaskDTO;
+import com.mara.jordan.core.dto.JordanParentTaskDTO;
 
 import org.junit.Test;
 

@@ -25,7 +25,7 @@ import com.mara.jordan.app.adapter.MessageFilterTaskAdapter;
 import com.mara.jordan.app.adapter.MessagesStateAdapter;
 import com.mara.jordan.app.api.JordanReadMessagesCallback;
 import com.mara.jordan.app.model.JordanTaskModel;
-import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
+import com.mara.jordan.core.dto.JordanMessageStateDTO;
 
 import java.util.Map;
 

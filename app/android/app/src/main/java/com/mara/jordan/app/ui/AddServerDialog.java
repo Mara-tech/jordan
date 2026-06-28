@@ -20,7 +20,7 @@ import androidx.fragment.app.DialogFragment;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.db.JordanServer;
 import com.mara.jordan.app.model.JordanServerModel;
-import com.mara.jordan.app.model.dto.JordanTestDTO;
+import com.mara.jordan.core.dto.JordanTestDTO;
 import com.mara.jordan.app.utils.LoadingButtonHelper;
 import com.mara.jordan.app.utils.NetworkUtils;
 

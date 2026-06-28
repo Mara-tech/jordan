@@ -97,4 +97,8 @@ Set these in `server/.env` before starting the server:
 | Library | Language | Description |
 |---|---|---|
 | [`jordan_py`](libraries/python/jordan_py/README.md) | Python | Passive-client library — register, send status, read messages |
-| Java client | Java | Planned — see [`libraries/java/class_diagram.md`](libraries/java/class_diagram.md) |
+| [`jordan_cli`](libraries/cli/README.md) | Python (CLI) | Shell-friendly CLI wrapping `jordan_py`; includes `jordan-admin` operator commands |
+| [`jordan-client`](libraries/java/jordan-client/README.md) | Java 11+ | Passive-client library — Java counterpart of `jordan_py` |
+| [`jordan-core`](libraries/java/jordan-core/README.md) | Java 8+ | Shared DTOs, constants, and utilities used by `jordan-client` and the Android app |
+
+> **Note:** `jordan-core` is consumed by the Android app as a local Gradle project (see `app/android/settings.gradle`). The two Java libraries are built together from `libraries/java/` using a single multi-module Gradle build.

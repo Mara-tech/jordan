@@ -1,2 +1,4 @@
 include ':app'
+include ':jordan-core'
+project(':jordan-core').projectDir = new File('../../libraries/java/jordan-core')
 rootProject.name = "JordanApp"

@@ -23,7 +23,7 @@ import com.mara.jordan.app.adapter.ClientAdapter;
 import com.mara.jordan.app.api.JordanGetClientsCallback;
 import com.mara.jordan.app.model.JordanClientModel;
 import com.mara.jordan.app.model.JordanServerModel;
-import com.mara.jordan.app.model.dto.JordanClientDTO;
+import com.mara.jordan.core.dto.JordanClientDTO;
 
 import se.emilsjolander.stickylistheaders.StickyListHeadersListView;
 

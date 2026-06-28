@@ -20,10 +20,10 @@ import com.google.common.collect.Lists;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.api.JordanReadStatusCallback;
 import com.mara.jordan.app.model.JordanTaskModel;
-import com.mara.jordan.app.model.dto.JordanParentTaskDTO;
-import com.mara.jordan.app.model.dto.JordanStatusDTO;
+import com.mara.jordan.core.dto.JordanParentTaskDTO;
+import com.mara.jordan.core.dto.JordanStatusDTO;
 import com.mara.jordan.app.ui.ReadStatusFragment;
-import com.mara.jordan.app.utils.DateUtils;
+import com.mara.jordan.core.DateUtils;
 
 import org.apache.commons.collections4.MapUtils;
 

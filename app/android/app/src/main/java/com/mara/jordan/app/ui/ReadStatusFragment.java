@@ -32,7 +32,7 @@ import com.mara.jordan.app.adapter.StatusFilterTaskAdapter;
 import com.mara.jordan.app.adapter.StatusFilterTypeAdapter;
 import com.mara.jordan.app.api.JordanReadStatusCallback;
 import com.mara.jordan.app.model.JordanTaskModel;
-import com.mara.jordan.app.model.dto.JordanStatusDTO;
+import com.mara.jordan.core.dto.JordanStatusDTO;
 
 import java.util.Map;
 

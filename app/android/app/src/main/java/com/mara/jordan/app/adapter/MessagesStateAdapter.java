@@ -13,9 +13,9 @@ import com.google.common.collect.Lists;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.api.JordanReadMessagesCallback;
 import com.mara.jordan.app.model.JordanTaskModel;
-import com.mara.jordan.app.model.dto.JordanMessageStateAuditDTO;
-import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
-import com.mara.jordan.app.utils.DateUtils;
+import com.mara.jordan.core.dto.JordanMessageStateAuditDTO;
+import com.mara.jordan.core.dto.JordanMessageStateDTO;
+import com.mara.jordan.core.DateUtils;
 
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -25,7 +25,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import static com.mara.jordan.app.utils.JordanHelper.getCurrentState;
+import static com.mara.jordan.core.JordanHelper.getCurrentState;
 
 public class MessagesStateAdapter extends ArrayAdapter<JordanMessageStateDTO> {
 

@@ -1,6 +1,6 @@
 package com.mara.jordan.app.api;
 
-import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
+import com.mara.jordan.core.dto.JordanMessageStateDTO;
 
 public interface JordanReadMessagesCallback {
     void onMessagesLoaded(JordanMessageStateDTO[] messages);

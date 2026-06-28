@@ -20,8 +20,8 @@ import com.mara.jordan.app.R;
 import com.mara.jordan.app.adapter.TaskAndActionsAdapter;
 import com.mara.jordan.app.api.JordanGetActionsCallback;
 import com.mara.jordan.app.model.JordanTaskModel;
-import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
-import com.mara.jordan.app.model.dto.JordanActionParameterDTO;
+import com.mara.jordan.core.dto.JordanActionDefinitionWithTaskDTO;
+import com.mara.jordan.core.dto.JordanActionParameterDTO;
 
 import java.util.ArrayList;
 import java.util.List;

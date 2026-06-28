@@ -3,8 +3,8 @@ package com.mara.jordan.app.adapter;
 import android.content.Context;
 import android.os.Build;
 
-import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
-import com.mara.jordan.app.model.dto.JordanParentTaskDTO;
+import com.mara.jordan.core.dto.JordanMessageStateDTO;
+import com.mara.jordan.core.dto.JordanParentTaskDTO;
 
 import java.util.ArrayList;
 import java.util.HashSet;

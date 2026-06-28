@@ -21,15 +21,15 @@ import com.mara.jordan.app.db.JordanListServersCallback;
 import com.mara.jordan.app.db.JordanServer;
 import com.mara.jordan.app.db.OnServerUpdateListener;
 import com.mara.jordan.app.model.JordanServerModel;
-import com.mara.jordan.app.model.dto.JordanClientDTO;
+import com.mara.jordan.core.dto.JordanClientDTO;
 import com.mara.jordan.app.ui.OnServerClickListener;
 
 import java.util.List;
 
-import static com.mara.jordan.app.utils.JordanHelper.NO_TASK_WITH_PROGRESS_FLAG;
-import static com.mara.jordan.app.utils.JordanHelper.estimateClientProgress;
-import static com.mara.jordan.app.utils.JordanHelper.getActiveClientCount;
-import static com.mara.jordan.app.utils.JordanHelper.getActiveTaskCount;
+import static com.mara.jordan.core.JordanHelper.NO_TASK_WITH_PROGRESS_FLAG;
+import static com.mara.jordan.core.JordanHelper.estimateClientProgress;
+import static com.mara.jordan.core.JordanHelper.getActiveClientCount;
+import static com.mara.jordan.core.JordanHelper.getActiveTaskCount;
 
 public class ServerAdapter extends ArrayAdapter<JordanServer> implements JordanListServersCallback {
 

@@ -1,7 +1,7 @@
 package com.mara.jordan.app.adapter;
 
-import com.mara.jordan.app.model.dto.JordanClientDTO;
-import com.mara.jordan.app.model.dto.JordanTaskDTO;
+import com.mara.jordan.core.dto.JordanClientDTO;
+import com.mara.jordan.core.dto.JordanTaskDTO;
 
 import org.junit.Test;
 

@@ -3,15 +3,15 @@ package com.mara.jordan.app.adapter;
 import android.content.Context;
 import android.os.Build;
 
-import com.mara.jordan.app.model.dto.JordanMessageStateAuditDTO;
-import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
+import com.mara.jordan.core.dto.JordanMessageStateAuditDTO;
+import com.mara.jordan.core.dto.JordanMessageStateDTO;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static com.mara.jordan.app.utils.JordanHelper.getCurrentState;
+import static com.mara.jordan.core.JordanHelper.getCurrentState;
 
 public class MessageFilterStateAdapter extends ACheckBoxFilterAdapter<JordanMessageStateDTO> {
 

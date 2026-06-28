@@ -7,9 +7,9 @@ import com.mara.jordan.app.api.JordanGetActionsCallback;
 import com.mara.jordan.app.api.JordanReadMessagesCallback;
 import com.mara.jordan.app.api.JordanReadStatusCallback;
 import com.mara.jordan.app.api.JordanSendMessageCallback;
-import com.mara.jordan.app.model.dto.JordanActionDefinitionWithTaskDTO;
-import com.mara.jordan.app.model.dto.JordanMessageStateDTO;
-import com.mara.jordan.app.model.dto.JordanStatusDTO;
+import com.mara.jordan.core.dto.JordanActionDefinitionWithTaskDTO;
+import com.mara.jordan.core.dto.JordanMessageStateDTO;
+import com.mara.jordan.core.dto.JordanStatusDTO;
 
 import org.apache.commons.lang3.ArrayUtils;
 
