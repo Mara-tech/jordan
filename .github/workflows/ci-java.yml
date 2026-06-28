@@ -24,6 +24,10 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+        working-directory: libraries/java
+
       - name: Build and test
         run: ./gradlew test
         working-directory: libraries/java
