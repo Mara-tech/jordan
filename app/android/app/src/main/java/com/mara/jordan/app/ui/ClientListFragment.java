@@ -17,6 +17,7 @@ import androidx.navigation.fragment.NavHostFragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import android.widget.TextView;
 import com.google.android.material.snackbar.Snackbar;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.adapter.ClientAdapter;
@@ -33,6 +34,7 @@ public class ClientListFragment extends InServerFragment implements OnClientClic
 
     private ClientAdapter adapter;
     private SwipeRefreshLayout clientListRefreshLayout;
+    private TextView emptyView;
     private JordanClientModel model;
 
     @Override
@@ -54,6 +56,7 @@ public class ClientListFragment extends InServerFragment implements OnClientClic
 
         clientListRefreshLayout = view.findViewById(R.id.swipe_refresh_client);
         clientListRefreshLayout.setOnRefreshListener(this::refreshClients);
+        emptyView = view.findViewById(R.id.empty_view);
 
         StickyListHeadersListView stickyList = view.findViewById(R.id.client_list);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -123,10 +126,8 @@ public class ClientListFragment extends InServerFragment implements OnClientClic
     @Override
     public void onClientsLoaded(JordanClientDTO[] clients) {
         clientListRefreshLayout.setRefreshing(false);
-        if(clients.length == 0){
-            if(getView() != null){
-                Snackbar.make(getView(), R.string.no_client_to_display, Snackbar.LENGTH_SHORT).show();
-            }
+        if (emptyView != null) {
+            emptyView.setVisibility(clients.length == 0 ? View.VISIBLE : View.GONE);
         }
     }
 

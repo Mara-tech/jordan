@@ -14,6 +14,7 @@ import android.view.ViewGroup;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.NumberPicker;
 import android.widget.PopupWindow;
 import android.widget.SeekBar;
@@ -88,6 +89,7 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
 
     private SwipeRefreshLayout statusListRefreshLayout;
     private ListView statusList;
+    private TextView emptyView;
     private View popupLayout;
     private PopupWindow popup;
 
@@ -142,6 +144,7 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
         setHasOptionsMenu(true);
         statusListRefreshLayout = view.findViewById(R.id.swipe_refresh_status);
         statusListRefreshLayout.setOnRefreshListener(this::refreshStatus);
+        emptyView = view.findViewById(R.id.empty_view);
 
         statusList = view.findViewById(R.id.read_status_list);
         statusList.setAdapter(statusAdapter);
@@ -389,10 +392,8 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
         statusListRefreshLayout.setRefreshing(false);
         statusFilterTypeAdapter.onItemsLoaded(statuses);
         statusFilterTaskAdapter.onItemsLoaded(statuses);
-        if(statuses.length == 0){
-            if(getView() != null){
-                Snackbar.make(getView(), R.string.no_status_to_display, Snackbar.LENGTH_SHORT).show();
-            }
+        if (emptyView != null) {
+            emptyView.setVisibility(statuses.length == 0 ? View.VISIBLE : View.GONE);
         }
         Log.i(TAG, "status loaded success");
         setupAutoRefresh();

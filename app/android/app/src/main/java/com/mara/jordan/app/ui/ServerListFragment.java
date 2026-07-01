@@ -8,6 +8,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ListView;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -38,6 +39,7 @@ public class ServerListFragment extends Fragment implements JordanListServersCal
 
     private ServerAdapter serverListAdapter;
     private SwipeRefreshLayout serverListRefreshLayout;
+    private TextView emptyView;
     private JordanServerModel model;
     private List<JordanServer> serversList = ImmutableList.of();
 
@@ -57,6 +59,7 @@ public class ServerListFragment extends Fragment implements JordanListServersCal
         final View view = inflater.inflate(R.layout.server_list_view, container, false);
         serverListRefreshLayout = view.findViewById(R.id.swipe_refresh_server);
         serverListRefreshLayout.setOnRefreshListener(this::refreshServers);
+        emptyView = view.findViewById(R.id.empty_view);
 
         ListView list = view.findViewById(R.id.server_list);
         list.setAdapter(serverListAdapter);
@@ -135,10 +138,8 @@ public class ServerListFragment extends Fragment implements JordanListServersCal
     public void onServersLoaded(List<JordanServer> servers) {
         serverListRefreshLayout.setRefreshing(false);
         serversList = servers;
-        if(servers.isEmpty()){
-            if(getView() != null){
-                Snackbar.make(getView(), R.string.no_server_to_display, Snackbar.LENGTH_SHORT).show();
-            }
+        if (emptyView != null) {
+            emptyView.setVisibility(servers.isEmpty() ? View.VISIBLE : View.GONE);
         }
     }
 

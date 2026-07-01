@@ -9,6 +9,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ListView;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -33,6 +34,7 @@ public class MessagesStateFragment extends Fragment implements JordanReadMessage
 
 
     private SwipeRefreshLayout messagesListRefreshLayout;
+    private TextView emptyView;
     private JordanTaskModel model;
     private MessagesStateAdapter messageStateAdapter;
     private MessageFilterTaskAdapter messageFilterTaskAdapter;
@@ -74,6 +76,7 @@ public class MessagesStateFragment extends Fragment implements JordanReadMessage
         setHasOptionsMenu(true);
         messagesListRefreshLayout = view.findViewById(R.id.swipe_refresh_message_state);
         messagesListRefreshLayout.setOnRefreshListener(this::refreshMessages);
+        emptyView = view.findViewById(R.id.empty_view);
 
         ListView statusList = view.findViewById(R.id.message_state_list);
         statusList.setAdapter(messageStateAdapter);
@@ -171,10 +174,8 @@ public class MessagesStateFragment extends Fragment implements JordanReadMessage
         messageFilterTaskAdapter.onItemsLoaded(messages);
         messageFilterAuthorAdapter.onItemsLoaded(messages);
         messageFilterStateAdapter.onItemsLoaded(messages);
-        if(messages.length == 0){
-            if(getView() != null){
-                Snackbar.make(getView(), R.string.no_message_state_to_display, Snackbar.LENGTH_SHORT).show();
-            }
+        if (emptyView != null) {
+            emptyView.setVisibility(messages.length == 0 ? View.VISIBLE : View.GONE);
         }
     }
 

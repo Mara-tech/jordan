@@ -12,6 +12,7 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import android.widget.TextView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -34,6 +35,7 @@ public class TaskAndActionsFragment extends Fragment implements JordanGetActions
 
 
     private SwipeRefreshLayout tasksListRefreshLayout;
+    private TextView emptyView;
     private JordanTaskModel model;
     private TaskAndActionsAdapter adapter;
 
@@ -67,6 +69,7 @@ public class TaskAndActionsFragment extends Fragment implements JordanGetActions
 
         tasksListRefreshLayout = view.findViewById(R.id.swipe_refresh_tasks);
         tasksListRefreshLayout.setOnRefreshListener(this::refreshTasks);
+        emptyView = view.findViewById(R.id.empty_view);
 
         StickyListHeadersListView stickyList = view.findViewById(R.id.task_list);
 
@@ -113,10 +116,8 @@ public class TaskAndActionsFragment extends Fragment implements JordanGetActions
     @Override
     public void onActionsLoaded(JordanActionDefinitionWithTaskDTO[] actions) {
         tasksListRefreshLayout.setRefreshing(false);
-        if(actions.length == 0){
-            if(getView() != null && getContext() != null){
-                Snackbar.make(getView(), R.string.no_action_definitions_to_display, Snackbar.LENGTH_SHORT).show();
-            }
+        if (emptyView != null) {
+            emptyView.setVisibility(actions.length == 0 ? View.VISIBLE : View.GONE);
         }
     }
 
