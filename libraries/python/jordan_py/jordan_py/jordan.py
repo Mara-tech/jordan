@@ -98,6 +98,8 @@ class JordanMessagePlaceholders:
 class JordanMessage:
     def __init__(self, base_url: str, task_id: str, msg: Dict[str, Any], auth_token: Optional[str] = None) -> None:
         self.base_url = base_url
+        if not self.base_url.endswith('/'):
+            self.base_url += '/'
         self.task_id = task_id
         self.auth_token = auth_token
         self.message_id = msg['messageId']
