@@ -69,6 +69,23 @@ Swagger UI: `http://localhost:5000/jordan/swagger-ui`
 | `REDIS_HOST` | Redis hostname or IP |
 | `REDIS_PORT` | Redis port (default 6379) |
 | `REDIS_PASSWORD` | Redis auth password |
+| `JORDAN_ADMIN_TOKEN` | Shared token protecting `/jordan/admin/*` |
+
+---
+
+## Authentication
+
+Both namespaces are guarded by `Authorization: Bearer <token>`, with a different token each:
+
+| Namespace | Guard (`server/api.py`) | Token |
+|---|---|---|
+| `/jordan/client/*` | `_require_client_auth(task_id)` | per-client `authToken` returned by `register`, validated against Redis by walking up to the root task |
+| `/jordan/admin/*` | `_require_admin_auth()` | shared `JORDAN_ADMIN_TOKEN`, compared with `secrets.compare_digest` |
+
+Open routes: `POST /jordan/client/register`, `GET /jordan/hello`, `GET /jordan/admin/hello`.
+
+The admin namespace **fails closed** — with `JORDAN_ADMIN_TOKEN` unset, every admin request is
+rejected with `401` rather than served openly, and the server logs an error at startup.
 
 ---
 

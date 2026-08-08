@@ -19,6 +19,7 @@ from api import app  # noqa: E402
 
 TASK_ID = 42
 TOKEN = 'deadbeefdeadbeefdeadbeefdeadbeef'
+ADMIN_TOKEN = 'cafebabecafebabecafebabecafebabe'
 STATUS_ID = 9999
 MESSAGE_ID = 12345
 
@@ -70,6 +71,24 @@ def allow_auth(monkeypatch):
 @pytest.fixture
 def deny_auth(monkeypatch):
     monkeypatch.setattr('api.validate_auth_token', lambda task_id, token: False)
+
+
+@pytest.fixture
+def admin_token(monkeypatch):
+    """Configure the shared admin token on the server side."""
+    monkeypatch.setenv('JORDAN_ADMIN_TOKEN', ADMIN_TOKEN)
+    return ADMIN_TOKEN
+
+
+@pytest.fixture
+def no_admin_token(monkeypatch):
+    """Server started without JORDAN_ADMIN_TOKEN: admin namespace must fail closed."""
+    monkeypatch.delenv('JORDAN_ADMIN_TOKEN', raising=False)
+
+
+@pytest.fixture
+def admin_headers(admin_token):
+    return {'Authorization': f'Bearer {admin_token}'}
 
 
 # ── Per-function interface mocks (data from mock.py patterns) ─────────────────
@@ -173,3 +192,9 @@ def mock_delete_task(monkeypatch):
 @pytest.fixture
 def mock_delete_all(monkeypatch):
     monkeypatch.setattr('api.delete_all', lambda payload=None: True)
+
+
+@pytest.fixture
+def mock_generic_query(monkeypatch):
+    monkeypatch.setattr('api.generic_query', lambda generic_id: _MOCK_STATUS)
+    return _MOCK_STATUS

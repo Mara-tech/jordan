@@ -192,7 +192,7 @@ Start to follow/administrate clients/tasks hosted from this server.
         [password : String,]
     ) : JordanServer
 #### Authentication
-`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
+`Authorization: Bearer <adminToken>` — shared server admin token, configured through the `JORDAN_ADMIN_TOKEN` environment variable. 401 if the header is missing, if the token is wrong, or if the server has no admin token configured (the namespace fails closed).
 
 ## List clients
 Reads clients registered on this server.
@@ -209,7 +209,8 @@ from JordanServer
     list_clients(
     ) : list<JordanClientInstance>
 #### Authentication and roles
-TBD
+`Authorization: Bearer <adminToken>` — shared server admin token, configured through the `JORDAN_ADMIN_TOKEN` environment variable. 401 if the header is missing, if the token is wrong, or if the server has no admin token configured (the namespace fails closed).
+Per-operator identities and roles: TBD.
 
 ## List actions
 Reads available actions for a client or a task.
@@ -225,7 +226,8 @@ from JordanServer
     list_actions(
     ) : list<JordanActionDefinition>
 #### Authentication and roles
-TBD
+`Authorization: Bearer <adminToken>` — shared server admin token, configured through the `JORDAN_ADMIN_TOKEN` environment variable. 401 if the header is missing, if the token is wrong, or if the server has no admin token configured (the namespace fails closed).
+Per-operator identities and roles: TBD.
 
 
 ## Send message
@@ -240,7 +242,7 @@ from JordanClientTask
         message : JordanMessage
     ) : JordanSentMessage
 #### Authentication
-`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
+`Authorization: Bearer <adminToken>` — shared server admin token, configured through the `JORDAN_ADMIN_TOKEN` environment variable. 401 if the header is missing, if the token is wrong, or if the server has no admin token configured (the namespace fails closed).
 #### Workflow
 send_message()
 SERVER_RECEIVED
@@ -261,7 +263,7 @@ from JordanClientTask or JordanClientInstance
     get_messages(
     ) : list<JordanMessage>
 #### Authentication
-`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
+`Authorization: Bearer <adminToken>` — shared server admin token, configured through the `JORDAN_ADMIN_TOKEN` environment variable. 401 if the header is missing, if the token is wrong, or if the server has no admin token configured (the namespace fails closed).
 
 ## Read status
 Get last statuses sent by the client/task.
@@ -275,7 +277,7 @@ from JordanClientTask or JordanClientInstance
         [line_count : int]
     ) : list<JordanStatus>
 #### Authentication
-`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
+`Authorization: Bearer <adminToken>` — shared server admin token, configured through the `JORDAN_ADMIN_TOKEN` environment variable. 401 if the header is missing, if the token is wrong, or if the server has no admin token configured (the namespace fails closed).
 #### Nice to have
 search filters -> on server or client side ?
 
@@ -294,7 +296,7 @@ from JordanClientInstance
 
     delete(taskId) : Void
 #### Authentication
-`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
+`Authorization: Bearer <adminToken>` — shared server admin token, configured through the `JORDAN_ADMIN_TOKEN` environment variable. 401 if the header is missing, if the token is wrong, or if the server has no admin token configured (the namespace fails closed).
 
 ## Delete All
 Clear everything stored on the server.
@@ -306,7 +308,7 @@ from JordanInstance
 
     deleteAll() : Void
 #### Authentication
-`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
+`Authorization: Bearer <adminToken>` — shared server admin token, configured through the `JORDAN_ADMIN_TOKEN` environment variable. 401 if the header is missing, if the token is wrong, or if the server has no admin token configured (the namespace fails closed).
 
 ## Generic Query
 Returns information stored for an ID.
@@ -318,6 +320,6 @@ from JordanClientInstance
 
     genericQuery(id) : String
 #### Authentication
-`Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
+`Authorization: Bearer <adminToken>` — shared server admin token, configured through the `JORDAN_ADMIN_TOKEN` environment variable. 401 if the header is missing, if the token is wrong, or if the server has no admin token configured (the namespace fails closed).
 
 

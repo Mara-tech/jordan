@@ -6,6 +6,8 @@ from rejson_interface import *
 from flask import Flask, request
 from flask_restx import Api, Resource, fields
 
+import os
+from secrets import compare_digest
 from time import time
 
 # Full example : https://flask-restplus.readthedocs.io/en/stable/example.html
@@ -15,6 +17,18 @@ from time import time
 #---API DEFINITION---
 #--------------------
 app = Flask(__name__)
+
+BEARER_AUTHORIZATION = 'Bearer'
+AUTHORIZATIONS = {
+    BEARER_AUTHORIZATION: {
+        'type': 'apiKey',
+        'in': 'header',
+        'name': 'Authorization',
+        'description': "Value: 'Bearer <token>'. Under /client/*, the token issued at "
+                       "registration. Under /admin/*, the server admin token.",
+    }
+}
+
 api = Api(app,
           version='1',
           title='Jordan Server API',
@@ -23,20 +37,45 @@ api = Api(app,
           # contact='Pupu',
           # contact_url='https://github.com/Mara-tech/jordan',
           doc=JORDAN_OPEN_API_DOC_SUFFIX,
-          prefix=JORDAN_API_PATH_PREFIX
+          prefix=JORDAN_API_PATH_PREFIX,
+          authorizations=AUTHORIZATIONS
           )
 
 client_ns = api.namespace('client', description='Client-side operations')
 admin_ns = api.namespace('admin', description='Admin-side operations')
 
 
-def _require_client_auth(task_id):
+def _bearer_token(namespace):
     auth = request.headers.get('Authorization', '')
     if not auth.startswith('Bearer '):
-        client_ns.abort(401, 'Missing Authorization: Bearer <token> header')
-    token = auth[7:]
+        namespace.abort(401, 'Missing Authorization: Bearer <token> header')
+    return auth[len('Bearer '):]
+
+
+def _require_client_auth(task_id):
+    token = _bearer_token(client_ns)
     if not validate_auth_token(task_id, token):
         client_ns.abort(401, 'Invalid authentication token')
+
+
+def admin_token():
+    """Shared admin token, read at request time: server/.env is only loaded
+    when rejson_interface is imported, after jordan_constants."""
+    return os.environ.get(JORDAN_ADMIN_TOKEN_ENV_VAR, '').strip()
+
+
+def _require_admin_auth():
+    """Guard for every /jordan/admin/* resource.
+
+    Fails closed: when no admin token is configured the whole namespace is
+    refused rather than served openly."""
+    expected = admin_token()
+    if not expected:
+        log.error(f"{JORDAN_ADMIN_TOKEN_ENV_VAR} is not set: rejecting admin request")
+        admin_ns.abort(401, 'Admin authentication is not configured on this server')
+    # compare bytes: compare_digest rejects str holding non-ASCII characters
+    if not compare_digest(_bearer_token(admin_ns).encode('utf-8'), expected.encode('utf-8')):
+        admin_ns.abort(401, 'Invalid admin token')
 
 #----------------------
 #---MODEL DEFINITION---
@@ -178,7 +217,9 @@ class Register(Resource):
 class NewTask(Resource):
 
     @client_ns.doc(description="Create a new task, can be see as a process.",
-                   responses={201: 'Task created'})
+                   security=BEARER_AUTHORIZATION,
+                   responses={201: 'Task created',
+                              401: 'client token missing or invalid'})
     @client_ns.expect(task_model)
     @client_ns.marshal_with(task_created_model)
     def post(self, parent_task_id):
@@ -195,8 +236,10 @@ class NewTask(Resource):
 class UpdateTaskState(Resource):
 
     @client_ns.doc(description="Update the task state",
+                   security=BEARER_AUTHORIZATION,
                    responses={202: 'Update is valid',
-                              400: 'Update is invalid'})
+                              400: 'Update is invalid',
+                              401: 'client token missing or invalid'})
     def put(self, task_id, task_state):
         _require_client_auth(task_id)
         try:
@@ -210,7 +253,9 @@ class UpdateTaskState(Resource):
 class SendStatus(Resource):
 
     @client_ns.doc(description="Send a Status (may be considered as a log) of the Client to the Server",
-                   responses={200: 'Status sent'})
+                   security=BEARER_AUTHORIZATION,
+                   responses={200: 'Status sent',
+                              401: 'client token missing or invalid'})
     @client_ns.expect(status_model)
     @client_ns.marshal_with(status_sent_model)
     def post(self, task_id):
@@ -226,8 +271,10 @@ class SendStatus(Resource):
 class ReadMessage(Resource):
 
     @client_ns.doc(description="Get the message ordered by admin, if any",
+                   security=BEARER_AUTHORIZATION,
                    responses={200: 'there is a message',
-                              204: 'no message to read'})
+                              204: 'no message to read',
+                              401: 'client token missing or invalid'})
     @client_ns.marshal_with(message_model)
     def get(self, task_id):
         _require_client_auth(task_id)
@@ -244,8 +291,10 @@ class ReadMessage(Resource):
 class UpdateMessageState(Resource):
 
     @client_ns.doc(description="Update the message state",
+                   security=BEARER_AUTHORIZATION,
                    responses={202: 'Update is valid',
-                              400: 'Update is invalid'})
+                              400: 'Update is invalid',
+                              401: 'client token missing or invalid'})
     def put(self, task_id, message_id, message_state):
         _require_client_auth(task_id)
         try:
@@ -259,8 +308,10 @@ class UpdateMessageState(Resource):
 class Unregister(Resource):
 
     @client_ns.doc(description="Unregister Client, ends connections",
+                   security=BEARER_AUTHORIZATION,
                    responses={200: 'Unregistered',
-                              400: 'client_id invalid'})
+                              400: 'client_id invalid',
+                              401: 'client token missing or invalid'})
     def post(self, client_id):
         _require_client_auth(client_id)
         try:
@@ -275,11 +326,14 @@ class Unregister(Resource):
 class ListClients(Resource):
 
     @admin_ns.doc(description="Get all clients and tasks available for the admin role",
-                   responses={200: 'list of clients'})
+                   security=BEARER_AUTHORIZATION,
+                   responses={200: 'list of clients',
+                              401: 'admin token missing or invalid'})
     @admin_ns.marshal_with(client_model, as_list=True)
     def get(self):
+        _require_admin_auth()
         try:
-            client_list = list_clients(api.authorizations)
+            client_list = list_clients(None)
             return client_list, 200
         except Exception:
             admin_ns.abort(500, 'Could not access to any client')
@@ -289,11 +343,14 @@ class ListClients(Resource):
 class ListActions(Resource):
 
     @admin_ns.doc(description="Get all actions available for the admin role under this task_id/client_id",
-                   responses={200: 'list of available actions'})
+                   security=BEARER_AUTHORIZATION,
+                   responses={200: 'list of available actions',
+                              401: 'admin token missing or invalid'})
     @admin_ns.marshal_with(action_definition_with_task_model, as_list=True)
     def get(self, task_id):
+        _require_admin_auth()
         try:
-            actions_list = list_actions(task_id, api.authorizations)
+            actions_list = list_actions(task_id, None)
             return actions_list, 200
         except Exception:
             admin_ns.abort(500, 'Could not access to any client')
@@ -304,10 +361,13 @@ class ListActions(Resource):
 class ReadStatus(Resource):
 
     @admin_ns.doc(description="Get last statuses sent by the task",
+                   security=BEARER_AUTHORIZATION,
                    responses={200: 'list of statuses',
-                              204: 'no status to read'})
+                              204: 'no status to read',
+                              401: 'admin token missing or invalid'})
     @admin_ns.marshal_with(status_model, as_list=True)
     def get(self, task_id, line_count):
+        _require_admin_auth()
         try:
             status_list = read_status(task_id, line_count)
             return status_list, 200 if len(status_list) > 0 else 204
@@ -319,9 +379,12 @@ class ReadStatus(Resource):
 class SendMessage(Resource):
 
     @admin_ns.doc(description="Send a message (may be considered as a command) to the Client via the Server",
-                   responses={201: 'Message sent'})
+                   security=BEARER_AUTHORIZATION,
+                   responses={201: 'Message sent',
+                              401: 'admin token missing or invalid'})
     @admin_ns.expect(message_model)
     def post(self, task_id):
+        _require_admin_auth()
         try:
             message_id = post_message(task_id, api.payload)
             return message_id, 201
@@ -333,10 +396,13 @@ class SendMessage(Resource):
 class ReadMessages(Resource):
 
     @admin_ns.doc(description="Get all messages sent to the task",
+                   security=BEARER_AUTHORIZATION,
                    responses={200: 'list of messages',
-                              204: 'no message to read'})
+                              204: 'no message to read',
+                              401: 'admin token missing or invalid'})
     @admin_ns.marshal_with(message_model, as_list=True)
     def get(self, task_id):
+        _require_admin_auth()
         try:
             message_list = list_messages(task_id)
             return message_list, 200 if len(message_list) > 0 else 204
@@ -349,8 +415,11 @@ class ReadMessages(Resource):
 class DeleteTask(Resource):
 
     @admin_ns.doc(description='Delete task or client',
-                  responses={200: 'task/client is deleted'})
+                  security=BEARER_AUTHORIZATION,
+                  responses={200: 'task/client is deleted',
+                             401: 'admin token missing or invalid'})
     def delete(self, task_id):
+        _require_admin_auth()
         try:
             valid_deletion = delete_task(task_id)
             return None, 200 if valid_deletion else 400
@@ -362,8 +431,11 @@ class DeleteTask(Resource):
 class DeleteAll(Resource):
 
     @admin_ns.doc(description='Delete everything',
-                  responses={200: 'everything is deleted'})
+                  security=BEARER_AUTHORIZATION,
+                  responses={200: 'everything is deleted',
+                             401: 'admin token missing or invalid'})
     def delete(self):
+        _require_admin_auth()
         try:
             valid_deletion = delete_all(None)#api.payload)
             return None, 200 if valid_deletion else 400
@@ -376,8 +448,11 @@ class DeleteAll(Resource):
 class GenericQuery(Resource):
 
     @admin_ns.doc(description='Return object identified by generic_id in json format',
-                  responses={200: 'Object found and returned', 204:'ID not found'})
+                  security=BEARER_AUTHORIZATION,
+                  responses={200: 'Object found and returned', 204: 'ID not found',
+                             401: 'admin token missing or invalid'})
     def get(self, generic_id):
+        _require_admin_auth()
         try:
             serialized_object = generic_query(generic_id)
             return (serialized_object, 200) if serialized_object else ('No result', 204)
@@ -387,4 +462,6 @@ class GenericQuery(Resource):
 def start_api():
     #about starting twice : https://stackoverflow.com/questions/9449101/how-to-stop-flask-from-initialising-twice-in-debug-mode
     log.info(f"Swagger UI available on {JORDAN_OPEN_API_URL}")
-    app.run(host=IPAddr, port=JORDAN_API_PORT, debug=True, use_reloader=False)
+    if not admin_token():
+        log.error(f"{JORDAN_ADMIN_TOKEN_ENV_VAR} is not set: every /jordan/admin/* request will be rejected with 401")
+    app.run(host=JORDAN_API_HOST, port=JORDAN_API_PORT, debug=True, use_reloader=False)

@@ -89,6 +89,21 @@ Set these in `server/.env` before starting the server:
 | `REDIS_HOST` | Redis hostname or IP | — |
 | `REDIS_PORT` | Redis port | `6379` |
 | `REDIS_PASSWORD` | Redis auth password | — |
+| `JORDAN_ADMIN_TOKEN` | Shared token protecting `/jordan/admin/*` — unset ⇒ every admin request returns `401` | — |
+
+---
+
+## Authentication
+
+Both namespaces expect an `Authorization: Bearer <token>` header, with a different token each:
+
+| Namespace | Token | Issued by |
+|---|---|---|
+| `/jordan/client/*` | per-client `authToken` | the server, in the `POST /jordan/client/register` response |
+| `/jordan/admin/*` | shared admin token | you, through `JORDAN_ADMIN_TOKEN` |
+
+Client registration and the `hello` health endpoints are the only open routes. See
+[`server/README.md`](server/README.md#authentication) for details.
 
 ---
 

@@ -4,7 +4,9 @@ Each test patches only the interface functions it needs (via conftest fixtures),
 so no real Redis connection is required.
 """
 
-from .conftest import TASK_ID, STATUS_ID, MESSAGE_ID
+import pytest
+
+from .conftest import TASK_ID, STATUS_ID, MESSAGE_ID, TOKEN, ADMIN_TOKEN
 
 
 # ── Health / hello ────────────────────────────────────────────────────────────
@@ -183,16 +185,69 @@ def test_unregister_returns_200(client, allow_auth, mock_unregister, auth_header
     assert r.status_code == 200
 
 
-# ── Admin: list clients ───────────────────────────────────────────────────────
+# ── Admin: auth enforcement ───────────────────────────────────────────────────
+
+# Every guarded admin route, as (method, path). Kept in one place so a new
+# endpoint added without _require_admin_auth() shows up as a failing test.
+ADMIN_ROUTES = [
+    ('get', '/jordan/admin/clients'),
+    ('get', f'/jordan/admin/{TASK_ID}/actions'),
+    ('get', f'/jordan/admin/{TASK_ID}/status/10'),
+    ('post', f'/jordan/admin/{TASK_ID}/message'),
+    ('get', f'/jordan/admin/{TASK_ID}/messages'),
+    ('get', f'/jordan/admin/{MESSAGE_ID}'),
+    ('delete', f'/jordan/admin/{TASK_ID}'),
+    ('delete', '/jordan/admin/all'),
+]
 
 
-def test_list_clients_returns_200(client, mock_list_clients):
-    r = client.get('/jordan/admin/clients')
+@pytest.mark.parametrize('method,path', ADMIN_ROUTES)
+def test_admin_route_without_auth_returns_401(client, admin_token, method, path):
+    r = getattr(client, method)(path)
+    assert r.status_code == 401
+
+
+@pytest.mark.parametrize('method,path', ADMIN_ROUTES)
+def test_admin_route_with_wrong_token_returns_401(client, admin_token, method, path):
+    r = getattr(client, method)(path, headers={'Authorization': 'Bearer wrong-token'})
+    assert r.status_code == 401
+
+
+def test_admin_malformed_auth_header_returns_401(client, admin_token):
+    r = client.get('/jordan/admin/clients', headers={'Authorization': ADMIN_TOKEN})
+    assert r.status_code == 401
+
+
+def test_admin_rejects_a_client_token(client, admin_token, allow_auth, auth_headers):
+    """A passive-client token must not open the admin namespace."""
+    assert TOKEN != ADMIN_TOKEN
+    r = client.get('/jordan/admin/clients', headers=auth_headers)
+    assert r.status_code == 401
+
+
+@pytest.mark.parametrize('method,path', ADMIN_ROUTES)
+def test_admin_fails_closed_when_token_not_configured(client, no_admin_token, method, path):
+    """No JORDAN_ADMIN_TOKEN on the server: the namespace is refused, not opened."""
+    r = getattr(client, method)(path, headers={'Authorization': f'Bearer {ADMIN_TOKEN}'})
+    assert r.status_code == 401
+
+
+def test_admin_hello_stays_open(client, no_admin_token):
+    """Health probe: no data, no auth."""
+    r = client.get('/jordan/admin/hello')
     assert r.status_code == 200
 
 
-def test_list_clients_returns_list(client, mock_list_clients):
-    r = client.get('/jordan/admin/clients')
+# ── Admin: list clients ───────────────────────────────────────────────────────
+
+
+def test_list_clients_returns_200(client, mock_list_clients, admin_headers):
+    r = client.get('/jordan/admin/clients', headers=admin_headers)
+    assert r.status_code == 200
+
+
+def test_list_clients_returns_list(client, mock_list_clients, admin_headers):
+    r = client.get('/jordan/admin/clients', headers=admin_headers)
     data = r.get_json()
     assert isinstance(data, list)
     assert len(data) == 1
@@ -202,13 +257,13 @@ def test_list_clients_returns_list(client, mock_list_clients):
 # ── Admin: list actions ───────────────────────────────────────────────────────
 
 
-def test_list_actions_returns_200(client, mock_list_actions):
-    r = client.get(f'/jordan/admin/{TASK_ID}/actions')
+def test_list_actions_returns_200(client, mock_list_actions, admin_headers):
+    r = client.get(f'/jordan/admin/{TASK_ID}/actions', headers=admin_headers)
     assert r.status_code == 200
 
 
-def test_list_actions_returns_list(client, mock_list_actions):
-    data = client.get(f'/jordan/admin/{TASK_ID}/actions').get_json()
+def test_list_actions_returns_list(client, mock_list_actions, admin_headers):
+    data = client.get(f'/jordan/admin/{TASK_ID}/actions', headers=admin_headers).get_json()
     assert isinstance(data, list)
     assert data[0]['actionName'] == 'think'
 
@@ -216,13 +271,13 @@ def test_list_actions_returns_list(client, mock_list_actions):
 # ── Admin: read status ────────────────────────────────────────────────────────
 
 
-def test_read_status_returns_200(client, mock_read_status):
-    r = client.get(f'/jordan/admin/{TASK_ID}/status/10')
+def test_read_status_returns_200(client, mock_read_status, admin_headers):
+    r = client.get(f'/jordan/admin/{TASK_ID}/status/10', headers=admin_headers)
     assert r.status_code == 200
 
 
-def test_read_status_returns_list(client, mock_read_status):
-    data = client.get(f'/jordan/admin/{TASK_ID}/status/10').get_json()
+def test_read_status_returns_list(client, mock_read_status, admin_headers):
+    data = client.get(f'/jordan/admin/{TASK_ID}/status/10', headers=admin_headers).get_json()
     assert isinstance(data, list)
     assert data[0]['statusId'] == STATUS_ID
 
@@ -230,37 +285,45 @@ def test_read_status_returns_list(client, mock_read_status):
 # ── Admin: post message ───────────────────────────────────────────────────────
 
 
-def test_post_message_returns_201(client, mock_post_message):
+def test_post_message_returns_201(client, mock_post_message, admin_headers):
     payload = {'author': 'admin', 'action': {'actionName': 'think'}}
-    r = client.post(f'/jordan/admin/{TASK_ID}/message', json=payload)
+    r = client.post(f'/jordan/admin/{TASK_ID}/message', json=payload, headers=admin_headers)
     assert r.status_code == 201
 
 
 # ── Admin: list messages ──────────────────────────────────────────────────────
 
 
-def test_list_messages_returns_200(client, mock_list_messages):
-    r = client.get(f'/jordan/admin/{TASK_ID}/messages')
+def test_list_messages_returns_200(client, mock_list_messages, admin_headers):
+    r = client.get(f'/jordan/admin/{TASK_ID}/messages', headers=admin_headers)
     assert r.status_code == 200
 
 
-def test_list_messages_returns_list(client, mock_list_messages):
-    data = client.get(f'/jordan/admin/{TASK_ID}/messages').get_json()
+def test_list_messages_returns_list(client, mock_list_messages, admin_headers):
+    data = client.get(f'/jordan/admin/{TASK_ID}/messages', headers=admin_headers).get_json()
     assert isinstance(data, list)
     assert data[0]['messageId'] == MESSAGE_ID
+
+
+# ── Admin: generic query ──────────────────────────────────────────────────────
+
+
+def test_generic_query_returns_200(client, mock_generic_query, admin_headers):
+    r = client.get(f'/jordan/admin/{MESSAGE_ID}', headers=admin_headers)
+    assert r.status_code == 200
 
 
 # ── Admin: delete task ────────────────────────────────────────────────────────
 
 
-def test_delete_task_returns_200(client, mock_delete_task):
-    r = client.delete(f'/jordan/admin/{TASK_ID}')
+def test_delete_task_returns_200(client, mock_delete_task, admin_headers):
+    r = client.delete(f'/jordan/admin/{TASK_ID}', headers=admin_headers)
     assert r.status_code == 200
 
 
 # ── Admin: delete all ─────────────────────────────────────────────────────────
 
 
-def test_delete_all_returns_200(client, mock_delete_all):
-    r = client.delete('/jordan/admin/all')
+def test_delete_all_returns_200(client, mock_delete_all, admin_headers):
+    r = client.delete('/jordan/admin/all', headers=admin_headers)
     assert r.status_code == 200
