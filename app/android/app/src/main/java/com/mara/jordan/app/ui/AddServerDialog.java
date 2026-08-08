@@ -7,8 +7,6 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
 import android.widget.Button;
-import android.widget.CheckBox;
-import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -35,10 +33,6 @@ public class AddServerDialog extends DialogFragment implements ServerConnectionT
     private JordanServer updatingEntity;
     private EditText serverNameField;
     private EditText serverBaseUriField;
-    private CheckBox rememberLoginCb;
-    private EditText loginField;
-    private CheckBox rememberPasswordCb;
-    private EditText passwordField;
     private Button positiveButton;
     private LoadingButton testConnectionButton;
     private LoadingButtonHelper cpbh;
@@ -57,10 +51,6 @@ public class AddServerDialog extends DialogFragment implements ServerConnectionT
         serverNameField = addServerDialogView.findViewById(R.id.add_server_dialog_server_name);
         serverBaseUriField = addServerDialogView.findViewById(R.id.add_server_dialog_server_base_uri);
         testConnectionButton = addServerDialogView.findViewById(R.id.add_server_dialog_test_connection);
-        rememberLoginCb = addServerDialogView.findViewById(R.id.add_server_dialog_remember_login);
-        loginField = addServerDialogView.findViewById(R.id.add_server_dialog_login);
-        rememberPasswordCb = addServerDialogView.findViewById(R.id.add_server_dialog_remember_password);
-        passwordField = addServerDialogView.findViewById(R.id.add_server_dialog_password);
         builder
                 .setTitle(R.string.add_server_dialog_title)
                 .setView(addServerDialogView)
@@ -115,33 +105,10 @@ public class AddServerDialog extends DialogFragment implements ServerConnectionT
             }
         });
         testConnectionButton.setOnClickListener(v->initServerConnectionTest());
-        rememberLoginCb.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                loginField.setEnabled(isChecked);
-                rememberPasswordCb.setEnabled(isChecked);
-                passwordField.setEnabled(isChecked);
-            }
-        });
-        rememberPasswordCb.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                passwordField.setEnabled(isChecked);
-            }
-        });
-
 
         if(isUpdate()){
             serverNameField.setText(updatingEntity.getName());
             serverBaseUriField.setText(updatingEntity.getUrl());
-            rememberLoginCb.setChecked(updatingEntity.getLogin() != null);
-            if(updatingEntity.getLogin() != null){
-                loginField.setText(updatingEntity.getLogin());
-            }
-            rememberPasswordCb.setChecked(updatingEntity.getPassword() != null);
-            if(updatingEntity.getPassword() != null){
-                passwordField.setText(updatingEntity.getPassword());
-            }
         }
 
         AlertDialog dialog = builder.create();
@@ -186,23 +153,17 @@ public class AddServerDialog extends DialogFragment implements ServerConnectionT
     private JordanServer makeEntity(View dialogView, JordanServer updatingEntity) {
         String serverName = serverNameField.getText().toString();
         String serverBaseUri = NetworkUtils.removeEndingSlash(serverBaseUriField.getText().toString());
-        String login = loginField.getText().toString();
-        String password = passwordField.getText().toString();
-        boolean rememberLogin = rememberLoginCb.isChecked();
-        boolean rememberPassword = rememberLogin && rememberPasswordCb.isChecked();
 
         final JordanServer.JordanServerBuilder entityBuilder = JordanServer.builder()
                 .name(serverName)
                 .url(serverBaseUri);
-        if(rememberLogin){
-            entityBuilder.login(login);
-            if(rememberPassword){
-                entityBuilder.password(password);
-            }
-        }
 
         if(isUpdate()){
-            entityBuilder.id(this.updatingEntity.getId());
+            // the whole row is rewritten : renaming a server must not drop the credentials
+            // LoginDialog remembered for it
+            entityBuilder.id(this.updatingEntity.getId())
+                    .login(this.updatingEntity.getLogin())
+                    .password(this.updatingEntity.getPassword());
         }
 
         return entityBuilder.build();

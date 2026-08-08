@@ -3,7 +3,11 @@ package com.mara.jordan.app.model;
 import android.content.Context;
 
 import com.mara.jordan.app.api.JordanApi;
+import com.mara.jordan.app.api.JordanAuthenticationListener;
 import com.mara.jordan.app.api.JordanGetClientsCallback;
+import com.mara.jordan.app.api.JordanLoginCallback;
+import com.mara.jordan.app.api.JordanLogoutCallback;
+import com.mara.jordan.core.dto.JordanAdminSessionDTO;
 import com.mara.jordan.core.dto.JordanClientDTO;
 import com.mara.jordan.app.ui.ClientDeletionCallback;
 import com.mara.jordan.app.ui.FullDeletionCallback;
@@ -24,7 +28,10 @@ public class JordanClientModel implements JordanModel {
         }
     }
 
-    protected JordanClientModel(Context ctx) {
+    /**
+     * A model on the server currently in use, without changing it.
+     */
+    public JordanClientModel(Context ctx) {
         this(ctx, null);
     }
 
@@ -42,5 +49,36 @@ public class JordanClientModel implements JordanModel {
 
     public void deleteAll(FullDeletionCallback... callbacks) {
         api.deleteAll(callbacks);
+    }
+
+    public String getServerBaseUrl() {
+        return api.getServerBaseUrl();
+    }
+
+    public void login(String login, String password, JordanLoginCallback... callbacks) {
+        api.login(login, password, callbacks);
+    }
+
+    public void logout(JordanLogoutCallback... callbacks) {
+        api.logout(callbacks);
+    }
+
+    public boolean isAuthenticated() {
+        return api.isAuthenticated();
+    }
+
+    public JordanAdminSessionDTO getCurrentSession() {
+        return api.getCurrentSession();
+    }
+
+    /**
+     * The screen in charge of asking for credentials when the server answers 401.
+     */
+    public void setAuthenticationListener(JordanAuthenticationListener listener) {
+        api.setAuthenticationListener(listener);
+    }
+
+    public void clearAuthenticationListener(JordanAuthenticationListener listener) {
+        api.clearAuthenticationListener(listener);
     }
 }

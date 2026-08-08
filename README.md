@@ -113,6 +113,9 @@ Admin operators hold one of three roles — `viewer` (read), `operator` (read + 
 Client registration, admin login and the `hello` health endpoints are the only open routes.
 See [`server/README.md`](server/README.md#authentication) for account creation and the login flow.
 
+The Android app logs in with the credentials saved for the selected server, or asks for them the
+first time a call is refused — see [`app/android/README.md`](app/android/README.md#authentication).
+
 ---
 
 ## Libraries

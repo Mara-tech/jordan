@@ -104,6 +104,16 @@ The `author` of a message is set from the authenticated identity, overriding the
 The admin namespace **fails closed** — with neither variable set, every admin request is
 rejected with `401` rather than served openly, and the server logs an error at startup.
 
+Active clients open a session and send the token themselves:
+
+| Active client | Login | Token storage |
+|---|---|---|
+| `app/android` | `POST /admin/login` from `LoginDialog` — the only screen asking for credentials — or, when it was told to remember them, from the `JordanServer` row | `JordanSession`, in memory, keyed by server base URL |
+
+In the Android app, `NetworkUtils.makeHeaders(server)` adds the header to every Volley request,
+and `JordanApi` turns a `401` into `JordanAuthenticationListener.onAuthenticationRequired()` —
+which the visible `InServerFragment` answers with the login dialog, then reloads its screen.
+
 ---
 
 ## Running samples

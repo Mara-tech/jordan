@@ -38,10 +38,6 @@
     <string name="add_server_dialog_server_name_hint">Server name… (only you will see this name)</string>
     <string name="add_server_dialog_title">Server setup</string>
     <string name="add_server_dialog_server_base_uri_hint">https://example.com/jordan/admin</string>
-    <string name="add_server_dialog_login_hint">login</string>
-    <string name="add_server_dialog_password">password</string>
-    <string name="add_server_dialog_remember_login">Remember login for this server</string>
-    <string name="add_server_dialog_remember_password">Remember password for this server</string>
     <string name="update_server">Update</string>
     <string name="delete_server">Delete</string>
     <string name="delete_server_confirmation_dialog">Do you want to delete server %s ?</string>
@@ -58,6 +54,22 @@
     <string name="server_import_failure_details">@string/details</string>
     <string name="server_import_failure_details_dialog">Error during import</string>
     <string name="server_import_clipboard_parse_error">Error while parsing clipboard</string>
+
+    <string name="menu_login">Log in</string>
+    <string name="menu_logout">Log out</string>
+    <string name="login_dialog_title">Server login</string>
+    <string name="login_dialog_server">Operator account on %s</string>
+    <string name="login_dialog_login_hint">login</string>
+    <string name="login_dialog_password_hint">password</string>
+    <string name="login_dialog_remember">Remember these credentials on this device</string>
+    <string name="login_dialog_confirm">Log in</string>
+    <string name="login_retry">Retry</string>
+    <string name="login_success">Logged in as %1$s (%2$s)</string>
+    <string name="login_failure_credentials">Invalid login or password</string>
+    <string name="logout_success">Session closed</string>
+    <string name="logout_failure">Session closed on this device only : the server could not be reached</string>
+    <string name="error_authentication_required">This server requires a login</string>
+    <string name="error_permission_denied">Your operator role does not allow this action</string>
 
     <string name="client_refresh_failure_details">@string/details</string>
     <string name="client_refresh_failure">An error occurred while reading clients</string>

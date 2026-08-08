@@ -30,7 +30,7 @@ import com.mara.jordan.core.dto.JordanMessageStateDTO;
 
 import java.util.Map;
 
-public class MessagesStateFragment extends Fragment implements JordanReadMessagesCallback {
+public class MessagesStateFragment extends Fragment implements JordanReadMessagesCallback, JordanRefreshable {
 
 
     private SwipeRefreshLayout messagesListRefreshLayout;
@@ -160,6 +160,11 @@ public class MessagesStateFragment extends Fragment implements JordanReadMessage
         messageStateAdapter.select(taskFilter, authorFilter, stateFilter);
     }
 
+
+    @Override
+    public void refreshContent() {
+        refreshMessages();
+    }
 
     private void refreshMessages() {
         if(!messagesListRefreshLayout.isRefreshing()){

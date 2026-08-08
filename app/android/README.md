@@ -17,6 +17,27 @@ Add the base URI of a Jordan server API.
 </p>
 Here 3 servers are added and saved by the user.
 
+## Authentication
+
+The `/jordan/admin/*` endpoints the app calls require an operator session token.
+
+- **Login** — the app exchanges a login and a password for a session token through
+  `POST /jordan/admin/login`, and sends it as `Authorization: Bearer <token>` on every following
+  call. One session per server: switching servers does not reuse a token.
+- **Two separate dialogs** — *Server setup* declares a server (name, URL, and a « Try » button
+  that checks it answers on `GET /hello`); the *Server login* dialog is the only place where
+  credentials are typed, and the only one that actually verifies them.
+- **Credentials** — ticking *Remember these credentials on this device* in the login dialog saves
+  them for that server, which then opens its session on its own when you enter it. Unticking the
+  box on the next login erases what was saved.
+- **On demand** — *Log in* / *Log out* are available in the overflow menu of the client screens.
+- **When the server refuses a call** (`401`, no session or an expired one), the app asks for the
+  credentials instead of showing a network error, and reloads the screen once logged in.
+- **Roles** — a `403` means the operator role is too narrow for the action (`viewer` reads,
+  `operator` also sends messages, `admin` also deletes). Logging in again does not widen it.
+
+The session token lives in memory only: closing the app closes the session on this device.
+
 ## Jordan Client Interactions
 A server may have one or several clients.
 These clients are the executing program that has *register*ed.

@@ -94,6 +94,16 @@ public class ClientInteractionsFragment extends InServerFragment {
         return model;
     }
 
+    /**
+     * The calls are made by the tab currently displayed, so it is the one to reload.
+     */
+    @Override
+    public void refreshContent() {
+        if (currentFragment instanceof JordanRefreshable && currentFragment.getView() != null) {
+            ((JordanRefreshable) currentFragment).refreshContent();
+        }
+    }
+
     @Override
     public void onBaseDeleted() {
         super.onBaseDeleted();

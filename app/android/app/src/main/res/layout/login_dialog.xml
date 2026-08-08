@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <TextView android:id="@+id/login_dialog_server"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        style="@style/add_server_dialog_field"
+        android:textIsSelectable="false"
+        />
+
+    <EditText android:id="@+id/login_dialog_login"
+        app:layout_constraintTop_toBottomOf="@id/login_dialog_server"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        style="@style/add_server_dialog_field"
+        android:hint="@string/login_dialog_login_hint"
+        android:inputType="text"
+        android:autofillHints="username"
+        />
+
+    <EditText android:id="@+id/login_dialog_password"
+        app:layout_constraintTop_toBottomOf="@id/login_dialog_login"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        style="@style/add_server_dialog_field"
+        android:hint="@string/login_dialog_password_hint"
+        android:inputType="textPassword"
+        android:autofillHints="password"
+        />
+
+    <CheckBox android:id="@+id/login_dialog_remember"
+        app:layout_constraintTop_toBottomOf="@id/login_dialog_password"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        style="@style/add_server_dialog_field"
+        android:text="@string/login_dialog_remember"
+        android:checked="true"
+        />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,16 +1,20 @@
 package com.mara.jordan.app.model;
 
 import android.content.Context;
+import android.util.Log;
 
 import com.google.common.collect.ImmutableList;
 import com.mara.jordan.app.api.JordanApi;
 import com.mara.jordan.app.api.JordanGetClientsCallback;
+import com.mara.jordan.app.api.JordanLoginCallback;
+import com.mara.jordan.app.db.JordanFindServerCallback;
 import com.mara.jordan.app.db.JordanListServersCallback;
 import com.mara.jordan.app.db.JordanServer;
 import com.mara.jordan.app.db.JordanServerDao;
 import com.mara.jordan.app.db.JordanServerDatabase;
 import com.mara.jordan.app.db.OnServerUpdateListener;
 import com.mara.jordan.app.ui.ServerConnectionTestCallback;
+import com.mara.jordan.app.utils.NetworkUtils;
 
 import java.util.List;
 
@@ -93,10 +97,44 @@ public class JordanServerModel implements JordanModel {
     }
 
     public void getServerInfo(JordanServer server, JordanGetClientsCallback... callbacks) {
-        api.listClients(server.getUrl(), callbacks);
+        api.listClients(server, callbacks);
     }
 
     public void testConnection(String serverBaseUrl, ServerConnectionTestCallback... callbacks) {
         api.testConnection(serverBaseUrl, callbacks);
+    }
+
+    /**
+     * Open an admin session with the credentials remembered for this server.
+     */
+    public void login(JordanServer server, JordanLoginCallback... callbacks) {
+        api.login(server.getUrl(), server.getLogin(), server.getPassword(), callbacks);
+    }
+
+    /**
+     * Store — or drop, with {@code null} arguments — the credentials this device is allowed to
+     * keep for a server, as decided in the login dialog.
+     */
+    public void rememberCredentials(JordanServer server, String login, String password) {
+        server.setLogin(login);
+        server.setPassword(password);
+        Completable.fromAction(() -> serverDao.updateAll(server))
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribeOn(Schedulers.io())
+                .subscribe(
+                        () -> {},
+                        error -> Log.e(TAG, "Could not save the credentials of " + server.getName(), error)
+                );
+    }
+
+    public void findServer(String serverBaseUrl, JordanFindServerCallback callback) {
+        serverDao.findByUrl(NetworkUtils.removeEndingSlash(serverBaseUrl))
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribeOn(Schedulers.io())
+                .subscribe(
+                        callback::onServerFound,
+                        error -> callback.onServerFound(null),
+                        () -> callback.onServerFound(null)
+                );
     }
 }

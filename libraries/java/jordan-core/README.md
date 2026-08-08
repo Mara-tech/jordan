@@ -6,7 +6,7 @@ Shared Java library for the Jordan ecosystem — DTOs, constants, and utilities 
 
 | Package | Description |
 |---|---|
-| `com.mara.jordan.core.dto` | 13 Lombok-annotated DTOs mirroring the REST API payloads |
+| `com.mara.jordan.core.dto` | 15 Lombok-annotated DTOs mirroring the REST API payloads |
 | `com.mara.jordan.core.JordanConstants` | All protocol string constants (states, status types, parameter types) |
 | `com.mara.jordan.core.DateUtils` | Timestamp formatting (seconds → locale-aware string) |
 | `com.mara.jordan.core.SerDeUtils` | Gson-based JSON serialization/deserialization |
@@ -43,6 +43,8 @@ All DTOs use Lombok `@Data @Builder @NoArgsConstructor @AllArgsConstructor`. The
 | `JordanSendMessageDTO` | Payload for sending a message to a passive client |
 | `JordanSendMessageActionDTO` | Action part of a `JordanSendMessageDTO` |
 | `JordanTestDTO` | Server connectivity check response |
+| `JordanAdminCredentialsDTO` | Operator login and password sent to `POST /admin/login` |
+| `JordanAdminSessionDTO` | Session token returned by `POST /admin/login`, with role, permissions and expiry |
 
 ## Constants (`JordanConstants`)
 

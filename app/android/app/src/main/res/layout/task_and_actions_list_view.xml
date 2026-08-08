@@ -12,12 +12,15 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
+        <!-- saveEnabled=false : see client_list_view.xml, same StickyListHeaders crash on
+             onSaveInstanceState() once autofill has assigned an id to the view -->
         <se.emilsjolander.stickylistheaders.StickyListHeadersListView
             android:id="@+id/task_list"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_marginLeft="16dp"
-            android:layout_marginRight="16dp" />
+            android:layout_marginRight="16dp"
+            android:saveEnabled="false" />
 <!--        tools:listitem="@layout/action_layout"-->
 
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

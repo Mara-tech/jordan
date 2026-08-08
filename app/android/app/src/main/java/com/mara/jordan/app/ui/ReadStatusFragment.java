@@ -37,7 +37,7 @@ import com.mara.jordan.core.dto.JordanStatusDTO;
 
 import java.util.Map;
 
-public class ReadStatusFragment extends Fragment implements JordanReadStatusCallback {
+public class ReadStatusFragment extends Fragment implements JordanReadStatusCallback, JordanRefreshable {
 
     public static final String TAG = "STATUS_FRAG";
     /**
@@ -385,6 +385,11 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
             statusListRefreshLayout.setRefreshing(true);
         }
         statusAdapter.refresh(currentSearchQuery, typeFilter, taskFilter, Integer.parseInt(DEPTH_CHOICES[statusDepth]), this);
+    }
+
+    @Override
+    public void refreshContent() {
+        refreshStatus();
     }
 
     @Override

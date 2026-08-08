@@ -81,6 +81,13 @@ public class ClientListFragment extends InServerFragment implements OnClientClic
     }
 
     @Override
+    public void refreshContent() {
+        if (getView() != null) {
+            refreshClients();
+        }
+    }
+
+    @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         if(getArguments() != null) {

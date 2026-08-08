@@ -1,6 +1,7 @@
 package com.mara.jordan.app.ui;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -23,11 +24,16 @@ import com.google.android.material.snackbar.Snackbar;
 import com.google.common.collect.ImmutableList;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.adapter.ServerAdapter;
+import com.mara.jordan.app.api.JordanLoginCallback;
+import com.mara.jordan.app.api.JordanSession;
 import com.mara.jordan.app.db.JordanListServersCallback;
 import com.mara.jordan.app.db.JordanServer;
 import com.mara.jordan.app.db.OnServerUpdateListener;
 import com.mara.jordan.app.model.JordanClientModel;
 import com.mara.jordan.app.model.JordanServerModel;
+import com.mara.jordan.core.dto.JordanAdminSessionDTO;
+
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
 
@@ -36,6 +42,8 @@ public class ServerListFragment extends Fragment implements JordanListServersCal
         OnServerUpdateListener,
         ServerAddOrUpdateCallback,
         ServerImportExportCallback {
+
+    private static final String TAG = "ServerListFragment";
 
     private ServerAdapter serverListAdapter;
     private SwipeRefreshLayout serverListRefreshLayout;
@@ -114,6 +122,35 @@ public class ServerListFragment extends Fragment implements JordanListServersCal
 
     @Override
     public void onServerClicked(JordanServer selectedServer) {
+        // credentials the user chose to remember open the session before the first admin call,
+        // so that entering a server does not systematically end on the login dialog
+        if (hasRememberedCredentials(selectedServer) && !JordanSession.getInstance().hasSession(selectedServer)) {
+            model.login(selectedServer, new JordanLoginCallback() {
+                @Override
+                public void onLoggedIn(JordanAdminSessionDTO session) {
+                    enterServer(selectedServer);
+                }
+
+                @Override
+                public void onLoginError(String errorMessage) {
+                    // entering anyway : the screen will ask for credentials on the first 401
+                    Log.i(TAG, "Could not open a session on " + selectedServer.getName() + " : " + errorMessage);
+                    enterServer(selectedServer);
+                }
+            });
+        } else {
+            enterServer(selectedServer);
+        }
+    }
+
+    private static boolean hasRememberedCredentials(JordanServer server) {
+        return StringUtils.isNotEmpty(server.getLogin()) && StringUtils.isNotEmpty(server.getPassword());
+    }
+
+    private void enterServer(JordanServer selectedServer) {
+        if (getView() == null) {
+            return;
+        }
         final Bundle selectedServerBundle = new Bundle();
         selectedServerBundle.putLong(JordanClientModel.SERVER_ID, selectedServer.getId());
         selectedServerBundle.putString(JordanClientModel.SERVER_BASE_URL, selectedServer.getUrl());

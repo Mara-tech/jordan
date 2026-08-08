@@ -31,7 +31,7 @@ import se.emilsjolander.stickylistheaders.StickyListHeadersListView;
 
 import static android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS;
 
-public class TaskAndActionsFragment extends Fragment implements JordanGetActionsCallback, JordanSendMessageUiCallback {
+public class TaskAndActionsFragment extends Fragment implements JordanGetActionsCallback, JordanSendMessageUiCallback, JordanRefreshable {
 
 
     private SwipeRefreshLayout tasksListRefreshLayout;
@@ -104,6 +104,11 @@ public class TaskAndActionsFragment extends Fragment implements JordanGetActions
         // User didn't trigger a refresh, let the superclass handle this action
         return super.onOptionsItemSelected(item);
 
+    }
+
+    @Override
+    public void refreshContent() {
+        refreshTasks();
     }
 
     private void refreshTasks() {

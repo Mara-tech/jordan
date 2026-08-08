@@ -12,10 +12,16 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
+        <!-- saveEnabled=false : StickyListHeadersListView.onSaveInstanceState() throws
+             "Handling non empty state of parent class is not implemented" as soon as the view
+             holds any state of its own, which happens once autofill has assigned it an id (the
+             login dialog opens a session on this window). Nothing to lose : the list is reloaded
+             from the server on every onViewCreated. -->
         <se.emilsjolander.stickylistheaders.StickyListHeadersListView
             android:id="@+id/client_list"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:saveEnabled="false"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
