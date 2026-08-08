@@ -159,11 +159,10 @@ public class AddServerDialog extends DialogFragment implements ServerConnectionT
                 .url(serverBaseUri);
 
         if(isUpdate()){
-            // the whole row is rewritten : renaming a server must not drop the credentials
-            // LoginDialog remembered for it
+            // the whole row is rewritten : renaming a server must not drop the login LoginDialog
+            // remembered for it — its password lives in JordanSecretStore, out of reach here
             entityBuilder.id(this.updatingEntity.getId())
-                    .login(this.updatingEntity.getLogin())
-                    .password(this.updatingEntity.getPassword());
+                    .login(this.updatingEntity.getLogin());
         }
 
         return entityBuilder.build();

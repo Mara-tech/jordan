@@ -30,6 +30,11 @@ The `/jordan/admin/*` endpoints the app calls require an operator session token.
 - **Credentials** — ticking *Remember these credentials on this device* in the login dialog saves
   them for that server, which then opens its session on its own when you enter it. Unticking the
   box on the next login erases what was saved.
+- **Where the password is kept** — the login goes to the server database, the password never
+  does : it is encrypted with an AES key held by the Android Keystore, which never hands out the
+  key itself, and the ciphertext is stored apart. A copied database, a device backup or an export
+  of the server list therefore carries no password. Devices older than Android 6.0 have no such
+  key : there the box is disabled rather than saving the password in clear.
 - **On demand** — *Log in* / *Log out* are available in the overflow menu of the client screens.
 - **When the server refuses a call** (`401`, no session or an expired one), the app asks for the
   credentials instead of showing a network error, and reloads the screen once logged in.

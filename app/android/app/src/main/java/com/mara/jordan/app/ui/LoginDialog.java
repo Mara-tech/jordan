@@ -77,6 +77,8 @@ public class LoginDialog extends DialogFragment implements JordanLoginCallback {
         loginField.addTextChangedListener(mandatoryFieldsWatcher);
         passwordField.addTextChangedListener(mandatoryFieldsWatcher);
 
+        serverModel = new JordanServerModel(requireContext());
+        offerToRememberIfTheDeviceCan();
         prefillWithRememberedCredentials();
 
         return builder
@@ -100,10 +102,22 @@ public class LoginDialog extends DialogFragment implements JordanLoginCallback {
     }
 
     /**
+     * A password can only be remembered where the Android Keystore can protect it. Where it
+     * cannot, the box says so and is left out of reach rather than storing the password in clear.
+     */
+    private void offerToRememberIfTheDeviceCan() {
+        final boolean canRemember = serverModel.canRememberCredentials();
+        rememberCb.setEnabled(canRemember);
+        rememberCb.setChecked(canRemember);
+        if (!canRemember) {
+            rememberCb.setText(R.string.login_dialog_remember_unavailable);
+        }
+    }
+
+    /**
      * The credentials the user asked to remember for this server, when there are any.
      */
     private void prefillWithRememberedCredentials() {
-        serverModel = new JordanServerModel(requireContext());
         serverModel.findServer(model().getServerBaseUrl(), this::prefill);
     }
 
@@ -115,25 +129,25 @@ public class LoginDialog extends DialogFragment implements JordanLoginCallback {
         if (StringUtils.isNotEmpty(server.getLogin())) {
             loginField.setText(server.getLogin());
         }
-        if (StringUtils.isNotEmpty(server.getPassword())) {
-            passwordField.setText(server.getPassword());
+        final String password = serverModel.rememberedPassword(server);
+        if (StringUtils.isNotEmpty(password)) {
+            passwordField.setText(password);
         }
         refreshEnablePositiveButton();
     }
 
     /**
      * A session is open : the credentials that opened it are worth keeping — or worth dropping,
-     * including those remembered earlier, when the user no longer wants them on this device.
+     * including those remembered earlier, when the user no longer wants them on this device,
+     * which is what the {@code null}s say.
      */
     private void applyRememberChoice() {
         if (storedServer == null || serverModel == null) {
             return;
         }
-        if (remembering) {
-            serverModel.rememberCredentials(storedServer, submittedLogin, submittedPassword);
-        } else if (storedServer.getLogin() != null || storedServer.getPassword() != null) {
-            serverModel.rememberCredentials(storedServer, null, null);
-        }
+        serverModel.rememberCredentials(storedServer,
+                remembering ? submittedLogin : null,
+                remembering ? submittedPassword : null);
     }
 
     @Override

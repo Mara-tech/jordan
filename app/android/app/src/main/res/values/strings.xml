@@ -62,6 +62,7 @@
     <string name="login_dialog_login_hint">login</string>
     <string name="login_dialog_password_hint">password</string>
     <string name="login_dialog_remember">Remember these credentials on this device</string>
+    <string name="login_dialog_remember_unavailable">This device cannot store a password safely</string>
     <string name="login_dialog_confirm">Log in</string>
     <string name="login_retry">Retry</string>
     <string name="login_success">Logged in as %1$s (%2$s)</string>

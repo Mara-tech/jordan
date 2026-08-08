@@ -3,18 +3,23 @@ package com.mara.jordan.app.model;
 import android.content.Context;
 import android.util.Log;
 
+import androidx.annotation.Nullable;
+
 import com.google.common.collect.ImmutableList;
 import com.mara.jordan.app.api.JordanApi;
 import com.mara.jordan.app.api.JordanGetClientsCallback;
 import com.mara.jordan.app.api.JordanLoginCallback;
 import com.mara.jordan.app.db.JordanFindServerCallback;
 import com.mara.jordan.app.db.JordanListServersCallback;
+import com.mara.jordan.app.db.JordanSecretStore;
 import com.mara.jordan.app.db.JordanServer;
 import com.mara.jordan.app.db.JordanServerDao;
 import com.mara.jordan.app.db.JordanServerDatabase;
 import com.mara.jordan.app.db.OnServerUpdateListener;
 import com.mara.jordan.app.ui.ServerConnectionTestCallback;
 import com.mara.jordan.app.utils.NetworkUtils;
+
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
 
@@ -29,11 +34,13 @@ public class JordanServerModel implements JordanModel {
     private static final String TAG = "JordanServerModel";
     private final Context context;
     private final JordanServerDao serverDao;
+    private final JordanSecretStore secretStore;
     private final JordanApi api;
 
     public JordanServerModel(Context ctx) {
         context = ctx;
         serverDao = JordanServerDatabase.getInstance(ctx).serverDao();
+        secretStore = JordanSecretStore.getInstance(ctx);
         api = JordanApi.getInstance(context);
     }
 
@@ -77,7 +84,11 @@ public class JordanServerModel implements JordanModel {
     }
 
     public void delete(JordanServer server, OnServerUpdateListener callback) {
-        Completable.fromAction(() -> serverDao.delete(server))
+        Completable.fromAction(() -> {
+                    serverDao.delete(server);
+                    // a server the user dropped must not leave its password behind
+                    secretStore.forget(server.getId());
+                })
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribeOn(Schedulers.io())
                 .subscribe(
@@ -108,23 +119,53 @@ public class JordanServerModel implements JordanModel {
      * Open an admin session with the credentials remembered for this server.
      */
     public void login(JordanServer server, JordanLoginCallback... callbacks) {
-        api.login(server.getUrl(), server.getLogin(), server.getPassword(), callbacks);
+        api.login(server.getUrl(), server.getLogin(), rememberedPassword(server), callbacks);
     }
 
     /**
      * Store — or drop, with {@code null} arguments — the credentials this device is allowed to
-     * keep for a server, as decided in the login dialog.
+     * keep for a server, as decided in the login dialog. The login goes to the database, the
+     * password to the Keystore-backed store, never the other way round.
      */
     public void rememberCredentials(JordanServer server, String login, String password) {
         server.setLogin(login);
-        server.setPassword(password);
-        Completable.fromAction(() -> serverDao.updateAll(server))
+        Completable.fromAction(() -> {
+                    serverDao.updateAll(server);
+                    secretStore.setSecret(server.getId(), password);
+                })
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribeOn(Schedulers.io())
                 .subscribe(
                         () -> {},
                         error -> Log.e(TAG, "Could not save the credentials of " + server.getName(), error)
                 );
+    }
+
+    /**
+     * @return the password remembered for this server, {@code null} when there is none — because
+     * the user never asked for it, or because this device cannot keep one safely.
+     */
+    @Nullable
+    public String rememberedPassword(JordanServer server) {
+        return server != null ? secretStore.getSecret(server.getId()) : null;
+    }
+
+    /**
+     * Whether entering this server can open its session without asking anything : both halves of
+     * the credentials must still be there, each in its own store.
+     */
+    public boolean hasRememberedCredentials(JordanServer server) {
+        return server != null
+                && StringUtils.isNotEmpty(server.getLogin())
+                && secretStore.hasSecret(server.getId());
+    }
+
+    /**
+     * Whether this device is able to remember a password at all — the login dialog only offers
+     * the choice when it is.
+     */
+    public boolean canRememberCredentials() {
+        return secretStore.isAvailable();
     }
 
     public void findServer(String serverBaseUrl, JordanFindServerCallback callback) {

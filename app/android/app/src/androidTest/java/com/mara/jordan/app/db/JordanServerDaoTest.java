@@ -42,7 +42,6 @@ public class JordanServerDaoTest {
                 .name("prod")
                 .url("https://example.com/jordan/admin")
                 .login("admin")
-                .password("secret")
                 .build();
         dao.insertAll(server);
 

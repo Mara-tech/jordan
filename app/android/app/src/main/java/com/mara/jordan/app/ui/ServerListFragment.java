@@ -33,8 +33,6 @@ import com.mara.jordan.app.model.JordanClientModel;
 import com.mara.jordan.app.model.JordanServerModel;
 import com.mara.jordan.core.dto.JordanAdminSessionDTO;
 
-import org.apache.commons.lang3.StringUtils;
-
 import java.util.List;
 
 public class ServerListFragment extends Fragment implements JordanListServersCallback,
@@ -124,7 +122,7 @@ public class ServerListFragment extends Fragment implements JordanListServersCal
     public void onServerClicked(JordanServer selectedServer) {
         // credentials the user chose to remember open the session before the first admin call,
         // so that entering a server does not systematically end on the login dialog
-        if (hasRememberedCredentials(selectedServer) && !JordanSession.getInstance().hasSession(selectedServer)) {
+        if (model.hasRememberedCredentials(selectedServer) && !JordanSession.getInstance().hasSession(selectedServer)) {
             model.login(selectedServer, new JordanLoginCallback() {
                 @Override
                 public void onLoggedIn(JordanAdminSessionDTO session) {
@@ -141,10 +139,6 @@ public class ServerListFragment extends Fragment implements JordanListServersCal
         } else {
             enterServer(selectedServer);
         }
-    }
-
-    private static boolean hasRememberedCredentials(JordanServer server) {
-        return StringUtils.isNotEmpty(server.getLogin()) && StringUtils.isNotEmpty(server.getPassword());
     }
 
     private void enterServer(JordanServer selectedServer) {

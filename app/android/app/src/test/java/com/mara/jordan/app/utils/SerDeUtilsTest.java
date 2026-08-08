@@ -5,6 +5,9 @@ import com.mara.jordan.app.db.JordanServer;
 
 import org.junit.Test;
 
+import java.lang.reflect.Field;
+import java.util.Locale;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -18,7 +21,6 @@ public class SerDeUtilsTest {
                 .name("prod")
                 .url("https://example.com/jordan/admin")
                 .login("admin")
-                .password("secret")
                 .build();
         String json = SerDeUtils.serialize(server);
         assertNotNull(json);
@@ -29,29 +31,48 @@ public class SerDeUtilsTest {
     }
 
     @Test
-    public void serialize_password_isExcluded() {
+    public void serialize_carriesNoPassword() {
         JordanServer server = JordanServer.builder()
                 .name("prod")
                 .url("https://example.com/jordan/admin")
                 .login("admin")
-                .password("secret")
                 .build();
         String json = SerDeUtils.serialize(server);
-        // password has @Expose(serialize=false) — must not appear in JSON
-        assertFalse(json.contains("secret"));
+        // the entity holds no secret at all : passwords live in JordanSecretStore, so no export
+        // — this one or any other format — can carry one
         assertFalse(json.contains("password"));
     }
 
     @Test
     public void deserialize_validJson_returnsPopulatedObject() {
-        String json = "{\"name\":\"prod\",\"url\":\"https://example.com\",\"login\":\"admin\",\"password\":\"secret\"}";
+        String json = "{\"name\":\"prod\",\"url\":\"https://example.com\",\"login\":\"admin\"}";
         JordanServer server = SerDeUtils.deserialize(json, JordanServer.class);
         assertNotNull(server);
         assertEquals("prod", server.getName());
         assertEquals("https://example.com", server.getUrl());
         assertEquals("admin", server.getLogin());
-        // password has @Expose(serialize=false) but deserialize=true (default), so it IS read on deserialize
-        assertEquals("secret", server.getPassword());
+    }
+
+    @Test
+    public void deserialize_legacyExportWithPassword_dropsIt() {
+        // exports produced before the secret moved out of the database still carry the field
+        String json = "{\"name\":\"prod\",\"url\":\"https://example.com\",\"login\":\"admin\",\"password\":\"secret\"}";
+        JordanServer server = SerDeUtils.deserialize(json, JordanServer.class);
+        assertEquals("admin", server.getLogin());
+        assertEquals("prod", server.getName());
+        // there is no field to read the password into : it is ignored, not imported
+    }
+
+    @Test
+    public void entity_holdsNoSecretField() {
+        // the guarantee the export relies on, checked on the class rather than on one format :
+        // a CSV or text export added later cannot leak what the entity does not hold
+        for (Field field : JordanServer.class.getDeclaredFields()) {
+            String name = field.getName().toLowerCase(Locale.ROOT);
+            assertFalse(field.getName(), name.contains("password"));
+            assertFalse(field.getName(), name.contains("secret"));
+            assertFalse(field.getName(), name.contains("token"));
+        }
     }
 
     @Test

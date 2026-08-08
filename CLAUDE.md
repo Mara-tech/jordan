@@ -108,7 +108,14 @@ Active clients open a session and send the token themselves:
 
 | Active client | Login | Token storage |
 |---|---|---|
-| `app/android` | `POST /admin/login` from `LoginDialog` — the only screen asking for credentials — or, when it was told to remember them, from the `JordanServer` row | `JordanSession`, in memory, keyed by server base URL |
+| `app/android` | `POST /admin/login` from `LoginDialog` — the only screen asking for credentials — or, when it was told to remember them, from the `JordanServer` row and `JordanSecretStore` | `JordanSession`, in memory, keyed by server base URL |
+
+Remembered credentials are split in two on the device: the `JordanServer` Room row keeps the
+`login` and the row id, `JordanSecretStore` keeps the password encrypted under an AES key held by
+the Android Keystore (`SharedPreferences` file `jordan_server_secrets`, entries keyed by row id).
+No secret is left in the database, so exports (`ExportServerDialog`), backups and a copied
+database file cannot carry one. Below API 23 there is no Keystore key: the app declines to
+remember rather than storing in clear (`JordanSecretStore.isAvailable()`).
 
 In the Android app, `NetworkUtils.makeHeaders(server)` adds the header to every Volley request,
 and `JordanApi` turns a `401` into `JordanAuthenticationListener.onAuthenticationRequired()` —
