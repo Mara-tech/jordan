@@ -30,6 +30,7 @@ Jordan is a 3-layer system:
 ```
 server/             Flask-RESTX server + Redis interface
   api.py            REST endpoints (client_ns, admin_ns)
+  admin_identity.py Operator accounts, roles, permissions
   rejson_interface.py  Redis read/write layer
   jordan_constants.py  Port, host, Redis keys
   jordan_server.py  Entry point: python jordan_server.py
@@ -69,7 +70,9 @@ Swagger UI: `http://localhost:5000/jordan/swagger-ui`
 | `REDIS_HOST` | Redis hostname or IP |
 | `REDIS_PORT` | Redis port (default 6379) |
 | `REDIS_PASSWORD` | Redis auth password |
-| `JORDAN_ADMIN_TOKEN` | Shared token protecting `/jordan/admin/*` |
+| `JORDAN_ADMIN_USERS` | Operator accounts guarding `/jordan/admin/*` (JSON array) |
+| `JORDAN_ADMIN_TOKEN` | Shared bootstrap token for `/jordan/admin/*` |
+| `JORDAN_ADMIN_SESSION_TTL` | Admin session lifetime in seconds (default 43200) |
 
 ---
 
@@ -80,11 +83,25 @@ Both namespaces are guarded by `Authorization: Bearer <token>`, with a different
 | Namespace | Guard (`server/api.py`) | Token |
 |---|---|---|
 | `/jordan/client/*` | `_require_client_auth(task_id)` | per-client `authToken` returned by `register`, validated against Redis by walking up to the root task |
-| `/jordan/admin/*` | `_require_admin_auth()` | shared `JORDAN_ADMIN_TOKEN`, compared with `secrets.compare_digest` |
+| `/jordan/admin/*` | `_require_admin_auth(permission)` | session token from `POST /admin/login` (stored in Redis under its hash, with a TTL), or the shared `JORDAN_ADMIN_TOKEN` |
 
-Open routes: `POST /jordan/client/register`, `GET /jordan/hello`, `GET /jordan/admin/hello`.
+Open routes: `POST /jordan/client/register`, `POST /jordan/admin/login`, `GET /jordan/hello`,
+`GET /jordan/admin/hello`.
 
-The admin namespace **fails closed** — with `JORDAN_ADMIN_TOKEN` unset, every admin request is
+Operator accounts live in `JORDAN_ADMIN_USERS` (JSON array of `{login, passwordHash, role}`,
+hashes produced by `python server/admin_identity.py <login> <password> [role]`). Roles map to
+permissions in `server/admin_identity.py`:
+
+| Role | `read` | `send` | `delete` |
+|---|---|---|---|
+| `viewer` | ✔ | | |
+| `operator` | ✔ | ✔ | |
+| `admin` | ✔ | ✔ | ✔ |
+
+`401` when the token is missing, unknown or expired; `403` when the role lacks the permission.
+The `author` of a message is set from the authenticated identity, overriding the request body.
+
+The admin namespace **fails closed** — with neither variable set, every admin request is
 rejected with `401` rather than served openly, and the server logs an error at startup.
 
 ---

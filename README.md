@@ -89,7 +89,11 @@ Set these in `server/.env` before starting the server:
 | `REDIS_HOST` | Redis hostname or IP | — |
 | `REDIS_PORT` | Redis port | `6379` |
 | `REDIS_PASSWORD` | Redis auth password | — |
-| `JORDAN_ADMIN_TOKEN` | Shared token protecting `/jordan/admin/*` — unset ⇒ every admin request returns `401` | — |
+| `JORDAN_ADMIN_USERS` | Operator accounts guarding `/jordan/admin/*` (JSON array) | — |
+| `JORDAN_ADMIN_TOKEN` | Shared bootstrap token for `/jordan/admin/*` | — |
+| `JORDAN_ADMIN_SESSION_TTL` | Lifetime of an admin session token, in seconds | `43200` (12 h) |
+
+With neither `JORDAN_ADMIN_USERS` nor `JORDAN_ADMIN_TOKEN` set, every admin request returns `401`.
 
 ---
 
@@ -100,10 +104,14 @@ Both namespaces expect an `Authorization: Bearer <token>` header, with a differe
 | Namespace | Token | Issued by |
 |---|---|---|
 | `/jordan/client/*` | per-client `authToken` | the server, in the `POST /jordan/client/register` response |
-| `/jordan/admin/*` | shared admin token | you, through `JORDAN_ADMIN_TOKEN` |
+| `/jordan/admin/*` | operator session token | the server, in the `POST /jordan/admin/login` response |
 
-Client registration and the `hello` health endpoints are the only open routes. See
-[`server/README.md`](server/README.md#authentication) for details.
+Admin operators hold one of three roles — `viewer` (read), `operator` (read + send messages),
+`admin` (read + send + delete) — and a call whose role lacks the permission gets `403`. The
+`author` of a message is the authenticated operator, not a value from the request body.
+
+Client registration, admin login and the `hello` health endpoints are the only open routes.
+See [`server/README.md`](server/README.md#authentication) for account creation and the login flow.
 
 ---
 

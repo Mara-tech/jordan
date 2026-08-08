@@ -3,6 +3,7 @@ import jordan_log as log
 import random
 import time
 import os
+from hashlib import sha256
 from pathlib import Path as FilePath
 from secrets import token_hex
 from dotenv import load_dotenv
@@ -29,6 +30,7 @@ CLIENT_SET = 'clients'
 TASK_STATUS_LIST = '{}_status'
 TASK_MESSAGE_SLOT = '{}_message'
 TASK_ALL_MESSAGES_LIST = '{}_all_messages'
+ADMIN_SESSION_KEY = 'admin_session_{}'
 
 MESSAGE_STATE_SERVER_RECEIVED = 'SERVER_RECEIVED'
 MESSAGE_STATE_MESSAGE_DELIVERED = 'MESSAGE_DELIVERED'
@@ -388,3 +390,29 @@ def validate_auth_token(task_id, token):
     if parent_id is not None:
         return validate_auth_token(parent_id, token)
     return False
+
+
+def _admin_session_key(token):
+    """Sessions are keyed by the hash of the token: a dump of the base never
+    yields a usable admin token."""
+    return ADMIN_SESSION_KEY.format(sha256(token.encode('utf-8')).hexdigest())
+
+
+def store_admin_session(token, operator, ttl_seconds):
+    """Open an admin session that Redis expires on its own."""
+    key = _admin_session_key(token)
+    log_redis_op(f"open admin session for {operator.get('login')} ({ttl_seconds}s)")
+    rp = rj.pipeline()
+    rp.json().set(key, '.', operator)
+    rp.expire(key, ttl_seconds)
+    rp.execute()
+
+
+def read_admin_session(token):
+    """Operator behind a session token, or None when unknown or expired."""
+    return rj.json().get(_admin_session_key(token))
+
+
+def delete_admin_session(token):
+    log_redis_op("close admin session")
+    return bool(rj.delete(_admin_session_key(token)))

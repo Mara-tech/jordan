@@ -23,6 +23,10 @@ services:
       REDIS_PASSWORD: jordan_dev
       # Local development token for /jordan/admin/* — override for any real deployment
       JORDAN_ADMIN_TOKEN: ${JORDAN_ADMIN_TOKEN:-jordan_dev_admin_token}
+      # Named operator accounts (JSON array); build entries with:
+      #   python server/admin_identity.py <login> <password> [viewer|operator|admin]
+      JORDAN_ADMIN_USERS: ${JORDAN_ADMIN_USERS:-[]}
+      JORDAN_ADMIN_SESSION_TTL: ${JORDAN_ADMIN_SESSION_TTL:-43200}
     depends_on:
       redis:
         condition: service_healthy

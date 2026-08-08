@@ -1,7 +1,9 @@
+import json
 import os
 import time
 import pytest
 from unittest.mock import MagicMock, patch
+from werkzeug.security import generate_password_hash
 
 # Must be set before server modules are imported
 os.environ.setdefault('REDIS_HOST', 'localhost')
@@ -75,20 +77,83 @@ def deny_auth(monkeypatch):
 
 @pytest.fixture
 def admin_token(monkeypatch):
-    """Configure the shared admin token on the server side."""
+    """Configure the shared bootstrap admin token on the server side."""
     monkeypatch.setenv('JORDAN_ADMIN_TOKEN', ADMIN_TOKEN)
     return ADMIN_TOKEN
 
 
 @pytest.fixture
-def no_admin_token(monkeypatch):
-    """Server started without JORDAN_ADMIN_TOKEN: admin namespace must fail closed."""
+def no_admin_auth(monkeypatch):
+    """Server started with no admin credential at all: the namespace must fail closed."""
     monkeypatch.delenv('JORDAN_ADMIN_TOKEN', raising=False)
+    monkeypatch.delenv('JORDAN_ADMIN_USERS', raising=False)
 
 
 @pytest.fixture
 def admin_headers(admin_token):
     return {'Authorization': f'Bearer {admin_token}'}
+
+
+# ── Operator accounts and sessions ────────────────────────────────────────────
+
+# Cheap KDF parameters: the production default (600k pbkdf2 rounds) would add
+# ~0.3s per hash to the suite. hash_password() is covered separately.
+_TEST_HASH_METHOD = 'pbkdf2:sha256:1000'
+
+OPERATORS = {
+    'vic': {'password': 'viewer-pwd', 'role': 'viewer'},
+    'olga': {'password': 'operator-pwd', 'role': 'operator'},
+    'ada': {'password': 'admin-pwd', 'role': 'admin'},
+}
+
+
+def _declared_operators():
+    return json.dumps([
+        {
+            'login': login,
+            'passwordHash': generate_password_hash(account['password'], method=_TEST_HASH_METHOD),
+            'role': account['role'],
+        }
+        for login, account in OPERATORS.items()
+    ])
+
+
+@pytest.fixture
+def admin_users(monkeypatch):
+    """Declare the operator accounts of OPERATORS on the server side."""
+    monkeypatch.delenv('JORDAN_ADMIN_TOKEN', raising=False)
+    monkeypatch.setenv('JORDAN_ADMIN_USERS', _declared_operators())
+    return OPERATORS
+
+
+@pytest.fixture
+def admin_sessions(monkeypatch):
+    """In-memory stand-in for the Redis session store, so a test can log in and
+    reuse the returned token."""
+    sessions = {}
+    monkeypatch.setattr(
+        'api.store_admin_session',
+        lambda token, operator, ttl: sessions.__setitem__(token, dict(operator)),
+    )
+    monkeypatch.setattr('api.read_admin_session', lambda token: sessions.get(token))
+    monkeypatch.setattr(
+        'api.delete_admin_session',
+        lambda token: sessions.pop(token, None) is not None,
+    )
+    return sessions
+
+
+@pytest.fixture
+def login(client, admin_users, admin_sessions):
+    """Log an operator in and return the headers carrying its session token."""
+    def _login(operator_login):
+        r = client.post(
+            '/jordan/admin/login',
+            json={'login': operator_login, 'password': OPERATORS[operator_login]['password']},
+        )
+        assert r.status_code == 200, r.get_json()
+        return {'Authorization': f"Bearer {r.get_json()['token']}"}
+    return _login
 
 
 # ── Per-function interface mocks (data from mock.py patterns) ─────────────────
@@ -176,6 +241,19 @@ def mock_read_status(monkeypatch):
 @pytest.fixture
 def mock_post_message(monkeypatch):
     monkeypatch.setattr('api.post_message', lambda task_id, payload: MESSAGE_ID)
+
+
+@pytest.fixture
+def captured_message(monkeypatch):
+    """Payload as it reaches the storage layer, to check what the server rewrote."""
+    captured = {}
+
+    def _post_message(task_id, payload):
+        captured.update(payload)
+        return MESSAGE_ID
+
+    monkeypatch.setattr('api.post_message', _post_message)
+    return captured
 
 
 @pytest.fixture

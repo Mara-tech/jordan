@@ -184,6 +184,75 @@ more types : start_time, eta, or custom types
 
 # Active Client (admin GUI, Bot, ...)
 
+## Roles and permissions
+Every `/admin/*` call is authenticated by `Authorization: Bearer <adminToken>` and authorized
+by the role carried by that token.
+
+| Role | read | send | delete |
+|---|---|---|---|
+| `viewer` | ✔ | | |
+| `operator` | ✔ | ✔ | |
+| `admin` | ✔ | ✔ | ✔ |
+
+- **read** — list clients, list actions, read statuses, read messages, generic query
+- **send** — send a message (command) to a passive client
+- **delete** — delete a task, a client, or the whole base
+
+Two kinds of admin token are accepted:
+
+- a **session token** issued by Login, tied to an operator account and expiring on its own;
+- the **shared bootstrap token** (`JORDAN_ADMIN_TOKEN` on the server), which carries every
+  permission under the conventional login `shared-admin`. It exists for machine-to-machine use
+  and first setup; named operators are preferable everywhere else.
+
+Missing or invalid token ⇒ `401`. Valid token whose role lacks the permission ⇒ `403`.
+
+## Login
+Exchange operator credentials for a time-limited session token.
+Operator accounts are declared server-side; passwords are stored hashed, never in clear text.
+#### HTTP API v1
+POST /login
+Request body : `{"login": "...", "password": "..."}`
+Success response : `{"token", "login", "role", "permissions", "expiresAt"}`. Code : 200 OK
+Failure response : 401 UNAUTHORIZED (unknown login or wrong password — the two are not distinguished)
+#### API function(s)
+from JordanServer
+
+    login(
+        login : String,
+        password : String
+    ) : JordanAdminSession
+#### Authentication and roles
+None — this is the endpoint that issues the token. The session expires after the server-side TTL
+(`JORDAN_ADMIN_SESSION_TTL`, 12 h by default), after which calls using it return 401.
+
+## Logout
+Close the session token used for the call. The shared bootstrap token has no session to close.
+#### HTTP API v1
+POST /logout
+Success response : 200 OK
+#### API function(s)
+from JordanServer
+
+    logout(
+    ) : void
+#### Authentication and roles
+`Authorization: Bearer <adminToken>` — any authenticated operator.
+
+## Current identity
+Who the token belongs to and what it is allowed to do — lets an active client show only the
+actions the operator may perform.
+#### HTTP API v1
+GET /me
+Success response : `{"login", "role", "permissions"}`. Code : 200 OK
+#### API function(s)
+from JordanServer
+
+    current_identity(
+    ) : JordanAdminIdentity
+#### Authentication and roles
+`Authorization: Bearer <adminToken>` — any authenticated operator.
+
 ## Add server
 Start to follow/administrate clients/tasks hosted from this server.
 #### API function(s)
@@ -191,8 +260,8 @@ Start to follow/administrate clients/tasks hosted from this server.
         url : Uri/String,
         [password : String,]
     ) : JordanServer
-#### Authentication
-`Authorization: Bearer <adminToken>` — shared server admin token, configured through the `JORDAN_ADMIN_TOKEN` environment variable. 401 if the header is missing, if the token is wrong, or if the server has no admin token configured (the namespace fails closed).
+#### Authentication and roles
+`Authorization: Bearer <adminToken>` — session token returned by Login, or the shared bootstrap token (`JORDAN_ADMIN_TOKEN`). 401 if the header is missing, if the token is unknown or expired, or if the server has no admin credential configured (the namespace fails closed).
 
 ## List clients
 Reads clients registered on this server.
@@ -209,8 +278,8 @@ from JordanServer
     list_clients(
     ) : list<JordanClientInstance>
 #### Authentication and roles
-`Authorization: Bearer <adminToken>` — shared server admin token, configured through the `JORDAN_ADMIN_TOKEN` environment variable. 401 if the header is missing, if the token is wrong, or if the server has no admin token configured (the namespace fails closed).
-Per-operator identities and roles: TBD.
+`Authorization: Bearer <adminToken>` — session token returned by Login, or the shared bootstrap token (`JORDAN_ADMIN_TOKEN`). 401 if the header is missing, if the token is unknown or expired, or if the server has no admin credential configured (the namespace fails closed).
+Requires the `read` permission — roles viewer, operator, admin. 403 when the authenticated operator holds a role without it.
 
 ## List actions
 Reads available actions for a client or a task.
@@ -226,12 +295,14 @@ from JordanServer
     list_actions(
     ) : list<JordanActionDefinition>
 #### Authentication and roles
-`Authorization: Bearer <adminToken>` — shared server admin token, configured through the `JORDAN_ADMIN_TOKEN` environment variable. 401 if the header is missing, if the token is wrong, or if the server has no admin token configured (the namespace fails closed).
-Per-operator identities and roles: TBD.
+`Authorization: Bearer <adminToken>` — session token returned by Login, or the shared bootstrap token (`JORDAN_ADMIN_TOKEN`). 401 if the header is missing, if the token is unknown or expired, or if the server has no admin credential configured (the namespace fails closed).
+Requires the `read` permission — roles viewer, operator, admin. 403 when the authenticated operator holds a role without it.
 
 
 ## Send message
 Program an action which will be executed by Passive Client.
+The `author` of the message is the login carried by the admin token: the server overwrites any
+`author` sent in the request body, so the field always names whoever was authenticated.
 #### HTTP API v1
 POST {taskId}/message
 Success response message_id. Code : 201 CREATED
@@ -241,8 +312,9 @@ from JordanClientTask
     send_message(
         message : JordanMessage
     ) : JordanSentMessage
-#### Authentication
-`Authorization: Bearer <adminToken>` — shared server admin token, configured through the `JORDAN_ADMIN_TOKEN` environment variable. 401 if the header is missing, if the token is wrong, or if the server has no admin token configured (the namespace fails closed).
+#### Authentication and roles
+`Authorization: Bearer <adminToken>` — session token returned by Login, or the shared bootstrap token (`JORDAN_ADMIN_TOKEN`). 401 if the header is missing, if the token is unknown or expired, or if the server has no admin credential configured (the namespace fails closed).
+Requires the `send` permission — roles operator, admin. 403 when the authenticated operator holds a role without it.
 #### Workflow
 send_message()
 SERVER_RECEIVED
@@ -262,8 +334,9 @@ from JordanClientTask or JordanClientInstance
 
     get_messages(
     ) : list<JordanMessage>
-#### Authentication
-`Authorization: Bearer <adminToken>` — shared server admin token, configured through the `JORDAN_ADMIN_TOKEN` environment variable. 401 if the header is missing, if the token is wrong, or if the server has no admin token configured (the namespace fails closed).
+#### Authentication and roles
+`Authorization: Bearer <adminToken>` — session token returned by Login, or the shared bootstrap token (`JORDAN_ADMIN_TOKEN`). 401 if the header is missing, if the token is unknown or expired, or if the server has no admin credential configured (the namespace fails closed).
+Requires the `read` permission — roles viewer, operator, admin. 403 when the authenticated operator holds a role without it.
 
 ## Read status
 Get last statuses sent by the client/task.
@@ -276,8 +349,9 @@ from JordanClientTask or JordanClientInstance
     read_status(
         [line_count : int]
     ) : list<JordanStatus>
-#### Authentication
-`Authorization: Bearer <adminToken>` — shared server admin token, configured through the `JORDAN_ADMIN_TOKEN` environment variable. 401 if the header is missing, if the token is wrong, or if the server has no admin token configured (the namespace fails closed).
+#### Authentication and roles
+`Authorization: Bearer <adminToken>` — session token returned by Login, or the shared bootstrap token (`JORDAN_ADMIN_TOKEN`). 401 if the header is missing, if the token is unknown or expired, or if the server has no admin credential configured (the namespace fails closed).
+Requires the `read` permission — roles viewer, operator, admin. 403 when the authenticated operator holds a role without it.
 #### Nice to have
 search filters -> on server or client side ?
 
@@ -295,8 +369,9 @@ Success response : 200 OK
 from JordanClientInstance
 
     delete(taskId) : Void
-#### Authentication
-`Authorization: Bearer <adminToken>` — shared server admin token, configured through the `JORDAN_ADMIN_TOKEN` environment variable. 401 if the header is missing, if the token is wrong, or if the server has no admin token configured (the namespace fails closed).
+#### Authentication and roles
+`Authorization: Bearer <adminToken>` — session token returned by Login, or the shared bootstrap token (`JORDAN_ADMIN_TOKEN`). 401 if the header is missing, if the token is unknown or expired, or if the server has no admin credential configured (the namespace fails closed).
+Requires the `delete` permission — roles admin. 403 when the authenticated operator holds a role without it.
 
 ## Delete All
 Clear everything stored on the server.
@@ -307,8 +382,9 @@ Success response : 200 OK
 from JordanInstance
 
     deleteAll() : Void
-#### Authentication
-`Authorization: Bearer <adminToken>` — shared server admin token, configured through the `JORDAN_ADMIN_TOKEN` environment variable. 401 if the header is missing, if the token is wrong, or if the server has no admin token configured (the namespace fails closed).
+#### Authentication and roles
+`Authorization: Bearer <adminToken>` — session token returned by Login, or the shared bootstrap token (`JORDAN_ADMIN_TOKEN`). 401 if the header is missing, if the token is unknown or expired, or if the server has no admin credential configured (the namespace fails closed).
+Requires the `delete` permission — roles admin. 403 when the authenticated operator holds a role without it.
 
 ## Generic Query
 Returns information stored for an ID.
@@ -319,7 +395,8 @@ Success response : 200 OK, 204 No Content if ID does not exists
 from JordanClientInstance
 
     genericQuery(id) : String
-#### Authentication
-`Authorization: Bearer <adminToken>` — shared server admin token, configured through the `JORDAN_ADMIN_TOKEN` environment variable. 401 if the header is missing, if the token is wrong, or if the server has no admin token configured (the namespace fails closed).
+#### Authentication and roles
+`Authorization: Bearer <adminToken>` — session token returned by Login, or the shared bootstrap token (`JORDAN_ADMIN_TOKEN`). 401 if the header is missing, if the token is unknown or expired, or if the server has no admin credential configured (the namespace fails closed).
+Requires the `read` permission — roles viewer, operator, admin. 403 when the authenticated operator holds a role without it.
 
 

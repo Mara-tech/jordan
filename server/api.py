@@ -3,11 +3,13 @@ import jordan_log as log
 
 from rejson_interface import *
 
+import admin_identity as identity
+
 from flask import Flask, request
 from flask_restx import Api, Resource, fields
 
 import os
-from secrets import compare_digest
+from secrets import compare_digest, token_hex
 from time import time
 
 # Full example : https://flask-restplus.readthedocs.io/en/stable/example.html
@@ -25,7 +27,8 @@ AUTHORIZATIONS = {
         'in': 'header',
         'name': 'Authorization',
         'description': "Value: 'Bearer <token>'. Under /client/*, the token issued at "
-                       "registration. Under /admin/*, the server admin token.",
+                       "registration. Under /admin/*, the session token returned by "
+                       "/admin/login, or the shared bootstrap admin token.",
     }
 }
 
@@ -64,18 +67,35 @@ def admin_token():
     return os.environ.get(JORDAN_ADMIN_TOKEN_ENV_VAR, '').strip()
 
 
-def _require_admin_auth():
-    """Guard for every /jordan/admin/* resource.
-
-    Fails closed: when no admin token is configured the whole namespace is
-    refused rather than served openly."""
-    expected = admin_token()
-    if not expected:
-        log.error(f"{JORDAN_ADMIN_TOKEN_ENV_VAR} is not set: rejecting admin request")
-        admin_ns.abort(401, 'Admin authentication is not configured on this server')
+def _authenticated_operator():
+    """Identity behind an /jordan/admin/* call: either an operator session opened
+    through /admin/login, or the shared bootstrap token."""
+    token = _bearer_token(admin_ns)
+    shared = admin_token()
     # compare bytes: compare_digest rejects str holding non-ASCII characters
-    if not compare_digest(_bearer_token(admin_ns).encode('utf-8'), expected.encode('utf-8')):
-        admin_ns.abort(401, 'Invalid admin token')
+    if shared and compare_digest(token.encode('utf-8'), shared.encode('utf-8')):
+        return identity.shared_token_identity()
+    operator = read_admin_session(token)
+    # an unknown, expired or corrupted session record grants nothing
+    if isinstance(operator, dict) and operator.get('permissions'):
+        return operator
+    admin_ns.abort(401, 'Invalid or expired admin token')
+
+
+def _require_admin_auth(permission):
+    """Guard for every /jordan/admin/* resource: authenticate the caller, then
+    check the permission the resource needs. Returns the caller's identity.
+
+    Fails closed: with neither operator accounts nor a shared token configured,
+    the whole namespace is refused rather than served openly."""
+    if not admin_token() and not identity.load_operators():
+        log.error(f"Neither {JORDAN_ADMIN_TOKEN_ENV_VAR} nor {JORDAN_ADMIN_USERS_ENV_VAR} "
+                  f"is set: rejecting admin request")
+        admin_ns.abort(401, 'Admin authentication is not configured on this server')
+    operator = _authenticated_operator()
+    if not identity.has_permission(operator, permission):
+        admin_ns.abort(403, f"Role '{operator.get('role')}' is not allowed to {permission}")
+    return operator
 
 #----------------------
 #---MODEL DEFINITION---
@@ -177,10 +197,26 @@ message_state_audit = api.model('ActionState', {
 
 message_model = api.model('Message', {
     'messageId': fields.Integer(required=False, description='message id in server database', example=456789),
-    'author': fields.String(required=True, description='authenticated login of the originator of the message', example='pupu'),
+    'author': fields.String(required=False, readonly=True, description='authenticated login of the originator of the message. Set by the server from the admin token: a value sent in the request body is ignored', example='pupu'),
     'action': fields.Nested(action_model, required=True, description='description of the action to execute by the client'),
     'parentTask': fields.Nested(parent_task_model, required=False, description='quick description of the target task for this message'),
     'audit': fields.List(fields.Nested(message_state_audit), required=False, description='previous and current message state(s) once handled by server')
+})
+
+admin_credentials_model = api.model('AdminCredentials', {
+    'login': fields.String(required=True, description='operator login declared in JORDAN_ADMIN_USERS', example='alice'),
+    'password': fields.String(required=True, description='operator password', example='s3cret'),
+})
+
+admin_identity_model = api.model('AdminIdentity', {
+    'login': fields.String(required=True, description='authenticated operator', example='alice'),
+    'role': fields.String(required=True, description=f"one of {', '.join(identity.ROLE_PERMISSIONS)}", example=identity.ROLE_OPERATOR),
+    'permissions': fields.List(fields.String, required=True, description='what this role is allowed to do', example=[identity.PERMISSION_READ, identity.PERMISSION_SEND]),
+})
+
+admin_session_model = api.inherit('AdminSession', admin_identity_model, {
+    'token': fields.String(required=True, description='session token to send as Authorization: Bearer <token>', example='f9bf78b9a18ce6d46a0cd2b0b86df9da'),
+    'expiresAt': fields.Integer(required=True, description='Seconds since 1970/1/1 after which the token is refused', example=int(time()) + JORDAN_DEFAULT_ADMIN_SESSION_TTL),
 })
 
 #--------------------
@@ -322,16 +358,73 @@ class Unregister(Resource):
 
 
 
+@admin_ns.route('/login')
+class AdminLogin(Resource):
+
+    @admin_ns.doc(description="Exchange operator credentials for a time-limited session token, "
+                              "to be sent as 'Authorization: Bearer <token>' on admin calls",
+                  responses={200: 'Session opened',
+                             401: 'unknown login or wrong password'})
+    @admin_ns.expect(admin_credentials_model)
+    @admin_ns.marshal_with(admin_session_model)
+    def post(self):
+        payload = api.payload or {}
+        login = payload.get('login')
+        operator = identity.authenticate(login, payload.get('password'))
+        if operator is None:
+            log.error(f"Rejected admin login attempt for '{login}'")
+            admin_ns.abort(401, 'Invalid login or password')
+        token = token_hex(32)
+        ttl = identity.session_ttl()
+        operator['expiresAt'] = int(time()) + ttl
+        try:
+            store_admin_session(token, operator, ttl)
+        except Exception:
+            admin_ns.abort(500, 'Could not open session')
+        log.info(f"Admin session opened for '{login}' ({operator['role']})")
+        return dict(operator, token=token), 200
+
+
+@admin_ns.route('/logout')
+class AdminLogout(Resource):
+
+    @admin_ns.doc(description="Close the session token used for this call",
+                  security=BEARER_AUTHORIZATION,
+                  responses={200: 'Session closed',
+                             401: 'admin token missing or invalid'})
+    def post(self):
+        _require_admin_auth(identity.PERMISSION_READ)
+        try:
+            # the shared bootstrap token has no session to close: nothing to delete
+            delete_admin_session(_bearer_token(admin_ns))
+            return None, 200
+        except Exception:
+            admin_ns.abort(500, 'Could not close session')
+
+
+@admin_ns.route('/me')
+class AdminMe(Resource):
+
+    @admin_ns.doc(description="Identity and permissions behind the token used for this call",
+                  security=BEARER_AUTHORIZATION,
+                  responses={200: 'current identity',
+                             401: 'admin token missing or invalid'})
+    @admin_ns.marshal_with(admin_identity_model)
+    def get(self):
+        return _require_admin_auth(identity.PERMISSION_READ), 200
+
+
 @admin_ns.route('/clients')
 class ListClients(Resource):
 
     @admin_ns.doc(description="Get all clients and tasks available for the admin role",
                    security=BEARER_AUTHORIZATION,
                    responses={200: 'list of clients',
-                              401: 'admin token missing or invalid'})
+                              401: 'admin token missing or invalid',
+                              403: 'role not allowed to read'})
     @admin_ns.marshal_with(client_model, as_list=True)
     def get(self):
-        _require_admin_auth()
+        _require_admin_auth(identity.PERMISSION_READ)
         try:
             client_list = list_clients(None)
             return client_list, 200
@@ -345,10 +438,11 @@ class ListActions(Resource):
     @admin_ns.doc(description="Get all actions available for the admin role under this task_id/client_id",
                    security=BEARER_AUTHORIZATION,
                    responses={200: 'list of available actions',
-                              401: 'admin token missing or invalid'})
+                              401: 'admin token missing or invalid',
+                              403: 'role not allowed to read'})
     @admin_ns.marshal_with(action_definition_with_task_model, as_list=True)
     def get(self, task_id):
-        _require_admin_auth()
+        _require_admin_auth(identity.PERMISSION_READ)
         try:
             actions_list = list_actions(task_id, None)
             return actions_list, 200
@@ -364,10 +458,11 @@ class ReadStatus(Resource):
                    security=BEARER_AUTHORIZATION,
                    responses={200: 'list of statuses',
                               204: 'no status to read',
-                              401: 'admin token missing or invalid'})
+                              401: 'admin token missing or invalid',
+                              403: 'role not allowed to read'})
     @admin_ns.marshal_with(status_model, as_list=True)
     def get(self, task_id, line_count):
-        _require_admin_auth()
+        _require_admin_auth(identity.PERMISSION_READ)
         try:
             status_list = read_status(task_id, line_count)
             return status_list, 200 if len(status_list) > 0 else 204
@@ -381,12 +476,16 @@ class SendMessage(Resource):
     @admin_ns.doc(description="Send a message (may be considered as a command) to the Client via the Server",
                    security=BEARER_AUTHORIZATION,
                    responses={201: 'Message sent',
-                              401: 'admin token missing or invalid'})
+                              401: 'admin token missing or invalid',
+                              403: 'role not allowed to send'})
     @admin_ns.expect(message_model)
     def post(self, task_id):
-        _require_admin_auth()
+        operator = _require_admin_auth(identity.PERMISSION_SEND)
         try:
-            message_id = post_message(task_id, api.payload)
+            payload = dict(api.payload or {})
+            # the authenticated identity is the author, whatever the body claims
+            payload['author'] = operator['login']
+            message_id = post_message(task_id, payload)
             return message_id, 201
         except Exception:
             admin_ns.abort(500, 'Could not receive message')
@@ -399,10 +498,11 @@ class ReadMessages(Resource):
                    security=BEARER_AUTHORIZATION,
                    responses={200: 'list of messages',
                               204: 'no message to read',
-                              401: 'admin token missing or invalid'})
+                              401: 'admin token missing or invalid',
+                              403: 'role not allowed to read'})
     @admin_ns.marshal_with(message_model, as_list=True)
     def get(self, task_id):
-        _require_admin_auth()
+        _require_admin_auth(identity.PERMISSION_READ)
         try:
             message_list = list_messages(task_id)
             return message_list, 200 if len(message_list) > 0 else 204
@@ -417,9 +517,10 @@ class DeleteTask(Resource):
     @admin_ns.doc(description='Delete task or client',
                   security=BEARER_AUTHORIZATION,
                   responses={200: 'task/client is deleted',
-                             401: 'admin token missing or invalid'})
+                             401: 'admin token missing or invalid',
+                             403: 'role not allowed to delete'})
     def delete(self, task_id):
-        _require_admin_auth()
+        _require_admin_auth(identity.PERMISSION_DELETE)
         try:
             valid_deletion = delete_task(task_id)
             return None, 200 if valid_deletion else 400
@@ -433,9 +534,10 @@ class DeleteAll(Resource):
     @admin_ns.doc(description='Delete everything',
                   security=BEARER_AUTHORIZATION,
                   responses={200: 'everything is deleted',
-                             401: 'admin token missing or invalid'})
+                             401: 'admin token missing or invalid',
+                             403: 'role not allowed to delete'})
     def delete(self):
-        _require_admin_auth()
+        _require_admin_auth(identity.PERMISSION_DELETE)
         try:
             valid_deletion = delete_all(None)#api.payload)
             return None, 200 if valid_deletion else 400
@@ -450,9 +552,10 @@ class GenericQuery(Resource):
     @admin_ns.doc(description='Return object identified by generic_id in json format',
                   security=BEARER_AUTHORIZATION,
                   responses={200: 'Object found and returned', 204: 'ID not found',
-                             401: 'admin token missing or invalid'})
+                             401: 'admin token missing or invalid',
+                             403: 'role not allowed to read'})
     def get(self, generic_id):
-        _require_admin_auth()
+        _require_admin_auth(identity.PERMISSION_READ)
         try:
             serialized_object = generic_query(generic_id)
             return (serialized_object, 200) if serialized_object else ('No result', 204)
@@ -462,6 +565,10 @@ class GenericQuery(Resource):
 def start_api():
     #about starting twice : https://stackoverflow.com/questions/9449101/how-to-stop-flask-from-initialising-twice-in-debug-mode
     log.info(f"Swagger UI available on {JORDAN_OPEN_API_URL}")
-    if not admin_token():
-        log.error(f"{JORDAN_ADMIN_TOKEN_ENV_VAR} is not set: every /jordan/admin/* request will be rejected with 401")
+    operators = identity.load_operators()
+    if operators:
+        log.info(f"{len(operators)} admin operator account(s) declared in {JORDAN_ADMIN_USERS_ENV_VAR}")
+    elif not admin_token():
+        log.error(f"Neither {JORDAN_ADMIN_TOKEN_ENV_VAR} nor {JORDAN_ADMIN_USERS_ENV_VAR} is set: "
+                  f"every /jordan/admin/* request will be rejected with 401")
     app.run(host=JORDAN_API_HOST, port=JORDAN_API_PORT, debug=True, use_reloader=False)
