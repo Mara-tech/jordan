@@ -134,8 +134,12 @@ silently. See [`server/README.md`](server/README.md#several-keys-and-rotating-on
 Registrations are rate-limited per caller address whether they succeed or not (`429` past the
 limit), which also throttles guessing of the key.
 
-The Android app logs in with the credentials saved for the selected server, or asks for them the
-first time a call is refused — see [`app/android/README.md`](app/android/README.md#authentication).
+Active clients open a session themselves and send the token on every call:
+
+| Active client | Logs in with | Token storage |
+|---|---|---|
+| [`app/android`](app/android/README.md#authentication) | the credentials saved for the selected server, or the login dialog the first time a call is refused | in memory, keyed by server URL |
+| [`jordan-admin`](libraries/cli/README.md#admin-cli-jordan-admin) | `jordan-admin login`, or `--token` / `$JORDAN_ADMIN_TOKEN` for scripts | `~/.jordan_admin_session`, owner-readable only, keyed by server URL |
 
 ---
 

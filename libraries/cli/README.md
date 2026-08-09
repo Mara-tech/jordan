@@ -222,10 +222,11 @@ Unregisters the root client from the server and deletes `.jordan_session` withou
 
 ## Admin CLI (`jordan-admin`)
 
-`jordan-admin` is the operator-side counterpart: it talks to the Jordan server's admin endpoints to monitor passive clients and send them actions. No session file is needed — pass the server URL via `--server` or the `JORDAN_SERVER` environment variable.
+`jordan-admin` is the operator-side counterpart: it talks to the Jordan server's admin endpoints to monitor passive clients and send them actions. Every admin endpoint requires a token, so start with `jordan-admin login` — it stores the session and the server URL, and the other commands read both from there.
 
 ```bash
-export JORDAN_SERVER=http://localhost:5000/jordan/
+# Open a session (asks for the password, then remembers the token)
+jordan-admin login --server http://localhost:5000/jordan/ --login bob
 
 # List all registered clients and their sub-tasks
 jordan-admin list
@@ -238,12 +239,87 @@ jordan-admin watch 124
 
 # Check the state machine history of message 456
 jordan-admin message-status 456
+
+# Close the session when done
+jordan-admin logout
 ```
+
+### Authentication
+
+Every command accepts `--server URL` and `--token TOKEN`; both fall back to an environment variable (`JORDAN_SERVER`, `JORDAN_ADMIN_TOKEN`), and then to the session opened by `jordan-admin login`.
+
+| Source | Used for |
+|---|---|
+| `jordan-admin login` | day-to-day operator work: a named identity, whose role the server enforces and whose login becomes the `author` of every message sent |
+| `--token` / `$JORDAN_ADMIN_TOKEN` | scripts and CI: either a session token obtained elsewhere, or the server's shared bootstrap token (`JORDAN_ADMIN_TOKEN` in `server/.env`) |
+
+`--token` wins over the stored session, so a script can override an interactive login without disturbing it.
+
+```bash
+# Unattended, with the shared bootstrap token
+export JORDAN_SERVER=https://your-server/jordan/
+export JORDAN_ADMIN_TOKEN=<shared-token>
+jordan-admin list
+```
+
+Without a token, and without a session for that server, the command stops before calling: it says to log in rather than reporting a network error. `401` from the server says the same; `403` means the role is not allowed to do it (a `viewer` cannot `send`).
+
+### Session file
+
+`jordan-admin login` writes `~/.jordan_admin_session`, created readable by its owner alone (`0600` where the filesystem enforces modes). It is in the home directory, not the working directory like the passive client's `.jordan_session`: an operator is the same person in every directory, and a token that followed the shell around would be logged in here and logged out one `cd` away.
+
+Tokens are stored **per server URL** and are never sent to another one: a token is a credential of the server that issued it, and a mistyped `--server` must not hand it to whoever answers there. The last server logged into becomes the default when neither `--server` nor `JORDAN_SERVER` is given.
+
+The stored token expires on its own — the server sets the lifetime (`JORDAN_ADMIN_SESSION_TTL`, 12 h by default). Past that, commands ask for a new login. `jordan-admin logout` closes the session server-side and drops the local token.
+
+### `jordan-admin login`
+
+```
+jordan-admin login --login NAME [--password PASSWORD] [--server URL]
+```
+
+Exchanges operator credentials for a session token and stores it. The password is prompted for when it is not passed, which keeps it out of the shell history and the process list; `$JORDAN_ADMIN_PASSWORD` covers unattended use.
+
+| Option | Default | Description |
+|---|---|---|
+| `--login` | *(prompted)* | Operator login declared in the server's `JORDAN_ADMIN_USERS` |
+| `--password` | *(prompted)* / `$JORDAN_ADMIN_PASSWORD` | Operator password |
+| `--server` | `$JORDAN_SERVER`, else last logged-in server | Server base URL |
+
+```
+Logged in on http://localhost:5000/jordan/ as bob (operator: read, send), until 2026-08-09 21:14
+```
+
+---
+
+### `jordan-admin logout`
+
+```
+jordan-admin logout [--server URL] [--token TOKEN]
+```
+
+Closes the session on the server (`POST /admin/logout`) and removes the local token. The local token is dropped even when the server refuses the call — a session it has already forgotten is of no use here.
+
+---
+
+### `jordan-admin whoami`
+
+```
+jordan-admin whoami [--server URL] [--token TOKEN]
+```
+
+Asks the server which identity and permissions the current token carries (`GET /admin/me`) — the quickest way to tell an expired session from a role that lacks a permission.
+
+```
+bob (operator: read, send)
+```
+
+---
 
 ### `jordan-admin list`
 
 ```
-jordan-admin list [--server URL]
+jordan-admin list [--server URL] [--token TOKEN]
 ```
 
 Lists all registered passive clients with their sub-tasks and current states.
@@ -259,15 +335,18 @@ Lists all registered passive clients with their sub-tasks and current states.
 ### `jordan-admin send`
 
 ```
-jordan-admin send TASK_ID ACTION_NAME [-p key=value ...] [--server URL]
+jordan-admin send TASK_ID ACTION_NAME [-p key=value ...] [--server URL] [--token TOKEN]
 ```
 
-Sends an action (message) to a task. `TASK_ID` can be the root client ID or any sub-task ID. The action name must match one declared by the client at registration.
+Sends an action (message) to a task. `TASK_ID` can be the root client ID or any sub-task ID. The action name must match one declared by the client at registration. Requires the `send` permission — a `viewer` gets `403`.
 
 | Option | Default | Description |
 |---|---|---|
 | `--param` / `-p` | *(none)* | Parameter as `key=value` (repeatable) |
-| `--server` | `$JORDAN_SERVER` | Server base URL |
+| `--server` | `$JORDAN_SERVER`, else the session | Server base URL |
+| `--token` | `$JORDAN_ADMIN_TOKEN`, else the session | Admin token |
+
+The message's `author` is the authenticated operator: the server takes it from the token, so the CLI does not claim one.
 
 ```bash
 jordan-admin send 123 SEND_REPORT
@@ -281,16 +360,17 @@ Prints the assigned message ID on success.
 ### `jordan-admin watch`
 
 ```
-jordan-admin watch TASK_ID [--interval SECONDS] [--lines N] [--server URL]
+jordan-admin watch TASK_ID [--interval SECONDS] [--lines N] [--server URL] [--token TOKEN]
 ```
 
-Polls the server for new status updates from the given task and prints them as they arrive. Press Ctrl+C to stop. Works on both root tasks and sub-tasks.
+Polls the server for new status updates from the given task and prints them as they arrive. Press Ctrl+C to stop. Works on both root tasks and sub-tasks. A session that expires under the loop stops it — polling on would only repeat the refusal.
 
 | Option | Default | Description |
 |---|---|---|
 | `--interval` | `3.0` | Polling interval in seconds |
 | `--lines` | `10` | Number of status lines fetched per poll |
-| `--server` | `$JORDAN_SERVER` | Server base URL |
+| `--server` | `$JORDAN_SERVER`, else the session | Server base URL |
+| `--token` | `$JORDAN_ADMIN_TOKEN`, else the session | Admin token |
 
 ```
 Watching client 123... (Ctrl+C to stop)
@@ -304,7 +384,7 @@ Watching client 123... (Ctrl+C to stop)
 ### `jordan-admin message-status`
 
 ```
-jordan-admin message-status MESSAGE_ID [--server URL]
+jordan-admin message-status MESSAGE_ID [--server URL] [--token TOKEN]
 ```
 
 Displays the raw JSON for a message, including its full state machine audit trail.

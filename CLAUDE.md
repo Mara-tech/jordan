@@ -149,6 +149,12 @@ Active clients open a session and send the token themselves:
 | Active client | Login | Token storage |
 |---|---|---|
 | `app/android` | `POST /admin/login` from `LoginDialog` — the only screen asking for credentials — or, when it was told to remember them, from the `JordanServer` row and `JordanSecretStore` | `JordanSession`, in memory, keyed by server base URL |
+| `jordan-admin` (CLI) | `jordan-admin login` (password prompted, or `$JORDAN_ADMIN_PASSWORD`); `--token` / `$JORDAN_ADMIN_TOKEN` skips it for scripts and machine-to-machine callers | `~/.jordan_admin_session`, created `0600`, keyed by server base URL |
+
+Both key the token by server URL and never send it elsewhere: a token is a credential of the
+server that issued it. In `jordan_cli/admin.py`, `--token` wins over the stored session, an expired
+or missing one stops the command before it calls, and `403` is reported as a role problem rather
+than as a generic error.
 
 Remembered credentials are split in two on the device: the `JordanServer` Room row keeps the
 `login` and the row id, `JordanSecretStore` keeps the password encrypted under an AES key held by

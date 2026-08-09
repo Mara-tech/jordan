@@ -137,6 +137,20 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:5000/jordan/admin/me    
 curl -X POST -H "Authorization: Bearer $TOKEN" http://localhost:5000/jordan/admin/logout
 ```
 
+Or from the operator CLI, which does the same three calls and keeps the token for you:
+
+```bash
+jordan-admin login --server http://localhost:5000/jordan/ --login bob
+jordan-admin list
+jordan-admin whoami
+jordan-admin logout
+```
+
+`jordan-admin` stores the token per server URL in `~/.jordan_admin_session`, owner-readable only,
+and never sends it to another server than the one that issued it. `--token` / `$JORDAN_ADMIN_TOKEN`
+bypasses the session file for scripts — that is where the shared bootstrap token below fits. See
+[`libraries/cli/README.md`](../libraries/cli/README.md#admin-cli-jordan-admin).
+
 Session tokens are stored in Redis under the *hash* of the token, with a TTL
 (`JORDAN_ADMIN_SESSION_TTL`): a leaked token stops working on its own, and a dump of the
 database never yields a usable token.
@@ -149,8 +163,9 @@ In Swagger UI, use the **Authorize** button to set the header for a whole sessio
 ### Shared bootstrap token
 
 `JORDAN_ADMIN_TOKEN` still works, carries every permission, and reports the conventional login
-`shared-admin`. It exists for first setup and machine-to-machine callers; prefer named operators
-everywhere else, since only they give meaningful message authorship and least privilege.
+`shared-admin`. It exists for first setup and machine-to-machine callers — `jordan-admin` reads it
+from the environment variable of the same name; prefer named operators everywhere else, since only
+they give meaningful message authorship and least privilege.
 
 ## Controlling registration
 

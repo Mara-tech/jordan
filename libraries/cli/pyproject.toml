@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jordan_cli"
-version = "1.1.0"
+version = "1.2.0"
 description = "Jordan CLI — use Jordan without writing Python code."
 readme = "README.md"
 license = { text = "MIT License (see LICENSE)" }
