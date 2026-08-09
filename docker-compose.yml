@@ -27,6 +27,10 @@ services:
       #   python server/admin_identity.py <login> <password> [viewer|operator|admin]
       JORDAN_ADMIN_USERS: ${JORDAN_ADMIN_USERS:-[]}
       JORDAN_ADMIN_SESSION_TTL: ${JORDAN_ADMIN_SESSION_TTL:-43200}
+      # Passive client registration: open when the key is empty, as in local development
+      JORDAN_REGISTRATION_KEY: ${JORDAN_REGISTRATION_KEY:-}
+      JORDAN_REGISTRATION_RATE_LIMIT: ${JORDAN_REGISTRATION_RATE_LIMIT:-20}
+      JORDAN_REGISTRATION_RATE_WINDOW: ${JORDAN_REGISTRATION_RATE_WINDOW:-60}
     depends_on:
       redis:
         condition: service_healthy

@@ -68,6 +68,44 @@ class TestRegister:
         assert result.exit_code == 1
         assert not Path(".jordan_session").exists()
 
+    @responses_lib.activate
+    def test_registration_key_is_sent_as_bearer_token(self):
+        responses_lib.add(
+            responses_lib.POST,
+            _url("client/register"),
+            json={"taskId": TASK_ID, "authToken": AUTH_TOKEN},
+            status=200,
+        )
+        result = runner.invoke(
+            app, ["register", "--server", BASE_URL, "--registration-key", "reg-key-789"]
+        )
+        assert result.exit_code == 0
+        assert responses_lib.calls[0].request.headers["Authorization"] == "Bearer reg-key-789"
+
+    @responses_lib.activate
+    def test_registration_key_read_from_environment(self, monkeypatch):
+        monkeypatch.setenv("JORDAN_REGISTRATION_KEY", "key-from-env")
+        responses_lib.add(
+            responses_lib.POST,
+            _url("client/register"),
+            json={"taskId": TASK_ID, "authToken": AUTH_TOKEN},
+            status=200,
+        )
+        result = runner.invoke(app, ["register", "--server", BASE_URL])
+        assert result.exit_code == 0
+        assert responses_lib.calls[0].request.headers["Authorization"] == "Bearer key-from-env"
+
+    @responses_lib.activate
+    def test_registration_key_is_not_written_to_the_session_file(self):
+        responses_lib.add(
+            responses_lib.POST,
+            _url("client/register"),
+            json={"taskId": TASK_ID, "authToken": AUTH_TOKEN},
+            status=200,
+        )
+        runner.invoke(app, ["register", "--server", BASE_URL, "--registration-key", "reg-key-789"])
+        assert "reg-key-789" not in Path(".jordan_session").read_text()
+
 
 # ── missing session ────────────────────────────────────────────────────────────
 

@@ -31,6 +31,7 @@ TASK_STATUS_LIST = '{}_status'
 TASK_MESSAGE_SLOT = '{}_message'
 TASK_ALL_MESSAGES_LIST = '{}_all_messages'
 ADMIN_SESSION_KEY = 'admin_session_{}'
+REGISTRATION_ATTEMPTS_KEY = 'register_attempts_{}'
 
 MESSAGE_STATE_SERVER_RECEIVED = 'SERVER_RECEIVED'
 MESSAGE_STATE_MESSAGE_DELIVERED = 'MESSAGE_DELIVERED'
@@ -115,6 +116,25 @@ def add_client(client_id, payload, token):
     rp.json().set(client_id, '.', payload)
     rp.sadd(CLIENT_SET, client_id)
     rp.execute()
+
+
+def count_registration_attempt(caller, window_seconds):
+    """Count one registration attempt from `caller` and return how many it has
+    made in the current window.
+
+    The counter lives in Redis so the limit holds across gunicorn workers, and
+    the window is a fixed one: the first attempt gives the key its TTL and Redis
+    drops it on its own. The TTL is re-read every time because a process dying
+    between INCR and EXPIRE would otherwise leave a counter that never expires,
+    locking that caller out for good."""
+    key = REGISTRATION_ATTEMPTS_KEY.format(caller)
+    rp = rj.pipeline()
+    rp.incr(key)
+    rp.ttl(key)
+    count, ttl = rp.execute()
+    if ttl < 0:
+        rj.expire(key, window_seconds)
+    return count
 
 
 def register_client(payload):

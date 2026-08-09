@@ -8,7 +8,9 @@ import admin_identity as identity
 from flask import Flask, request
 from flask_restx import Api, Resource, fields
 
+import json
 import os
+from hashlib import sha256
 from secrets import compare_digest, token_hex
 from time import time
 
@@ -67,6 +69,162 @@ def admin_token():
     return os.environ.get(JORDAN_ADMIN_TOKEN_ENV_VAR, '').strip()
 
 
+# enough for an IPv6 address with an IPv4 suffix, the longest legitimate value
+MAX_CALLER_ADDRESS_LENGTH = 45
+
+
+def _int_env(var_name, default):
+    """Integer setting read at request time, falling back to its default when
+    the variable is unset or does not hold a number."""
+    raw = os.environ.get(var_name, '').strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        log.error(f"{var_name}='{raw}' is not a number, falling back to {default}")
+        return default
+
+
+def _caller_address():
+    """Address a request comes from, used to bucket registration attempts.
+
+    Behind a reverse proxy (Railway, nginx) the peer is the proxy itself, so the
+    real caller has to be read from X-Forwarded-For. The proxy *appends* what it
+    saw, hence the last entry: anything a caller forges sits to its left.
+
+    The result ends up in a Redis key, so it is capped: without a proxy in front,
+    the header is whatever the caller decided to send."""
+    forwarded = request.headers.get('X-Forwarded-For', '')
+    if forwarded:
+        return forwarded.split(',')[-1].strip()[:MAX_CALLER_ADDRESS_LENGTH]
+    return request.remote_addr or 'unknown'
+
+
+def _key_name(key):
+    """Label for a key declared without one. A fingerprint rather than the key
+    itself, so logs can tell two keys apart without publishing either."""
+    return 'key#' + sha256(key.encode('utf-8')).hexdigest()[:8]
+
+
+def _parse_registration_keys(raw):
+    """(name, key) pairs out of the JORDAN_REGISTRATION_KEY value: one bare key,
+    or a JSON object naming each of several.
+
+    Names are not decoration — they are what the logs report, so a rotation can
+    be finished on evidence rather than on hope. The object form is therefore the
+    only multi-key form: it makes naming automatic and unique.
+
+    All or nothing: a skipped entry would be a key its operator believes valid,
+    silently refusing the clients that hold it. Anything unusable raises instead,
+    which check_configuration() turns into a refusal to boot."""
+    if raw.startswith('['):
+        raise ConfigurationError(
+            f"{JORDAN_REGISTRATION_KEY_ENV_VAR} holds a JSON array: several keys are named, "
+            f'as {{"retiring": "<old>", "current": "<new>"}}')
+    if not raw.startswith('{'):
+        return [(_key_name(raw), raw)]  # a single key, the common case
+    try:
+        declared = json.loads(raw)
+    except ValueError as invalid_json:
+        raise ConfigurationError(
+            f"{JORDAN_REGISTRATION_KEY_ENV_VAR} opens with '{{' but is not valid JSON"
+        ) from invalid_json
+    if not isinstance(declared, dict):
+        raise ConfigurationError(
+            f"{JORDAN_REGISTRATION_KEY_ENV_VAR} must hold a single key, or a JSON object "
+            f"mapping a name to each key")
+    if not declared:
+        raise ConfigurationError(
+            f"{JORDAN_REGISTRATION_KEY_ENV_VAR} declares no key at all: unset it to leave "
+            f"registration open, rather than closing it to everybody")
+
+    keys = []
+    for name, key in declared.items():
+        if not isinstance(key, str) or not key.strip():
+            raise ConfigurationError(
+                f"{JORDAN_REGISTRATION_KEY_ENV_VAR}: '{name}' carries no key")
+        if not name.strip():
+            raise ConfigurationError(
+                f"{JORDAN_REGISTRATION_KEY_ENV_VAR}: a key was declared without a name")
+        keys.append((name.strip(), key.strip()))
+    return keys
+
+
+def registration_keys():
+    """Keys a passive client may present to register, as (name, key) pairs.
+
+    JORDAN_REGISTRATION_KEY holds either one key, or a JSON object naming each of
+    several ({"retiring": "<old>", "current": "<new>"}). Several is what makes a
+    key replaceable without a flag day: publish the new one beside the old, move
+    the clients over, then drop the old one. The names are what makes that
+    migration observable — the logs say which key each client used, so the
+    retired one is dropped once it stops being seen.
+
+    Returns None when the variable is unset: registration is open, as the
+    contract has it by default. Raises ConfigurationError when it is set to
+    something unusable, which must never read as 'open'."""
+    raw = os.environ.get(JORDAN_REGISTRATION_KEY_ENV_VAR, '').strip()
+    if not raw:
+        return None
+    return _parse_registration_keys(raw)
+
+
+def check_configuration():
+    """Refuse to start on a setting that is present but unusable, rather than to
+    discover it on the request that needs it — a registration that gets refused,
+    or an operator account that turns out never to have existed.
+
+    Called at import, not from start_api(): under gunicorn nothing calls
+    start_api(), and production is exactly where the check matters. A container
+    that dies here never passes its health check, so the bad deployment does not
+    take traffic — the previous one keeps serving."""
+    registration_keys()
+    identity.load_operators()
+
+
+def _require_registration_key():
+    """Guard for POST /client/register.
+
+    The key travels in the Authorization header rather than the payload: the
+    registration payload is logged and stored in Redis as the client record."""
+    try:
+        keys = registration_keys()
+    except ConfigurationError as unusable:
+        # unreachable through a server that booted, since check_configuration()
+        # runs at import — but a broken declaration must close registration, not
+        # re-open it, whatever put the process in that state
+        log.error(f"Refusing every registration: {unusable}")
+        client_ns.abort(401, 'Registration keys are misconfigured on this server')
+    if keys is None:
+        return  # registration is open on this server
+    # compare bytes: compare_digest rejects str holding non-ASCII characters
+    presented = _bearer_token(client_ns).encode('utf-8')
+    for name, key in keys:
+        if compare_digest(presented, key.encode('utf-8')):
+            log.info(f"Registration accepted with '{name}'")
+            return
+    log.error(f"Rejected registration from {_caller_address()}: invalid registration key")
+    client_ns.abort(401, 'Invalid registration key')
+
+
+def _enforce_registration_rate_limit():
+    """Cap how many registrations a single caller can attempt per window.
+
+    Counts every attempt, valid or not, so it also slows down guessing of
+    JORDAN_REGISTRATION_KEY."""
+    limit = _int_env(JORDAN_REGISTRATION_RATE_LIMIT_ENV_VAR, JORDAN_DEFAULT_REGISTRATION_RATE_LIMIT)
+    if limit <= 0:
+        return  # explicitly disabled
+    window = _int_env(JORDAN_REGISTRATION_RATE_WINDOW_ENV_VAR, JORDAN_DEFAULT_REGISTRATION_RATE_WINDOW)
+    if window <= 0:
+        window = JORDAN_DEFAULT_REGISTRATION_RATE_WINDOW
+    caller = _caller_address()
+    if count_registration_attempt(caller, window) > limit:
+        log.error(f"Rate-limited registration from {caller}: over {limit} attempt(s) in {window}s")
+        client_ns.abort(429, f"Too many registration attempts, retry in {window}s at most")
+
+
 def _authenticated_operator():
     """Identity behind an /jordan/admin/* call: either an operator session opened
     through /admin/login, or the shared bootstrap token."""
@@ -82,13 +240,26 @@ def _authenticated_operator():
     admin_ns.abort(401, 'Invalid or expired admin token')
 
 
+def _declared_operators():
+    """Operator accounts, or none when their declaration is unusable.
+
+    Unreachable through a server that booted, since check_configuration() runs at
+    import — but a broken declaration must leave no account to log into, never
+    open the namespace."""
+    try:
+        return identity.load_operators()
+    except ConfigurationError as unusable:
+        log.error(f"No operator account is usable: {unusable}")
+        return {}
+
+
 def _require_admin_auth(permission):
     """Guard for every /jordan/admin/* resource: authenticate the caller, then
     check the permission the resource needs. Returns the caller's identity.
 
     Fails closed: with neither operator accounts nor a shared token configured,
     the whole namespace is refused rather than served openly."""
-    if not admin_token() and not identity.load_operators():
+    if not admin_token() and not _declared_operators():
         log.error(f"Neither {JORDAN_ADMIN_TOKEN_ENV_VAR} nor {JORDAN_ADMIN_USERS_ENV_VAR} "
                   f"is set: rejecting admin request")
         admin_ns.abort(401, 'Admin authentication is not configured on this server')
@@ -96,6 +267,11 @@ def _require_admin_auth(permission):
     if not identity.has_permission(operator, permission):
         admin_ns.abort(403, f"Role '{operator.get('role')}' is not allowed to {permission}")
     return operator
+
+# Every way of running this server imports this module — python jordan_server.py
+# as much as gunicorn api:app — so this is the one place a bad setting is certain
+# to be caught before the first request.
+check_configuration()
 
 #----------------------
 #---MODEL DEFINITION---
@@ -236,11 +412,21 @@ class HelloAdmin(Resource):
 @client_ns.route('/register')
 class Register(Resource):
 
-    @client_ns.doc(description="Register Passive Client to the server",
-                   responses={200: 'Registered'})
+    @client_ns.doc(description="Register Passive Client to the server. Open by default; when the "
+                               "server sets JORDAN_REGISTRATION_KEY, one of the keys it declares "
+                               "must be sent as 'Authorization: Bearer <key>'. Attempts are "
+                               "rate-limited per caller address.",
+                   security=BEARER_AUTHORIZATION,
+                   responses={200: 'Registered',
+                              401: 'registration key missing or invalid',
+                              429: 'too many registration attempts'})
     @client_ns.expect(client_registration_model)
     @client_ns.marshal_with(client_registered_model)
     def post(self):
+        # both guards abort with an HTTPException, so they must stay out of the
+        # try block below, which would turn it into a 500
+        _enforce_registration_rate_limit()
+        _require_registration_key()
         try:
             client_registered = register_client(api.payload)
             return client_registered, 200
@@ -370,7 +556,11 @@ class AdminLogin(Resource):
     def post(self):
         payload = api.payload or {}
         login = payload.get('login')
-        operator = identity.authenticate(login, payload.get('password'))
+        try:
+            operator = identity.authenticate(login, payload.get('password'))
+        except ConfigurationError as unusable:
+            log.error(f"Refusing every admin login: {unusable}")
+            operator = None
         if operator is None:
             log.error(f"Rejected admin login attempt for '{login}'")
             admin_ns.abort(401, 'Invalid login or password')
@@ -565,10 +755,18 @@ class GenericQuery(Resource):
 def start_api():
     #about starting twice : https://stackoverflow.com/questions/9449101/how-to-stop-flask-from-initialising-twice-in-debug-mode
     log.info(f"Swagger UI available on {JORDAN_OPEN_API_URL}")
+    # check_configuration() ran at import: both declarations below are usable
     operators = identity.load_operators()
     if operators:
         log.info(f"{len(operators)} admin operator account(s) declared in {JORDAN_ADMIN_USERS_ENV_VAR}")
     elif not admin_token():
         log.error(f"Neither {JORDAN_ADMIN_TOKEN_ENV_VAR} nor {JORDAN_ADMIN_USERS_ENV_VAR} is set: "
                   f"every /jordan/admin/* request will be rejected with 401")
+    # check_configuration() ran at import: the keys are usable or we never got here
+    keys = registration_keys()
+    if keys is None:
+        log.info(f"{JORDAN_REGISTRATION_KEY_ENV_VAR} is not set: anyone reaching this server can "
+                 f"register a passive client")
+    else:
+        log.info(f"{len(keys)} registration key(s) accepted: {', '.join(name for name, _ in keys)}")
     app.run(host=JORDAN_API_HOST, port=JORDAN_API_PORT, debug=True, use_reloader=False)

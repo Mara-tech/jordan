@@ -1,6 +1,7 @@
 from time import time
 from typing import Any, Callable, Dict, List, Optional
 import json
+import os
 import requests
 import threading
 import types
@@ -9,6 +10,10 @@ import types
 DEFAULT_CLIENT_NAME = "default-client"
 DEFAULT_NO_ACTION: List[Any] = []
 DEFAULT_NO_PASSWORD: Optional[str] = None
+
+# Servers that closed registration expect this key; the variable lets a program
+# register without passing it explicitly through the code.
+REGISTRATION_KEY_ENV_VAR = 'JORDAN_REGISTRATION_KEY'
 
 PARAMETER_TYPE_STRING = 'string'
 PARAMETER_TYPE_INT = 'int'
@@ -249,7 +254,16 @@ class JordanTaskInstance(JordanInstance):
         self.update_task(TASK_STATE_ERROR)
 
 
-def register(server_base_url: str, client_name: str = DEFAULT_CLIENT_NAME, actions: List[Any] = DEFAULT_NO_ACTION, password: Optional[str] = DEFAULT_NO_PASSWORD, **kwargs: Any) -> Optional[JordanInstance]:
+def _registration_headers(registration_key: Optional[str]) -> Dict[str, str]:
+    """Registration is open unless the server sets JORDAN_REGISTRATION_KEY, in
+    which case it expects that key as a bearer token. Sending it when the server
+    asks for nothing is harmless, so the environment variable is used as a
+    fallback and no header is sent when neither is set."""
+    key = registration_key if registration_key is not None else os.environ.get(REGISTRATION_KEY_ENV_VAR, '')
+    return {'Authorization': f'Bearer {key}'} if key else {}
+
+
+def register(server_base_url: str, client_name: str = DEFAULT_CLIENT_NAME, actions: List[Any] = DEFAULT_NO_ACTION, password: Optional[str] = DEFAULT_NO_PASSWORD, registration_key: Optional[str] = None, **kwargs: Any) -> Optional[JordanInstance]:
     REGISTER_ENDPOINT = server_base_url + REGISTER_RESOURCE
 
     payload: Dict[str, Any] = {'name': client_name}
@@ -258,7 +272,7 @@ def register(server_base_url: str, client_name: str = DEFAULT_CLIENT_NAME, actio
     if len(actions) > 0:
         payload['actions'] = actions
 
-    r = requests.post(REGISTER_ENDPOINT, json=payload, **kwargs)
+    r = requests.post(REGISTER_ENDPOINT, json=payload, headers=_registration_headers(registration_key), **kwargs)
 
     if r.status_code == 200:
         register_output = json.loads(r.text)

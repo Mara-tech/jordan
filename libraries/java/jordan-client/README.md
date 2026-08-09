@@ -62,6 +62,22 @@ try (JordanInstance j = Jordan.register("http://localhost:5000/jordan/", "my-job
 }
 ```
 
+## Closed registration
+
+Registration is open on most servers. One that sets `JORDAN_REGISTRATION_KEY` expects that key at
+registration — sent as a bearer token, never in the payload — and answers `401` without it, or `429`
+when too many attempts come from the same address in a short window.
+
+```java
+List<Map<String, Object>> noActions = Collections.emptyList();
+try (JordanInstance j = Jordan.register(url, "my-job", noActions, null, "<key>")) {
+    // …
+}
+```
+
+Passing `null` as the key makes the library read the `JORDAN_REGISTRATION_KEY` environment variable
+instead, so the same code works against both kinds of server.
+
 ## Sub-tasks
 
 ```java
@@ -103,6 +119,7 @@ try (JordanInstance j = Jordan.register("http://localhost:5000/jordan/", "job"))
 | `register(url, name)` | Register with no actions |
 | `register(url, name, actions)` | Register with action definitions |
 | `register(url, name, actions, password)` | Register with password |
+| `register(url, name, actions, password, registrationKey)` | Register against a server that closed registration |
 
 ### `JordanInstance` / `JordanTaskInstance`
 

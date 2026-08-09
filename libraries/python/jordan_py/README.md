@@ -29,6 +29,14 @@ Actions are generic, as much as the App GUI. Therefore, you already have an App 
                         if jordan_message.action_name == 'BREAK_LOOP':
                             break
 
+4. If the server closed registration (`JORDAN_REGISTRATION_KEY` set on its side), present the key
+
+        jordan_instance = jordan.register('<jordan_server_url>', registration_key='<key>')
+
+    Leaving the argument out makes the library read the `JORDAN_REGISTRATION_KEY` environment
+    variable instead. Without a valid key such a server answers `401`, and `429` when too many
+    attempts come from the same address in a short window.
+
 # More use cases
 
 Explore [samples](https://github.com/Mara-tech/jordan/tree/main/sample) for details on features like :

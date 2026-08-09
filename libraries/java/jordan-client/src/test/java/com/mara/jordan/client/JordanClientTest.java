@@ -9,6 +9,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -77,6 +78,33 @@ public class JordanClientTest {
     public void testRegisterThrowsOnFailure() throws IOException {
         server.enqueue(new MockResponse().setResponseCode(401).setBody("Unauthorized"));
         Jordan.register(baseUrl(), "test");
+    }
+
+    @Test
+    public void testRegisterSendsNoAuthorizationWithoutRegistrationKey() throws IOException, InterruptedException {
+        enqueueRegister(1, "tok");
+        enqueueUnregister();
+
+        try (JordanInstance instance = Jordan.register(baseUrl(), "test")) {
+            // registration is open by default
+        }
+
+        assertNull(server.takeRequest().getHeader("Authorization"));
+    }
+
+    @Test
+    public void testRegisterSendsRegistrationKeyAsBearerToken() throws IOException, InterruptedException {
+        enqueueRegister(1, "tok");
+        enqueueUnregister();
+
+        List<Map<String, Object>> noActions = Collections.emptyList();
+        try (JordanInstance instance = Jordan.register(baseUrl(), "test", noActions, null, "reg-key-789")) {
+            // key required by a server that closed registration
+        }
+
+        RecordedRequest req = server.takeRequest();
+        assertEquals("Bearer reg-key-789", req.getHeader("Authorization"));
+        assertFalse("the key must not reach the payload", req.getBody().readUtf8().contains("reg-key-789"));
     }
 
     @Test

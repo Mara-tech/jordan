@@ -9,6 +9,10 @@ Generate an entry with:
 
     python admin_identity.py <login> <password> [role]
 
+A declaration that cannot be honoured — malformed JSON, an account without a
+passwordHash, an unknown role, a login declared twice — stops the server at
+startup rather than quietly dropping that account and locking its holder out.
+
 `POST /jordan/admin/login` exchanges those credentials for a session token stored
 in Redis with a TTL (JORDAN_ADMIN_SESSION_TTL, 12 hours by default), so a leaked
 token stops working on its own.
@@ -26,7 +30,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 import jordan_log as log
 from jordan_constants import (JORDAN_ADMIN_SESSION_TTL_ENV_VAR,
                               JORDAN_ADMIN_USERS_ENV_VAR,
-                              JORDAN_DEFAULT_ADMIN_SESSION_TTL)
+                              JORDAN_DEFAULT_ADMIN_SESSION_TTL,
+                              ConfigurationError)
 
 # ── Roles and permissions ────────────────────────────────────────────────────
 
@@ -69,33 +74,47 @@ def has_permission(operator, permission):
 def load_operators():
     """login -> declared account, from JORDAN_ADMIN_USERS.
 
-    Returns an empty mapping when the variable is unset or unusable: a malformed
-    declaration must never widen access, it only leaves no account to log into."""
+    Empty when the variable is unset, or set to an empty array — declaring no
+    named operator is a legitimate choice, the shared token then stands alone.
+
+    Anything else that cannot be honoured raises ConfigurationError, which
+    check_configuration() turns into a refusal to start. All or nothing on
+    purpose: skipping the faulty entry would silently remove an account its
+    operator believes exists, and locking someone out is exactly the kind of
+    surprise nobody discovers before the day they need to log in."""
     raw = os.environ.get(JORDAN_ADMIN_USERS_ENV_VAR, '').strip()
     if not raw:
         return {}
     try:
         declared = json.loads(raw)
-    except ValueError:
-        log.error(f"{JORDAN_ADMIN_USERS_ENV_VAR} is not valid JSON: no operator account is usable")
-        return {}
+    except ValueError as invalid_json:
+        raise ConfigurationError(
+            f"{JORDAN_ADMIN_USERS_ENV_VAR} is not valid JSON") from invalid_json
     if not isinstance(declared, list):
-        log.error(f"{JORDAN_ADMIN_USERS_ENV_VAR} must be a JSON array of accounts")
-        return {}
+        raise ConfigurationError(
+            f"{JORDAN_ADMIN_USERS_ENV_VAR} must be a JSON array of accounts, as "
+            f'[{{"login": ..., "passwordHash": ..., "role": ...}}]')
 
     operators = {}
-    for entry in declared:
+    for position, entry in enumerate(declared, start=1):
         if not isinstance(entry, dict):
-            log.error(f"{JORDAN_ADMIN_USERS_ENV_VAR}: skipping an entry that is not an object")
-            continue
+            raise ConfigurationError(
+                f"{JORDAN_ADMIN_USERS_ENV_VAR}: account #{position} is not an object")
         login = entry.get('login')
         role = entry.get('role', ROLE_VIEWER)
         if not login or not entry.get('passwordHash'):
-            log.error(f"{JORDAN_ADMIN_USERS_ENV_VAR}: skipping an entry without login or passwordHash")
-            continue
+            raise ConfigurationError(
+                f"{JORDAN_ADMIN_USERS_ENV_VAR}: account #{position} has no login or no "
+                f"passwordHash — produce one with 'python admin_identity.py <login> <password>'")
         if role not in ROLE_PERMISSIONS:
-            log.error(f"{JORDAN_ADMIN_USERS_ENV_VAR}: unknown role '{role}' for '{login}', skipping")
-            continue
+            raise ConfigurationError(
+                f"{JORDAN_ADMIN_USERS_ENV_VAR}: unknown role '{role}' for '{login}', "
+                f"expected one of {', '.join(ROLE_PERMISSIONS)}")
+        if login in operators:
+            # a mapping would keep the last one, and the other password and role
+            # would stop working without anything saying so
+            raise ConfigurationError(
+                f"{JORDAN_ADMIN_USERS_ENV_VAR}: '{login}' is declared twice")
         operators[login] = entry
     return operators
 

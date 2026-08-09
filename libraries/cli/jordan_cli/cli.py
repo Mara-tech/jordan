@@ -46,9 +46,19 @@ def _make_instance_for(session: dict, task_id: Optional[int]) -> jordan.JordanIn
 def register(
     server: str = typer.Option(..., help="Jordan server base URL (e.g. http://localhost:5000/jordan/)"),
     name: str = typer.Option("default-client", help="Client name"),
+    registration_key: Optional[str] = typer.Option(
+        None,
+        "--registration-key",
+        envvar=jordan.REGISTRATION_KEY_ENV_VAR,
+        help="Key required by servers that closed registration (JORDAN_REGISTRATION_KEY)",
+    ),
 ) -> None:
-    """Register with the Jordan server and save the session to .jordan_session."""
-    instance = jordan.register(server, client_name=name)
+    """Register with the Jordan server and save the session to .jordan_session.
+
+    The registration key, when the server asks for one, is only needed here: the
+    session file then holds the client token the other commands use.
+    """
+    instance = jordan.register(server, client_name=name, registration_key=registration_key)
     if instance is None:
         typer.echo("Registration failed. Check the server URL and try again.", err=True)
         raise typer.Exit(1)

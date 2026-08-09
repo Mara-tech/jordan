@@ -6,6 +6,7 @@ import pytest
 from werkzeug.security import generate_password_hash
 
 import admin_identity as identity
+from jordan_constants import ConfigurationError
 
 TEST_HASH_METHOD = 'pbkdf2:sha256:1000'
 
@@ -58,24 +59,63 @@ def test_no_declaration_means_no_account(monkeypatch):
     assert identity.load_operators() == {}
 
 
-def test_invalid_json_declares_no_account(monkeypatch):
-    monkeypatch.setenv('JORDAN_ADMIN_USERS', 'alice:pwd')
+def test_an_empty_array_declares_no_account(monkeypatch):
+    """A legitimate choice: no named operator, the shared token stands alone —
+    which is what docker-compose.yml passes by default."""
+    monkeypatch.setenv('JORDAN_ADMIN_USERS', '[]')
     assert identity.load_operators() == {}
 
 
-def test_json_object_instead_of_array_declares_no_account(monkeypatch):
-    monkeypatch.setenv('JORDAN_ADMIN_USERS', '{"login": "alice"}')
-    assert identity.load_operators() == {}
+def test_declared_accounts_are_loaded(monkeypatch):
+    declare(monkeypatch, account('alice'), account('bob', role=identity.ROLE_VIEWER))
+    assert list(identity.load_operators()) == ['alice', 'bob']
 
 
-def test_entry_without_password_hash_is_skipped(monkeypatch):
+# An account that quietly disappears locks its holder out, and nobody finds out
+# before the day they try to log in. Every one of these stops the server instead.
+@pytest.mark.parametrize('raw', [
+    'alice:pwd',                                  # not JSON
+    '{"login": "alice"}',                         # an object, not an array
+    '["alice"]',                                  # an account that is not an object
+])
+def test_unusable_declaration_stops_the_server_from_starting(monkeypatch, raw):
+    monkeypatch.setenv('JORDAN_ADMIN_USERS', raw)
+    with pytest.raises(ConfigurationError):
+        identity.load_operators()
+
+
+def test_account_without_password_hash_stops_the_server(monkeypatch):
     declare(monkeypatch, {'login': 'alice', 'role': 'admin'}, account('bob'))
-    assert list(identity.load_operators()) == ['bob']
+    with pytest.raises(ConfigurationError):
+        identity.load_operators()
 
 
-def test_entry_with_unknown_role_is_skipped(monkeypatch):
+def test_account_without_login_stops_the_server(monkeypatch):
+    declare(monkeypatch, {'passwordHash': 'x', 'role': 'admin'})
+    with pytest.raises(ConfigurationError):
+        identity.load_operators()
+
+
+def test_unknown_role_stops_the_server(monkeypatch):
+    """Silently dropping it would leave an operator convinced they have access."""
     declare(monkeypatch, account('alice', role='superuser'), account('bob'))
-    assert list(identity.load_operators()) == ['bob']
+    with pytest.raises(ConfigurationError):
+        identity.load_operators()
+
+
+def test_a_login_declared_twice_stops_the_server(monkeypatch):
+    """One of the two passwords and roles would apply, and nothing would say which."""
+    declare(monkeypatch, account('alice', 'first-pwd', identity.ROLE_VIEWER),
+            account('alice', 'second-pwd', identity.ROLE_ADMIN))
+    with pytest.raises(ConfigurationError):
+        identity.load_operators()
+
+
+def test_role_defaults_to_viewer(monkeypatch):
+    """Omitting the role is not a mistake — it grants the least of them."""
+    declare(monkeypatch, {'login': 'alice',
+                          'passwordHash': generate_password_hash('pwd', method=TEST_HASH_METHOD)})
+    assert identity.authenticate('alice', 'pwd')['role'] == identity.ROLE_VIEWER
 
 
 # ── Authentication ────────────────────────────────────────────────────────────

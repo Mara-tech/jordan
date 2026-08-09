@@ -10,9 +10,27 @@ Success response : client_id, session_auth_token. Code : 200 OK
         [clientName : String,]
         [actions : JordanActionsDefinition,]
         [password : String,]
+        [registrationKey : String,]
     ) : JordanInstance
 #### Authentication
-None — registration is open. The response body contains `authToken`, which must be supplied as `Authorization: Bearer <authToken>` on all subsequent calls.
+Open by default — anyone reaching the server can register. The response body contains `authToken`, which must be supplied as `Authorization: Bearer <authToken>` on all subsequent calls.
+
+A server exposed publicly can close registration by setting `JORDAN_REGISTRATION_KEY`. Callers then
+send that key as `Authorization: Bearer <registrationKey>`; a missing or wrong key is answered with
+`401`. The key travels in the header and never in the payload, which the server logs and stores as
+the client record. Client libraries take it as an optional `registrationKey` argument and fall back
+to the `JORDAN_REGISTRATION_KEY` environment variable.
+
+The key is an admission ticket, not a session credential: it only opens registration. What a client
+uses afterwards is the `authToken` it was issued, which is its own.
+
+A server may accept **several** named keys at once, so one can be replaced without a flag day —
+publish the new key beside the old, move the clients over, then drop the old one. A caller still
+presents a single key and cannot tell how many the server accepts.
+
+Registration attempts are rate-limited per caller address (`JORDAN_REGISTRATION_RATE_LIMIT` per
+`JORDAN_REGISTRATION_RATE_WINDOW` seconds, 20 per minute by default) whether they succeed or not, so
+key guessing is throttled too. Over the limit, the server answers `429` until the window closes.
 
 ## New Task
 Client can optionally create several tasks. Default behaviour works with a single default task.

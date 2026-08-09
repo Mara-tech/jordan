@@ -2,6 +2,15 @@ import os
 import socket
 
 
+class ConfigurationError(Exception):
+    """A server setting is present but unusable.
+
+    Raised where the setting is read, and turned into a refusal to start by
+    check_configuration() in api.py — so the mistake costs a failed boot instead
+    of a behaviour nobody asked for. Lives here because both api.py and
+    admin_identity.py raise it."""
+
+
 IPAddr = socket.gethostbyname(socket.gethostname())
 
 JORDAN_API_HOST = '0.0.0.0'
@@ -24,3 +33,17 @@ JORDAN_ADMIN_TOKEN_ENV_VAR = 'JORDAN_ADMIN_TOKEN'
 JORDAN_ADMIN_USERS_ENV_VAR = 'JORDAN_ADMIN_USERS'
 JORDAN_ADMIN_SESSION_TTL_ENV_VAR = 'JORDAN_ADMIN_SESSION_TTL'
 JORDAN_DEFAULT_ADMIN_SESSION_TTL = 12 * 60 * 60  # 12 hours
+
+# Names of the environment variables guarding POST /jordan/client/register.
+# Read at request time as well.
+#
+#   JORDAN_REGISTRATION_KEY          key a passive client must send to register;
+#                                    unset means registration stays open
+#   JORDAN_REGISTRATION_RATE_LIMIT   max registration attempts per caller and per
+#                                    window; 0 (or less) disables the check
+#   JORDAN_REGISTRATION_RATE_WINDOW  length of that window, in seconds
+JORDAN_REGISTRATION_KEY_ENV_VAR = 'JORDAN_REGISTRATION_KEY'
+JORDAN_REGISTRATION_RATE_LIMIT_ENV_VAR = 'JORDAN_REGISTRATION_RATE_LIMIT'
+JORDAN_REGISTRATION_RATE_WINDOW_ENV_VAR = 'JORDAN_REGISTRATION_RATE_WINDOW'
+JORDAN_DEFAULT_REGISTRATION_RATE_LIMIT = 20
+JORDAN_DEFAULT_REGISTRATION_RATE_WINDOW = 60  # seconds

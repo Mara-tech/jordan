@@ -66,7 +66,7 @@ Sub-tasks can themselves be parents: pass `--task-id PARENT_ID` to `jordan task-
 ### `jordan register`
 
 ```
-jordan register --server URL [--name NAME]
+jordan register --server URL [--name NAME] [--registration-key KEY]
 ```
 
 Registers with the Jordan server and saves the session locally. The server creates a root task and returns its ID, which is stored in `.jordan_session`.
@@ -75,6 +75,14 @@ Registers with the Jordan server and saves the session locally. The server creat
 |---|---|---|
 | `--server` | *(required)* | Server base URL (e.g. `http://localhost:5000/jordan/`) |
 | `--name` | `default-client` | Display name for this client |
+| `--registration-key` | `$JORDAN_REGISTRATION_KEY` | Key required by servers that closed registration |
+
+Registration is open on most servers. A server that set `JORDAN_REGISTRATION_KEY` answers `401` without the matching key, and `429` when too many attempts come from the same address in a short window. The key is only needed here — the session file holds the client token every other command uses, and never the key itself:
+
+```bash
+export JORDAN_REGISTRATION_KEY=<key>
+jordan register --server https://your-server/jordan/ --name "nightly-export"
+```
 
 ---
 

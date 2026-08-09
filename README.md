@@ -92,6 +92,9 @@ Set these in `server/.env` before starting the server:
 | `JORDAN_ADMIN_USERS` | Operator accounts guarding `/jordan/admin/*` (JSON array) | — |
 | `JORDAN_ADMIN_TOKEN` | Shared bootstrap token for `/jordan/admin/*` | — |
 | `JORDAN_ADMIN_SESSION_TTL` | Lifetime of an admin session token, in seconds | `43200` (12 h) |
+| `JORDAN_REGISTRATION_KEY` | Key a passive client must present to register, or a JSON object naming several | — (registration open) |
+| `JORDAN_REGISTRATION_RATE_LIMIT` | Registration attempts allowed per caller and per window (`0` disables) | `20` |
+| `JORDAN_REGISTRATION_RATE_WINDOW` | Length of that window, in seconds | `60` |
 
 With neither `JORDAN_ADMIN_USERS` nor `JORDAN_ADMIN_TOKEN` set, every admin request returns `401`.
 
@@ -112,6 +115,24 @@ Admin operators hold one of three roles — `viewer` (read), `operator` (read + 
 
 Client registration, admin login and the `hello` health endpoints are the only open routes.
 See [`server/README.md`](server/README.md#authentication) for account creation and the login flow.
+
+Registration is open by design, and a public server can close it with `JORDAN_REGISTRATION_KEY` —
+passive clients then send that key as their bearer token when registering:
+
+```python
+j = jordan.register('https://your-server/jordan/', registration_key='<key>')
+# or leave it out and export JORDAN_REGISTRATION_KEY instead
+```
+
+The key only opens registration — every later call is authorized by the `authToken` the client was
+issued. Set the variable to a JSON object (`{"retiring":"<old>","current":"<new>"}`) to accept
+several named keys at once: that is how one is replaced without updating every client at the same
+minute, and how each population (CI, laptops, a partner) gets a key that can be revoked on its own.
+A value that is set but unusable stops the server at startup instead of closing registration
+silently. See [`server/README.md`](server/README.md#several-keys-and-rotating-one).
+
+Registrations are rate-limited per caller address whether they succeed or not (`429` past the
+limit), which also throttles guessing of the key.
 
 The Android app logs in with the credentials saved for the selected server, or asks for them the
 first time a call is refused — see [`app/android/README.md`](app/android/README.md#authentication).

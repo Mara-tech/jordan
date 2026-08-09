@@ -73,6 +73,9 @@ Swagger UI: `http://localhost:5000/jordan/swagger-ui`
 | `JORDAN_ADMIN_USERS` | Operator accounts guarding `/jordan/admin/*` (JSON array) |
 | `JORDAN_ADMIN_TOKEN` | Shared bootstrap token for `/jordan/admin/*` |
 | `JORDAN_ADMIN_SESSION_TTL` | Admin session lifetime in seconds (default 43200) |
+| `JORDAN_REGISTRATION_KEY` | Key required to register a passive client, or a JSON object naming several (unset = registration open) |
+| `JORDAN_REGISTRATION_RATE_LIMIT` | Max registration attempts per caller and per window (default 20, `0` disables) |
+| `JORDAN_REGISTRATION_RATE_WINDOW` | Length of that window in seconds (default 60) |
 
 ---
 
@@ -88,9 +91,46 @@ Both namespaces are guarded by `Authorization: Bearer <token>`, with a different
 Open routes: `POST /jordan/client/register`, `POST /jordan/admin/login`, `GET /jordan/hello`,
 `GET /jordan/admin/hello`.
 
+### Registering a passive client
+
+`POST /jordan/client/register` is open by design, which a public server can close by setting
+`JORDAN_REGISTRATION_KEY`: the caller then sends that key as `Authorization: Bearer <key>`
+(`401` otherwise). The key goes in the header, never in the payload — the payload is logged and
+stored as the client record. `jordan_py`, `jordan_cli` and `jordan-client` (Java) all take it as an
+optional `registration_key` / `registrationKey` argument and fall back to the environment variable
+of the same name. It is an admission ticket only: what authorizes every later call is the
+per-client `authToken` registration returned.
+
+The variable holds one key, or a JSON object naming several
+(`{"retiring":"<old>","current":"<new>"}`), so a key can be replaced without a flag day — publish
+the new one beside the old, move the clients over, drop the retired entry. Each accepted
+registration logs the *name* of the key used (a `key#<fingerprint>` for a lone unnamed key), never
+the key, which is how you see the old one fall out of use.
+
+A value that is set but unusable — malformed JSON, an empty object, an entry without a key or a
+name, a JSON array — raises `ConfigurationError` (defined in
+[server/jordan_constants.py](server/jordan_constants.py), shared with `admin_identity`). Both
+declarations are validated by `check_configuration()`, called **at import of
+[server/api.py](server/api.py)** and not from `start_api()`: `gunicorn api:app` never calls the
+latter, and production is where the check matters. It is all-or-nothing on purpose — skipping one
+bad entry would leave a key its operator believes valid, silently refusing the clients holding it.
+`registration_keys()` returns `None` when the variable is unset (registration open); the guard also
+keeps a request-time refusal (`401`), unreachable through a server that booted but making sure a
+broken declaration can never read as "open".
+
+Attempts are counted per caller address in Redis (`count_registration_attempt`), successful or not,
+so key guessing is throttled as well: past `JORDAN_REGISTRATION_RATE_LIMIT` attempts in
+`JORDAN_REGISTRATION_RATE_WINDOW` seconds the server answers `429`. Behind a proxy the address is
+the *last* entry of `X-Forwarded-For` — the one the proxy appended; anything a caller forges sits to
+its left.
+
 Operator accounts live in `JORDAN_ADMIN_USERS` (JSON array of `{login, passwordHash, role}`,
-hashes produced by `python server/admin_identity.py <login> <password> [role]`). Roles map to
-permissions in `server/admin_identity.py`:
+hashes produced by `python server/admin_identity.py <login> <password> [role]`). An unusable
+declaration — malformed JSON, an account without a `passwordHash`, an unknown role, a login twice —
+raises `ConfigurationError` from `load_operators()` and stops the boot, same rule as the
+registration keys: dropping the faulty account would lock its holder out silently. `[]` stays valid
+(no named operator, the shared token alone) — it is what `docker-compose.yml` passes by default.
+Roles map to permissions in `server/admin_identity.py`:
 
 | Role | `read` | `send` | `delete` |
 |---|---|---|---|

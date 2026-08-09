@@ -22,6 +22,7 @@ from api import app  # noqa: E402
 TASK_ID = 42
 TOKEN = 'deadbeefdeadbeefdeadbeefdeadbeef'
 ADMIN_TOKEN = 'cafebabecafebabecafebabecafebabe'
+REGISTRATION_KEY = 'facefeedfacefeedfacefeedfacefeed'
 STATUS_ID = 9999
 MESSAGE_ID = 12345
 
@@ -92,6 +93,43 @@ def no_admin_auth(monkeypatch):
 @pytest.fixture
 def admin_headers(admin_token):
     return {'Authorization': f'Bearer {admin_token}'}
+
+
+# ── Registration key and rate limit ───────────────────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def registration_attempts(monkeypatch):
+    """In-memory stand-in for the Redis counter behind the registration rate
+    limit. Autouse: the mocked Redis connection cannot count, and every test
+    hitting /client/register goes through it."""
+    attempts = {}
+
+    def _count(caller, window_seconds):
+        attempts[caller] = attempts.get(caller, 0) + 1
+        return attempts[caller]
+
+    monkeypatch.setattr('api.count_registration_attempt', _count)
+    return attempts
+
+
+@pytest.fixture(autouse=True)
+def no_registration_key(monkeypatch):
+    """Registration is open unless a test says otherwise — the default the
+    contract describes."""
+    monkeypatch.delenv('JORDAN_REGISTRATION_KEY', raising=False)
+
+
+@pytest.fixture
+def registration_key(monkeypatch):
+    """Close registration behind a key, as a public deployment would."""
+    monkeypatch.setenv('JORDAN_REGISTRATION_KEY', REGISTRATION_KEY)
+    return REGISTRATION_KEY
+
+
+@pytest.fixture
+def registration_key_headers(registration_key):
+    return {'Authorization': f'Bearer {registration_key}'}
 
 
 # ── Operator accounts and sessions ────────────────────────────────────────────

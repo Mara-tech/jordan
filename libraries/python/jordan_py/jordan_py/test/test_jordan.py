@@ -1,4 +1,5 @@
 import json
+import os
 import unittest
 
 import responses as responses_lib
@@ -93,6 +94,69 @@ class TestRegister(unittest.TestCase):
         jordan.register(BASE_URL, password="secret")
         payload = json.loads(responses_lib.calls[0].request.body)
         self.assertEqual(payload["password"], "secret")
+
+
+class TestRegistrationKey(unittest.TestCase):
+    """Servers that closed registration expect the key as a bearer token."""
+
+    REGISTRATION_KEY = "reg-key-789"
+
+    def setUp(self):
+        self._saved_key = os.environ.pop(jordan.REGISTRATION_KEY_ENV_VAR, None)
+
+    def tearDown(self):
+        if self._saved_key is not None:
+            os.environ[jordan.REGISTRATION_KEY_ENV_VAR] = self._saved_key
+        else:
+            os.environ.pop(jordan.REGISTRATION_KEY_ENV_VAR, None)
+
+    def _stub_register(self):
+        responses_lib.add(
+            responses_lib.POST,
+            _url("client/register"),
+            json={"taskId": TASK_ID, "authToken": AUTH_TOKEN},
+            status=200,
+        )
+
+    @responses_lib.activate
+    def test_no_key_sends_no_authorization_header(self):
+        self._stub_register()
+        jordan.register(BASE_URL)
+        self.assertNotIn("Authorization", responses_lib.calls[0].request.headers)
+
+    @responses_lib.activate
+    def test_key_is_sent_as_bearer_token(self):
+        self._stub_register()
+        jordan.register(BASE_URL, registration_key=self.REGISTRATION_KEY)
+        self.assertEqual(
+            responses_lib.calls[0].request.headers["Authorization"],
+            f"Bearer {self.REGISTRATION_KEY}",
+        )
+
+    @responses_lib.activate
+    def test_key_never_reaches_the_payload(self):
+        self._stub_register()
+        jordan.register(BASE_URL, registration_key=self.REGISTRATION_KEY)
+        self.assertNotIn(self.REGISTRATION_KEY, json.loads(responses_lib.calls[0].request.body).values())
+
+    @responses_lib.activate
+    def test_key_falls_back_to_the_environment(self):
+        self._stub_register()
+        os.environ[jordan.REGISTRATION_KEY_ENV_VAR] = "key-from-env"
+        jordan.register(BASE_URL)
+        self.assertEqual(
+            responses_lib.calls[0].request.headers["Authorization"], "Bearer key-from-env"
+        )
+
+    @responses_lib.activate
+    def test_argument_wins_over_the_environment(self):
+        self._stub_register()
+        os.environ[jordan.REGISTRATION_KEY_ENV_VAR] = "key-from-env"
+        jordan.register(BASE_URL, registration_key=self.REGISTRATION_KEY)
+        self.assertEqual(
+            responses_lib.calls[0].request.headers["Authorization"],
+            f"Bearer {self.REGISTRATION_KEY}",
+        )
 
 
 class TestJordanInstance(unittest.TestCase):

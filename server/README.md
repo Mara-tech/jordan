@@ -62,6 +62,9 @@ The server starts on port **5000** and prints its URL on startup.
 | `JORDAN_ADMIN_USERS` | Yes\* | JSON array of operator accounts guarding `/jordan/admin/*` |
 | `JORDAN_ADMIN_TOKEN` | Yes\* | Shared bootstrap token: full permissions, no named operator |
 | `JORDAN_ADMIN_SESSION_TTL` | No | Lifetime in seconds of a session token (default `43200`, 12 h) |
+| `JORDAN_REGISTRATION_KEY` | No | Key a passive client must present to register, or a JSON object naming several — unset leaves registration open |
+| `JORDAN_REGISTRATION_RATE_LIMIT` | No | Registration attempts allowed per caller and per window (default `20`, `0` disables) |
+| `JORDAN_REGISTRATION_RATE_WINDOW` | No | Length of that window in seconds (default `60`) |
 
 \* at least one of the two — with neither, every admin request is rejected.
 
@@ -76,7 +79,8 @@ Both namespaces expect `Authorization: Bearer <token>`, with a different token e
 | `/jordan/admin/*` | shared bootstrap token | you, through `JORDAN_ADMIN_TOKEN` |
 
 `POST /jordan/client/register`, `POST /jordan/admin/login`, `GET /jordan/hello` and
-`GET /jordan/admin/hello` are the only open endpoints.
+`GET /jordan/admin/hello` are the only open endpoints — and registration can be closed too, see
+[Controlling registration](#controlling-registration).
 
 The admin namespace **fails closed**: with neither `JORDAN_ADMIN_USERS` nor `JORDAN_ADMIN_TOKEN`
 set, every `/jordan/admin/*` request returns `401` instead of serving data openly. The server
@@ -103,6 +107,14 @@ python admin_identity.py bob <password> operator
 - **delete** — delete a task, a client, or the whole base
 
 A token whose role lacks the permission gets `403`; a missing or expired token gets `401`.
+An account without a `role` is a `viewer`, the least of them.
+
+A declaration that cannot be honoured — malformed JSON, an account without a `passwordHash`, an
+unknown role, a login declared twice — makes the server **refuse to start**, for the same reason as
+[a misconfigured registration key](#a-misconfigured-key-stops-the-server): dropping the faulty
+account would lock its holder out, and nobody discovers that before the day they try to log in.
+An empty array is not a mistake — it declares no named operator, and the shared token then stands
+alone.
 
 The whole json string is to put in `.env` file.
 You can test it locally for example from Swagger UI :
@@ -139,6 +151,91 @@ In Swagger UI, use the **Authorize** button to set the header for a whole sessio
 `JORDAN_ADMIN_TOKEN` still works, carries every permission, and reports the conventional login
 `shared-admin`. It exists for first setup and machine-to-machine callers; prefer named operators
 everywhere else, since only they give meaningful message authorship and least privilege.
+
+## Controlling registration
+
+`POST /jordan/client/register` is open by design: any program that reaches the server can become a
+passive client. On a public deployment, set `JORDAN_REGISTRATION_KEY` to close it:
+
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"   # generate one
+```
+
+Passive clients then present that key when registering — as a bearer token, never in the payload,
+which the server logs and stores as the client record:
+
+```bash
+curl -X POST http://localhost:5000/jordan/client/register \
+  -H "Authorization: Bearer $JORDAN_REGISTRATION_KEY" \
+  -H 'Content-Type: application/json' -d '{"name": "my-script"}'
+```
+
+```python
+jordan.register('http://localhost:5000/jordan/', registration_key='<key>')
+```
+
+`jordan_py`, `jordan_cli` (`jordan register --registration-key`) and the Java `jordan-client` all
+accept the key and fall back to the `JORDAN_REGISTRATION_KEY` environment variable when it is not
+passed explicitly. A missing or wrong key gets `401`.
+
+The key is an admission ticket, not a session credential: it gates *who may create clients*, and
+nothing else. What a client sends on every later call is the `authToken` registration returned to
+it, which is its own — the key never gives access to another client's statuses or messages.
+
+### Several keys, and rotating one
+
+A single key is shared by every passive client, so replacing it would mean updating all of them at
+the same minute. Name several in a JSON object instead, and the server accepts each of them:
+
+```
+JORDAN_REGISTRATION_KEY={"retiring":"<old>","current":"<new>"}
+```
+
+Rotating then has no flag day:
+
+1. add the new key beside the old one, and restart or redeploy;
+2. move the clients over, one at a time;
+3. drop the retired entry once the logs stop naming it.
+
+That third step is what the names are for: every accepted registration logs which key was used
+(`Registration accepted with 'retiring'`) and never the key itself. Without that, the end of a
+rotation is a guess. The same mechanism gives one key per population (CI, laptops, a partner), so
+one can be revoked without disturbing the others.
+
+A single key still reads as a plain value, so nothing has to move to JSON:
+
+```
+JORDAN_REGISTRATION_KEY=<key>
+```
+
+### A misconfigured key stops the server
+
+A value that is set but cannot be honoured — malformed JSON, an empty object, an entry without a
+key or without a name, a JSON array — makes the server **refuse to start**, naming what is wrong:
+
+```
+jordan_constants.ConfigurationError: JORDAN_REGISTRATION_KEY: 'ci' carries no key
+```
+
+It is deliberately all-or-nothing. Skipping the one bad entry would leave a key its operator
+believes valid, silently refusing every client that holds it — the failure this check exists to
+prevent. `JORDAN_ADMIN_USERS` is checked the same way, and for the same reason.
+
+The check runs when `api.py` is imported, so `python jordan_server.py` and `gunicorn api:app` both
+hit it — `start_api()` would have been skipped by the second. On a platform with a health check
+(Railway) the bad deployment then never takes traffic, and the previous one keeps serving.
+
+### Rate limit
+
+Registration attempts are counted per caller address in Redis, successful or not — guessing the key
+is throttled by the same counter. Past `JORDAN_REGISTRATION_RATE_LIMIT` attempts within
+`JORDAN_REGISTRATION_RATE_WINDOW` seconds (20 per minute by default), the server answers `429` until
+the window closes. Set the limit to `0` to disable the check.
+
+Behind a reverse proxy the peer address is the proxy's, so the caller is read from the **last**
+entry of `X-Forwarded-For`, the one the proxy appended; entries a caller forges sit to its left and
+do not earn it a fresh bucket. Deployed without a proxy that sets the header, everything a NAT hides
+shares one bucket — raise the limit accordingly.
 
 ## File overview
 
