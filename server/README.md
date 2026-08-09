@@ -39,18 +39,35 @@ pip install -r requirements.txt
 ## Running
 
 ```bash
-# from the repo root
+# development, from the server/ directory
 python jordan_server.py
 ```
 
-The server starts on port **5000** and prints its URL on startup.
+The server starts on port **5000** (or `$PORT`) and reports on startup what it accepts: how many
+operator accounts it found, whether registration is open, and whether it publishes its own
+documentation.
 
 | Endpoint | Description |
 |---|---|
 | `http://<host>:5000/jordan/` | REST API root |
-| `http://<host>:5000/jordan/swagger-ui` | Interactive API docs (Swagger UI) |
+| `http://<host>:5000/jordan/swagger-ui` | Interactive API docs — only when [enabled](#what-the-server-exposes-of-itself) |
 | `http://<host>:5000/jordan/client/` | Passive client endpoints |
 | `http://<host>:5000/jordan/admin/` | Active client / admin endpoints |
+
+### In production
+
+`jordan_server.py` starts Flask's development server, which is single-process and not written to
+face a network. Anywhere else than a laptop, run the same app under `gunicorn` (installed by
+`requirements.txt`):
+
+```bash
+# from the server/ directory
+gunicorn api:app --bind 0.0.0.0:${PORT:-5000} --workers 2
+```
+
+`api:app` is the WSGI application, so `start_api()` is never called — which is why the settings
+are checked and reported when the module is *imported*, and why `JORDAN_DEBUG` below has no
+meaning under gunicorn: there is no development server to put a debugger in.
 
 ## Environment variables
 
@@ -65,8 +82,40 @@ The server starts on port **5000** and prints its URL on startup.
 | `JORDAN_REGISTRATION_KEY` | No | Key a passive client must present to register, or a JSON object naming several — unset leaves registration open |
 | `JORDAN_REGISTRATION_RATE_LIMIT` | No | Registration attempts allowed per caller and per window (default `20`, `0` disables) |
 | `JORDAN_REGISTRATION_RATE_WINDOW` | No | Length of that window in seconds (default `60`) |
+| `JORDAN_DEBUG` | No | Werkzeug debugger on the development server (default `false`) |
+| `JORDAN_ENABLE_DOCS` | No | Publish Swagger UI and the OpenAPI spec (defaults to `JORDAN_DEBUG`) |
 
 \* at least one of the two — with neither, every admin request is rejected.
+
+Both booleans read `1`/`true`/`yes`/`on` and their opposites, in any case. A value that is neither
+falls back to the default, with a line in the log: a misspelled `true` must not hand out a
+debugger.
+
+## What the server exposes of itself
+
+Beyond the API, a Flask server can publish two things that belong to development only. Both are
+**off unless declared**, so a deployment that says nothing serves the API and nothing else.
+
+| Variable | Off (default) | On |
+|---|---|---|
+| `JORDAN_DEBUG` | errors are logged, callers get a plain `500` | Werkzeug debugger: an interactive Python console on the error page |
+| `JORDAN_ENABLE_DOCS` | `/jordan/swagger-ui` and `/jordan/swagger.json` do not exist (`404`) | both are served |
+
+The debugger executes what a visitor types, in the server process, with its Redis credentials in
+reach — it is a remote shell, not a verbose error page. The docs are milder: the spec holds no
+secret, but it is the complete map of the API, and publishing it saves a stranger the work of
+finding out what this server is and what it accepts.
+
+`JORDAN_ENABLE_DOCS` defaults to `JORDAN_DEBUG`, so a laptop turns both on at once:
+
+```bash
+JORDAN_DEBUG=true python jordan_server.py     # debugger + Swagger UI
+JORDAN_ENABLE_DOCS=true gunicorn api:app      # docs on a private deployment, no debugger
+JORDAN_DEBUG=true JORDAN_ENABLE_DOCS=false python jordan_server.py   # the other way round
+```
+
+Hiding Swagger UI alone would hide nothing — the spec it reads is a URL of its own — so the switch
+withholds `/jordan/swagger.json` as well.
 
 ## Authentication
 
@@ -117,7 +166,8 @@ An empty array is not a mistake — it declares no named operator, and the share
 alone.
 
 The whole json string is to put in `.env` file.
-You can test it locally for example from Swagger UI :
+You can test it locally for example from Swagger UI — served once `JORDAN_ENABLE_DOCS` or
+`JORDAN_DEBUG` is on, see [What the server exposes of itself](#what-the-server-exposes-of-itself) :
 1. Call `/admin/login` with your login/password as json in the payload body
 2. Copy the token returned in the successful response
 3. Click the Top right-hand Authorize button

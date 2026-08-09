@@ -61,7 +61,14 @@ python jordan_server.py
 ```
 
 Server listens at `http://localhost:5000/jordan`.  
-Swagger UI: `http://localhost:5000/jordan/swagger-ui`
+Swagger UI: `http://localhost:5000/jordan/swagger-ui` — served only when `JORDAN_ENABLE_DOCS` (or
+`JORDAN_DEBUG`, which it follows) is on; otherwise it and `/jordan/swagger.json` return `404`.
+
+In production the same app runs under gunicorn, which never calls `start_api()`:
+
+```bash
+cd server && gunicorn api:app --bind 0.0.0.0:${PORT:-5000} --workers 2
+```
 
 **Required environment variables** (in `server/.env`):
 
@@ -76,6 +83,14 @@ Swagger UI: `http://localhost:5000/jordan/swagger-ui`
 | `JORDAN_REGISTRATION_KEY` | Key required to register a passive client, or a JSON object naming several (unset = registration open) |
 | `JORDAN_REGISTRATION_RATE_LIMIT` | Max registration attempts per caller and per window (default 20, `0` disables) |
 | `JORDAN_REGISTRATION_RATE_WINDOW` | Length of that window in seconds (default 60) |
+| `JORDAN_DEBUG` | Werkzeug debugger on the development server (default false) |
+| `JORDAN_ENABLE_DOCS` | Publish Swagger UI and the OpenAPI spec (defaults to `JORDAN_DEBUG`) |
+
+Both are off unless declared: the debugger is a Python console for whoever reaches the port, and
+the spec is the complete map of the API. `JORDAN_ENABLE_DOCS` overrides the default either way.
+`api.init_app(app, add_specs=...)` at the bottom of [server/api.py](server/api.py) is what makes
+the switch real — `Api(app, add_specs=False)` accepts the argument and ignores it, leaving
+`/jordan/swagger.json` served.
 
 ---
 

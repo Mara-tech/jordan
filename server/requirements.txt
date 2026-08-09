@@ -3,3 +3,7 @@ flask-restx==1.3.0
 Werkzeug==2.3.7
 redis[hiredis]==5.0.8
 python-dotenv==1.0.1
+# WSGI server for anything but local development: `gunicorn api:app`.
+# Installs on Windows but only runs on POSIX — `python jordan_server.py` is the
+# development entry point there.
+gunicorn==26.0.0

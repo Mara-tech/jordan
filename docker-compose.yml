@@ -31,6 +31,12 @@ services:
       JORDAN_REGISTRATION_KEY: ${JORDAN_REGISTRATION_KEY:-}
       JORDAN_REGISTRATION_RATE_LIMIT: ${JORDAN_REGISTRATION_RATE_LIMIT:-20}
       JORDAN_REGISTRATION_RATE_WINDOW: ${JORDAN_REGISTRATION_RATE_WINDOW:-60}
+      # This stack is the local development one, so it publishes Swagger UI —
+      # a public deployment leaves the variable unset and serves the API alone.
+      # The Werkzeug debugger stays off even here: the port is published on the
+      # host, and it is a Python console for anyone who reaches it.
+      JORDAN_ENABLE_DOCS: ${JORDAN_ENABLE_DOCS:-true}
+      JORDAN_DEBUG: ${JORDAN_DEBUG:-false}
     depends_on:
       redis:
         condition: service_healthy

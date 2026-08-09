@@ -22,6 +22,65 @@ from time import time
 #--------------------
 app = Flask(__name__)
 
+TRUE_VALUES = ('1', 'true', 'yes', 'on')
+FALSE_VALUES = ('0', 'false', 'no', 'off')
+
+
+def _bool_env(var_name, default):
+    """Boolean setting, falling back to its default when the variable is unset or
+    does not hold a boolean — a typo must not read as a permission granted."""
+    raw = os.environ.get(var_name, '').strip().lower()
+    if not raw:
+        return default
+    if raw in TRUE_VALUES:
+        return True
+    if raw in FALSE_VALUES:
+        return False
+    log.error(f"{var_name}='{raw}' is not a boolean, falling back to {default}")
+    return default
+
+
+def _int_env(var_name, default):
+    """Integer setting read at request time, falling back to its default when
+    the variable is unset or does not hold a number."""
+    raw = os.environ.get(var_name, '').strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        log.error(f"{var_name}='{raw}' is not a number, falling back to {default}")
+        return default
+
+
+def debug_enabled():
+    """Whether the development server runs with the Werkzeug debugger.
+
+    Off unless explicitly asked for: the debugger is a Python console handed to
+    whoever reaches the port, and its error pages carry the source of the server
+    around them."""
+    return _bool_env(JORDAN_DEBUG_ENV_VAR, False)
+
+
+def docs_enabled():
+    """Whether Swagger UI and the OpenAPI spec it reads are published.
+
+    Follows the debug flag by default, both being development conveniences: the
+    spec is the complete map of the API — every route, payload and parameter.
+    None of it is a credential, but publishing it saves a stranger the work of
+    finding out what this server is and what it accepts.
+
+    JORDAN_ENABLE_DOCS overrides it in either direction: docs without the
+    debugger on a server that is reached by its team only, or a debugger without
+    docs."""
+    return _bool_env(JORDAN_ENABLE_DOCS_ENV_VAR, debug_enabled())
+
+
+# Read once, unlike the settings above: flask-restx decides which routes exist
+# when it is handed the app, so this is a property of the process rather than of
+# a request.
+PUBLISH_DOCS = docs_enabled()
+
 BEARER_AUTHORIZATION = 'Bearer'
 AUTHORIZATIONS = {
     BEARER_AUTHORIZATION: {
@@ -34,14 +93,16 @@ AUTHORIZATIONS = {
     }
 }
 
-api = Api(app,
-          version='1',
+# The app is not passed here but to init_app() at the bottom of this module —
+# see the comment there: it is the only call that reads add_specs, the switch
+# deciding whether the OpenAPI spec is served at all.
+api = Api(version='1',
           title='Jordan Server API',
           description='Interactions with Jordan server',
           # license='MIT',
           # contact='Pupu',
           # contact_url='https://github.com/Mara-tech/jordan',
-          doc=JORDAN_OPEN_API_DOC_SUFFIX,
+          doc=JORDAN_OPEN_API_DOC_SUFFIX if PUBLISH_DOCS else False,
           prefix=JORDAN_API_PATH_PREFIX,
           authorizations=AUTHORIZATIONS
           )
@@ -71,19 +132,6 @@ def admin_token():
 
 # enough for an IPv6 address with an IPv4 suffix, the longest legitimate value
 MAX_CALLER_ADDRESS_LENGTH = 45
-
-
-def _int_env(var_name, default):
-    """Integer setting read at request time, falling back to its default when
-    the variable is unset or does not hold a number."""
-    raw = os.environ.get(var_name, '').strip()
-    if not raw:
-        return default
-    try:
-        return int(raw)
-    except ValueError:
-        log.error(f"{var_name}='{raw}' is not a number, falling back to {default}")
-        return default
 
 
 def _caller_address():
@@ -183,6 +231,34 @@ def check_configuration():
     identity.load_operators()
 
 
+def log_configuration():
+    """Say once, at startup, what this server accepts: who can reach /admin/*,
+    who may register a client, and whether it publishes its own map.
+
+    Called at import, for the same reason as check_configuration(): under
+    `gunicorn api:app` nothing calls start_api(), and "every admin request will
+    be rejected" is exactly the line an operator needs in the logs of a
+    deployment nobody watched start. Every declaration read here was validated
+    just above, so none of it can raise."""
+    operators = identity.load_operators()
+    if operators:
+        log.info(f"{len(operators)} admin operator account(s) declared in {JORDAN_ADMIN_USERS_ENV_VAR}")
+    elif not admin_token():
+        log.error(f"Neither {JORDAN_ADMIN_TOKEN_ENV_VAR} nor {JORDAN_ADMIN_USERS_ENV_VAR} is set: "
+                  f"every /jordan/admin/* request will be rejected with 401")
+    keys = registration_keys()
+    if keys is None:
+        log.info(f"{JORDAN_REGISTRATION_KEY_ENV_VAR} is not set: anyone reaching this server can "
+                 f"register a passive client")
+    else:
+        log.info(f"{len(keys)} registration key(s) accepted: {', '.join(name for name, _ in keys)}")
+    if PUBLISH_DOCS:
+        log.info(f"Swagger UI available on {JORDAN_OPEN_API_URL}")
+    else:
+        log.info(f"{JORDAN_ENABLE_DOCS_ENV_VAR} is off: neither Swagger UI nor the OpenAPI spec "
+                 f"behind it is served")
+
+
 def _require_registration_key():
     """Guard for POST /client/register.
 
@@ -270,8 +346,10 @@ def _require_admin_auth(permission):
 
 # Every way of running this server imports this module — python jordan_server.py
 # as much as gunicorn api:app — so this is the one place a bad setting is certain
-# to be caught before the first request.
+# to be caught, and the running configuration certain to be reported, before the
+# first request.
 check_configuration()
+log_configuration()
 
 #----------------------
 #---MODEL DEFINITION---
@@ -752,21 +830,26 @@ class GenericQuery(Resource):
         except Exception:
             admin_ns.abort(500, 'Could not execute generic query')
 
+# Registers every resource declared above, and only now the two documentation
+# routes — because add_specs is read by init_app() and by nothing else. Passed to
+# Api(app, add_specs=False) it is quietly swallowed, and /jordan/swagger.json
+# keeps serving the very map doc=False was meant to withhold: the UI would be
+# hidden and the API still described to anyone asking for the JSON.
+api.init_app(app, add_specs=PUBLISH_DOCS)
+
+
 def start_api():
     #about starting twice : https://stackoverflow.com/questions/9449101/how-to-stop-flask-from-initialising-twice-in-debug-mode
-    log.info(f"Swagger UI available on {JORDAN_OPEN_API_URL}")
-    # check_configuration() ran at import: both declarations below are usable
-    operators = identity.load_operators()
-    if operators:
-        log.info(f"{len(operators)} admin operator account(s) declared in {JORDAN_ADMIN_USERS_ENV_VAR}")
-    elif not admin_token():
-        log.error(f"Neither {JORDAN_ADMIN_TOKEN_ENV_VAR} nor {JORDAN_ADMIN_USERS_ENV_VAR} is set: "
-                  f"every /jordan/admin/* request will be rejected with 401")
-    # check_configuration() ran at import: the keys are usable or we never got here
-    keys = registration_keys()
-    if keys is None:
-        log.info(f"{JORDAN_REGISTRATION_KEY_ENV_VAR} is not set: anyone reaching this server can "
-                 f"register a passive client")
+    # what this server accepts was logged at import, by log_configuration()
+    debug = debug_enabled()
+    if debug:
+        # ASCII only, like every other log line here: this one has to survive a
+        # Windows console, and a UnicodeEncodeError would be a warning that kills
+        # the server instead of warning it
+        log.error(f"{JORDAN_DEBUG_ENV_VAR} is on: the Werkzeug debugger is served on "
+                  f"{JORDAN_API_HOST}:{JORDAN_API_PORT} and is a Python console for whoever "
+                  f"reaches that port. Development only, never on a public deployment.")
     else:
-        log.info(f"{len(keys)} registration key(s) accepted: {', '.join(name for name, _ in keys)}")
-    app.run(host=JORDAN_API_HOST, port=JORDAN_API_PORT, debug=True, use_reloader=False)
+        log.info("Flask's development server is not meant to face a network: serve this API "
+                 "with 'gunicorn api:app' in production")
+    app.run(host=JORDAN_API_HOST, port=JORDAN_API_PORT, debug=debug, use_reloader=False)

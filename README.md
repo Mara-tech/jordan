@@ -37,7 +37,10 @@ python jordan_server.py
 ```
 
 Server is available at `http://localhost:5000/jordan`.  
-Swagger UI: `http://localhost:5000/jordan/swagger-ui`
+Swagger UI: `http://localhost:5000/jordan/swagger-ui`, once `JORDAN_ENABLE_DOCS=true` is in your
+`.env` — a server that declares nothing serves the API alone, and publishes neither its docs nor
+the debugger. In production, run it under gunicorn: `gunicorn api:app`. See
+[server/README.md](server/README.md#what-the-server-exposes-of-itself).
 
 ### 2. Install the Python library
 
@@ -95,8 +98,14 @@ Set these in `server/.env` before starting the server:
 | `JORDAN_REGISTRATION_KEY` | Key a passive client must present to register, or a JSON object naming several | — (registration open) |
 | `JORDAN_REGISTRATION_RATE_LIMIT` | Registration attempts allowed per caller and per window (`0` disables) | `20` |
 | `JORDAN_REGISTRATION_RATE_WINDOW` | Length of that window, in seconds | `60` |
+| `JORDAN_DEBUG` | Werkzeug debugger on the development server | `false` |
+| `JORDAN_ENABLE_DOCS` | Publish Swagger UI and the OpenAPI spec behind it | follows `JORDAN_DEBUG` |
 
 With neither `JORDAN_ADMIN_USERS` nor `JORDAN_ADMIN_TOKEN` set, every admin request returns `401`.
+
+The last two are off unless declared: the debugger is a Python console for whoever reaches the
+port, and the spec is the complete map of the API. A deployment that says nothing serves the API
+alone.
 
 ---
 

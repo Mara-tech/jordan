@@ -22,6 +22,16 @@ JORDAN_API_URL_PREFIX = f"{JORDAN_API_PROTOCOL}://{IPAddr}:{JORDAN_API_PORT}{JOR
 JORDAN_OPEN_API_DOC_SUFFIX = JORDAN_API_PATH_PREFIX + '/swagger-ui'
 JORDAN_OPEN_API_URL = f"{JORDAN_API_PROTOCOL}://{IPAddr}:{JORDAN_API_PORT}{JORDAN_OPEN_API_DOC_SUFFIX}"
 
+# Names of the environment variables deciding how much of itself the server
+# exposes. Both default to off, so a deployment that declares nothing serves the
+# API and nothing else.
+#
+#   JORDAN_DEBUG        Werkzeug debugger on the development server
+#   JORDAN_ENABLE_DOCS  publish Swagger UI and the OpenAPI spec it reads;
+#                       follows JORDAN_DEBUG when left unset
+JORDAN_DEBUG_ENV_VAR = 'JORDAN_DEBUG'
+JORDAN_ENABLE_DOCS_ENV_VAR = 'JORDAN_ENABLE_DOCS'
+
 # Names of the environment variables guarding the /jordan/admin/* namespace.
 # Their values are read at request time because server/.env is only loaded when
 # rejson_interface is imported, after this module.
