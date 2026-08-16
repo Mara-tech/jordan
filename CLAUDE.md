@@ -292,7 +292,7 @@ Each component has its own prefixed tag. Only the matching workflow fires.
 | `jordan_py` | `jordan_py/v*` | `release-library-python.yml` | PyPI |
 | `jordan_cli` | `jordan_cli/v*` | `release-cli-python.yml` | PyPI |
 | `server` | `server/v*` | `release-server.yml` | ghcr.io Docker image |
-| `app/android` | `android/v*` | `release-android.yml` | APK artifact |
+| `app/android` | `android/v*` | `release-android.yml` | GitHub Release (signed APK + AAB) and Google Play *internal* track |
 | `jordan-core` + `jordan-client` | `java/v*` | *(planned)* | GitHub Packages |
 
 **To release `jordan_py`:**
@@ -311,7 +311,37 @@ Each component has its own prefixed tag. Only the matching workflow fires.
    git tag jordan_cli/v1.0.0 && git push origin jordan_cli/v1.0.0
    ```
 
-The same pattern applies to `server` and `android` with their respective prefixes.
+The same pattern applies to `server` with its own prefix.
+
+**To release `app/android`:** nothing to bump — tag and push, both version fields are injected by the
+workflow.
+
+```bash
+git tag android/v1.1.0 && git push origin android/v1.1.0
+```
+
+`versionName` comes from the tag (`${GITHUB_REF_NAME#android/v}`) and `versionCode` from
+`github.run_number`; [app/android/app/build.gradle](app/android/app/build.gradle) falls back to
+`dev` / `1` for a local build. The run builds `assembleRelease` and `bundleRelease`, signs both,
+attaches them to a GitHub Release, then uploads the AAB — and its ProGuard `mapping.txt`, since
+`minifyEnabled` is on — to the Google Play **internal** track.
+
+| Repository secret | Content |
+|---|---|
+| `SIGNING_KEY` | upload keystore, base64 (`base64 -w 0 jordan.keystore`) |
+| `KEY_ALIAS`, `KEY_STORE_PASSWORD`, `KEY_PASSWORD` | its credentials |
+| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | JSON key of a Play service account holding *Release manager* on the app |
+
+The Play upload is the **last** step, after the GitHub Release: a refusal on the Play side — an
+incomplete listing, a `versionCode` already used — then costs the publication only, and the signed
+APK and AAB are attached regardless. And the step is skipped, with a notice rather than a failure,
+when `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` is not set: the GitHub Release half of the workflow works on
+a repository that has no Play account behind it.
+
+`versionCode` must be **strictly greater** than every code already uploaded to Play, the first
+manual upload included. `github.run_number` only counts the runs of this workflow, so an AAB built
+by hand with a higher code silently blocks the next tag — read the highest code in Play Console
+before the first automated release.
 
 ---
 

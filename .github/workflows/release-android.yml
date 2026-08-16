@@ -61,3 +61,32 @@ jobs:
           files: |
             ${{ steps.sign_apk.outputs.signedReleaseFile }}
             ${{ steps.sign_aab.outputs.signedReleaseFile }}
+
+      # The upload runs after the release so that a refusal on the Play side — a versionCode
+      # already used, a listing left incomplete — costs the Play publication only, and not the
+      # signed artifacts, which stay attached to the GitHub Release either way.
+      - name: Check for Google Play credentials
+        id: play_credentials
+        env:
+          SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$SERVICE_ACCOUNT_JSON" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is not set - skipping the Google Play upload."
+          fi
+
+      - name: Publish AAB to Google Play (internal track)
+        if: steps.play_credentials.outputs.configured == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.mara.jordan.app
+          releaseFiles: ${{ steps.sign_aab.outputs.signedReleaseFile }}
+          # The APK is for sideloading from the GitHub Release; Play takes the bundle only.
+          track: internal
+          status: completed
+          # minifyEnabled is on, so without this file the stack traces in Play Console are
+          # obfuscated names.
+          mappingFile: app/android/app/build/outputs/mapping/release/mapping.txt
