@@ -144,3 +144,66 @@ def test_docs_can_be_withheld_from_a_debug_server(unset, monkeypatch):
     monkeypatch.setenv('JORDAN_DEBUG', 'true')
     monkeypatch.setenv('JORDAN_ENABLE_DOCS', 'false')
     assert api.docs_enabled() is False
+
+
+# ── Validating settings without starting a server ─────────────────────────────
+
+# `jordan_server.py --check` exists because the alternative is finding out from a
+# deployment: a bad setting stops the boot, the platform keeps the previous
+# version serving, and its logs describe *that* configuration. The explicit
+# refusal is written where nobody is looking, so it has to be reachable before
+# deploying.
+
+
+def _check_configuration_of(**settings):
+    env = dict(
+        os.environ,
+        REDIS_HOST='localhost',
+        REDIS_PORT='6379',
+        REDIS_PASSWORD='test_password',
+        REDIS_SSL='',
+        JORDAN_DEBUG='',
+        JORDAN_ENABLE_DOCS='',
+        JORDAN_ADMIN_TOKEN='',
+        JORDAN_ADMIN_USERS='',
+        JORDAN_REGISTRATION_KEY='',
+    )
+    env.update(settings)
+    return subprocess.run([sys.executable, 'jordan_server.py', '--check'], cwd=SERVER_DIR,
+                          env=env, capture_output=True, text=True, check=False)
+
+
+_ONE_ACCOUNT = '{"login": "alice", "passwordHash": "pbkdf2:sha256:1000$x$y", "role": "operator"}'
+
+
+def test_check_accepts_a_usable_configuration():
+    checked = _check_configuration_of(JORDAN_ADMIN_USERS=f"[{_ONE_ACCOUNT}]")
+    assert checked.returncode == 0, checked.stderr
+    assert 'Configuration is usable' in checked.stdout
+
+
+def test_check_starts_no_server():
+    """It has to return, not serve — otherwise it is not something you can put
+    in front of a deployment."""
+    checked = _check_configuration_of(JORDAN_ADMIN_USERS=f"[{_ONE_ACCOUNT}]")
+    assert 'Starting API' not in checked.stdout
+
+
+@pytest.mark.parametrize('broken, expected', [
+    ({'JORDAN_ADMIN_USERS': _ONE_ACCOUNT}, 'wrap it in brackets'),   # the array forgotten
+    ({'JORDAN_ADMIN_USERS': 'alice:secret'}, 'not valid JSON'),
+    ({'JORDAN_REGISTRATION_KEY': '{"unnamed": ""}'}, 'carries no key'),
+    ({'REDIS_SSL': 'oui'}, 'is not a boolean'),
+])
+def test_check_refuses_what_would_stop_a_deployment(broken, expected):
+    """Every setting whose failure mode is a container that never takes traffic."""
+    checked = _check_configuration_of(**broken)
+    assert checked.returncode != 0
+    assert expected in checked.stderr
+
+
+def test_check_reports_error_messages_a_console_can_print():
+    """These reach a Windows console through --check and a log stream through the
+    boot. The project keeps them ASCII for that reason."""
+    checked = _check_configuration_of(JORDAN_ADMIN_USERS=_ONE_ACCOUNT)
+    assert checked.stderr.isascii()

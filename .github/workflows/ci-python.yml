@@ -32,6 +32,57 @@ jobs:
         run: pytest tests/
         working-directory: server
 
+  # The image is otherwise only built when a server/v* tag is pushed, which is a
+  # late moment to discover that the start command does not start anything. This
+  # job runs the "before going live" checklist of server/RAILWAY_DEPLOYMENT.md
+  # against a real container.
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # plain `docker build`, not build-push-action: nothing is pushed here, and
+      # the image has to land in the local daemon for the steps below to run it
+      - name: Build the server image
+        run: docker build -t jordan-server:ci server/
+
+      - name: It runs as an unprivileged user
+        run: test "$(docker run --rm jordan-server:ci whoami)" = jordan
+
+      - name: It carries no .env
+        run: docker run --rm jordan-server:ci sh -c 'test ! -e /app/.env'
+
+      # No Redis here on purpose: the client is built at import but connects on
+      # the first command, and none of these three routes issues one.
+      - name: Start it
+        run: |
+          docker run -d --name jordan-ci -p 8080:8080 \
+            -e REDIS_HOST=redis.invalid -e REDIS_PORT=6379 -e REDIS_PASSWORD=ci \
+            -e JORDAN_ADMIN_TOKEN=ci-token \
+            jordan-server:ci
+          for _ in $(seq 1 30); do
+            curl -sf http://localhost:8080/jordan/hello >/dev/null && exit 0
+            sleep 1
+          done
+          echo "the server never answered its health check"
+          docker logs jordan-ci
+          exit 1
+
+      - name: Admin is closed and the API is not mapped
+        run: |
+          status() { curl -s -o /dev/null -w '%{http_code}' "http://localhost:8080$1"; }
+          test "$(status /jordan/admin/clients)" = 401
+          test "$(status /jordan/swagger.json)" = 404
+          test "$(status /jordan/swagger-ui)" = 404
+
+      - name: Show what it reported at startup
+        if: always()
+        run: docker logs jordan-ci || true
+
+      - name: Stop it
+        if: always()
+        run: docker rm -f jordan-ci || true
+
   test-library:
     runs-on: ubuntu-latest
     steps:

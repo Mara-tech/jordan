@@ -1,0 +1,22 @@
+# What `railway up` uploads. The build then applies .dockerignore on top, so
+# both have to exclude .env: this one keeps the secret off the platform, the
+# other keeps it out of the image.
+
+# Secrets — on Railway they are variables, never files
+.env
+.env.*
+!.env.example
+
+# Build and editor noise
+.pytest_cache/
+.ruff_cache/
+.idea/
+*.iml
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Development-only material
+tests/
+mock.py
+deploy-railway.ps1

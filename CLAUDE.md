@@ -57,8 +57,14 @@ sample/             Runnable examples (numbered 01–04)
 cd server
 cp .env.example .env          # fill in Redis credentials
 pip install -r requirements.txt
+python jordan_server.py --check   # validate the settings, start nothing
 python jordan_server.py
 ```
+
+`--check` runs the same validation the boot runs (it is the import of `api` that performs it) and
+exits non-zero with the reason. It exists because a bad declaration stops the boot on purpose: a
+platform then keeps the previous deployment serving, and *that* one answers the URL and writes the
+logs, so the explicit refusal ends up in the log stream of a container that is not running.
 
 Server listens at `http://localhost:5000/jordan`.  
 Swagger UI: `http://localhost:5000/jordan/swagger-ui` — served only when `JORDAN_ENABLE_DOCS` (or
@@ -70,6 +76,13 @@ In production the same app runs under gunicorn, which never calls `start_api()`:
 cd server && gunicorn api:app --bind 0.0.0.0:${PORT:-5000} --workers 2
 ```
 
+[server/Dockerfile](server/Dockerfile) runs that command as the unprivileged `jordan` user and is
+the single source of the start command — [server/railway.json](server/railway.json) deliberately
+declares no `startCommand`, which would shadow it. Secrets are platform variables, never files:
+`server/.dockerignore` (the build context is `server/`, so the root one does not apply) and
+`server/.railwayignore` both exclude `.env`. Deployment guide:
+[server/RAILWAY_DEPLOYMENT.md](server/RAILWAY_DEPLOYMENT.md).
+
 **Required environment variables** (in `server/.env`):
 
 | Variable | Description |
@@ -77,6 +90,7 @@ cd server && gunicorn api:app --bind 0.0.0.0:${PORT:-5000} --workers 2
 | `REDIS_HOST` | Redis hostname or IP |
 | `REDIS_PORT` | Redis port (default 6379) |
 | `REDIS_PASSWORD` | Redis auth password |
+| `REDIS_SSL` | Encrypt the connection to Redis (default false; an unreadable value stops the server) |
 | `JORDAN_ADMIN_USERS` | Operator accounts guarding `/jordan/admin/*` (JSON array) |
 | `JORDAN_ADMIN_TOKEN` | Shared bootstrap token for `/jordan/admin/*` |
 | `JORDAN_ADMIN_SESSION_TTL` | Admin session lifetime in seconds (default 43200) |

@@ -54,6 +54,23 @@ documentation.
 | `http://<host>:5000/jordan/client/` | Passive client endpoints |
 | `http://<host>:5000/jordan/admin/` | Active client / admin endpoints |
 
+### Checking the settings without starting a server
+
+```bash
+JORDAN_ADMIN_USERS='[{"login": "alice", "passwordHash": "...", "role": "operator"}]' \
+  python jordan_server.py --check
+```
+
+Exits `0` and says so when the environment would let a server start, non-zero with the reason when
+it would not. It runs the same validation the boot does — importing the app is what performs it —
+and serves nothing.
+
+Worth running before setting a variable on a platform, because of how the failure otherwise
+presents itself: a declaration that cannot be honoured stops the boot on purpose, the platform
+keeps the previous deployment serving, and *that* one answers the URL and writes the logs. The
+explicit refusal exists, in the dead deployment's log stream, while the live one reports the
+configuration it started with — often the opposite of what you just set.
+
 ### In production
 
 `jordan_server.py` starts Flask's development server, which is single-process and not written to
@@ -69,6 +86,12 @@ gunicorn api:app --bind 0.0.0.0:${PORT:-5000} --workers 2
 are checked and reported when the module is *imported*, and why `JORDAN_DEBUG` below has no
 meaning under gunicorn: there is no development server to put a debugger in.
 
+[`Dockerfile`](Dockerfile) runs that same command, as an unprivileged `jordan` user that owns
+none of the files it serves. It carries no secret: everything in the table below is passed as an
+environment variable at run time, and [`.dockerignore`](.dockerignore) keeps `.env` out of the
+image — being gitignored only stops it reaching the repository, not a `COPY . .`. See
+[RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md) for a deployment end to end.
+
 ## Environment variables
 
 | Variable | Required | Description |
@@ -76,6 +99,7 @@ meaning under gunicorn: there is no development server to put a debugger in.
 | `REDIS_HOST` | Yes | Redis hostname or IP |
 | `REDIS_PORT` | Yes | Redis port (typically `6379`) |
 | `REDIS_PASSWORD` | Yes | Redis authentication password |
+| `REDIS_SSL` | No | Encrypt the connection to Redis (default `false`, see [Reaching Redis](#reaching-redis)) |
 | `JORDAN_ADMIN_USERS` | Yes\* | JSON array of operator accounts guarding `/jordan/admin/*` |
 | `JORDAN_ADMIN_TOKEN` | Yes\* | Shared bootstrap token: full permissions, no named operator |
 | `JORDAN_ADMIN_SESSION_TTL` | No | Lifetime in seconds of a session token (default `43200`, 12 h) |
@@ -87,9 +111,51 @@ meaning under gunicorn: there is no development server to put a debugger in.
 
 \* at least one of the two — with neither, every admin request is rejected.
 
-Both booleans read `1`/`true`/`yes`/`on` and their opposites, in any case. A value that is neither
-falls back to the default, with a line in the log: a misspelled `true` must not hand out a
-debugger.
+The booleans read `1`/`true`/`yes`/`on` and their opposites, in any case. What an unreadable value
+costs depends on which way the default leans: `JORDAN_DEBUG` and `JORDAN_ENABLE_DOCS` fall back to
+their default with a line in the log, since that withholds something, while `REDIS_SSL` stops the
+server — falling back there would downgrade the connection to clear text without a word.
+
+## Reaching Redis
+
+`REDIS_SSL` is off by default, because that is the only value the `docker-compose.yml` stack can
+use: it starts a Redis on a private docker network which serves no certificate. The same goes for
+one on loopback.
+
+A managed instance — Redis Cloud, Upstash — is a different situation: it is reached over the
+internet, and every exchange with it opens with `REDIS_PASSWORD`, followed by the payloads this
+server stores. That is true of a laptop pointed at one as much as of a deployment, so the default
+being off is a convenience of the local stack, not a judgement that the link is safe. Turn it on
+there:
+
+```
+REDIS_SSL=true
+```
+
+The server certificate is verified against the system CA store. There is deliberately no setting to
+skip that check: a TLS connection that accepts any certificate proves nothing about who is on the
+other end.
+
+TLS is a property of the database as much as of the client: enable it in the provider's console
+first, on the same endpoint, then set the variable. Done in the other order, the handshake fails
+and the server says so in its logs — it never falls back to clear text, which is the point.
+
+Two things to check with your provider before assuming the variable is enough:
+
+- **the plan may not offer TLS at all.** On Redis Cloud it is available on paid Essentials plans and
+  on Pro; [the free 30 MB Essentials plan has no TLS](https://redis.io/docs/latest/operate/rc/security/database-security/tls-ssl/).
+  There, `REDIS_SSL=true` does not encrypt anything — it stops the connection from working.
+- **the certificate may not chain to a public CA.** Redis Cloud's `redis_ca.pem` bundle carries a
+  publicly trusted GlobalSign root *and* two self-signed Redis Cloud roots still in use. A database
+  presenting the latter fails verification against the system store, and the CA bundle has to be
+  handed to the client — which this server does not yet support.
+
+The server reports which of the two it opened at startup, beside what it accepts:
+
+```
+[INFO] Redis connection is encrypted
+[INFO] REDIS_SSL is off: the Redis password and everything this server stores travel in clear, ...
+```
 
 ## What the server exposes of itself
 
@@ -142,8 +208,12 @@ are stored hashed (pbkdf2-sha256, via Werkzeug) — never in clear text. Add an 
 
 ```bash
 python admin_identity.py bob <password> operator
-# prints: {"login": "bob", "passwordHash": "pbkdf2:sha256:...", "role": "operator"}
+# prints: [{"login": "bob", "passwordHash": "pbkdf2:sha256:...", "role": "operator"}]
 ```
+
+It prints the complete bracketed value first, then the bare entry to drop into an array that
+already has accounts in it. A lone account is still an array: pasted without its brackets, the
+declaration is refused and the server does not start.
 
 | Role | `read` | `send` | `delete` |
 |---|---|---|---|

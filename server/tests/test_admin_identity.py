@@ -84,6 +84,37 @@ def test_unusable_declaration_stops_the_server_from_starting(monkeypatch, raw):
         identity.load_operators()
 
 
+def test_a_lone_account_pasted_without_brackets_says_so(monkeypatch):
+    """The slip someone actually makes when declaring their first operator. The
+    refusal has to name the fix, because the symptom is read on a deployment that
+    never started — the previous one keeps serving and keeps logging that no
+    account is declared, which points nowhere near the brackets."""
+    monkeypatch.setenv('JORDAN_ADMIN_USERS', json.dumps(account('alice')))
+    with pytest.raises(ConfigurationError) as refused:
+        identity.load_operators()
+    reason = str(refused.value)
+    assert 'wrap it in brackets' in reason
+    assert 'alice' in reason  # the account it is talking about
+
+
+# ── The helper that produces those entries ────────────────────────────────────
+
+
+def test_the_helper_prints_a_value_that_can_be_pasted_as_is(capsys, monkeypatch):
+    """It used to print the bare object under 'add this to the JSON array',
+    which for a first account is an array that does not exist yet. What it prints
+    first must be a declaration that boots, so feed it straight back in."""
+    assert identity._main(['admin_identity.py', 'alice', 'pwd', 'operator']) == 0
+    printed = capsys.readouterr().out
+    offered = printed[printed.index('['):printed.index(']') + 1]
+
+    monkeypatch.setenv('JORDAN_ADMIN_USERS', offered)
+    loaded = identity.load_operators()
+    assert list(loaded) == ['alice']
+    assert loaded['alice']['role'] == identity.ROLE_OPERATOR
+    assert identity.authenticate('alice', 'pwd')['permissions'] == ['read', 'send']
+
+
 def test_account_without_password_hash_stops_the_server(monkeypatch):
     declare(monkeypatch, {'login': 'alice', 'role': 'admin'}, account('bob'))
     with pytest.raises(ConfigurationError):

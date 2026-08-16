@@ -90,6 +90,13 @@ def load_operators():
     except ValueError as invalid_json:
         raise ConfigurationError(
             f"{JORDAN_ADMIN_USERS_ENV_VAR} is not valid JSON") from invalid_json
+    if isinstance(declared, dict):
+        # the common slip: one operator to declare, so the entry printed by
+        # `python admin_identity.py` gets pasted as it stands
+        raise ConfigurationError(
+            f"{JORDAN_ADMIN_USERS_ENV_VAR} holds a single account rather than an array. A lone "
+            f"account is still an array, so wrap it in brackets: "
+            f'[{{"login": "{declared.get("login", "...")}", "passwordHash": ..., "role": ...}}]')
     if not isinstance(declared, list):
         raise ConfigurationError(
             f"{JORDAN_ADMIN_USERS_ENV_VAR} must be a JSON array of accounts, as "
@@ -105,7 +112,7 @@ def load_operators():
         if not login or not entry.get('passwordHash'):
             raise ConfigurationError(
                 f"{JORDAN_ADMIN_USERS_ENV_VAR}: account #{position} has no login or no "
-                f"passwordHash — produce one with 'python admin_identity.py <login> <password>'")
+                f"passwordHash. Produce one with 'python admin_identity.py <login> <password>'")
         if role not in ROLE_PERMISSIONS:
             raise ConfigurationError(
                 f"{JORDAN_ADMIN_USERS_ENV_VAR}: unknown role '{role}' for '{login}', "
@@ -163,9 +170,12 @@ def _main(argv):
     if role not in ROLE_PERMISSIONS:
         print(f"unknown role '{role}', expected one of {', '.join(ROLE_PERMISSIONS)}")
         return 2
-    entry = {'login': login, 'passwordHash': hash_password(password), 'role': role}
-    print(f"Add this entry to the {JORDAN_ADMIN_USERS_ENV_VAR} JSON array:\n")
-    print(json.dumps(entry))
+    entry = json.dumps({'login': login, 'passwordHash': hash_password(password), 'role': role})
+    print(f"{JORDAN_ADMIN_USERS_ENV_VAR} declaring this account alone, to paste as is:\n")
+    print(f"[{entry}]")
+    print("\nTo declare it beside accounts already there, add this entry inside the "
+          "existing brackets:\n")
+    print(entry)
     return 0
 
 

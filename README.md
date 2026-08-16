@@ -92,6 +92,7 @@ Set these in `server/.env` before starting the server:
 | `REDIS_HOST` | Redis hostname or IP | — |
 | `REDIS_PORT` | Redis port | `6379` |
 | `REDIS_PASSWORD` | Redis auth password | — |
+| `REDIS_SSL` | Encrypt the connection to Redis — for a managed instance reached over the internet, on a plan that offers TLS | `false` |
 | `JORDAN_ADMIN_USERS` | Operator accounts guarding `/jordan/admin/*` (JSON array) | — |
 | `JORDAN_ADMIN_TOKEN` | Shared bootstrap token for `/jordan/admin/*` | — |
 | `JORDAN_ADMIN_SESSION_TTL` | Lifetime of an admin session token, in seconds | `43200` (12 h) |

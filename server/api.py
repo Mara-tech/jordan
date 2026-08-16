@@ -22,22 +22,21 @@ from time import time
 #--------------------
 app = Flask(__name__)
 
-TRUE_VALUES = ('1', 'true', 'yes', 'on')
-FALSE_VALUES = ('0', 'false', 'no', 'off')
-
-
 def _bool_env(var_name, default):
     """Boolean setting, falling back to its default when the variable is unset or
-    does not hold a boolean — a typo must not read as a permission granted."""
-    raw = os.environ.get(var_name, '').strip().lower()
+    does not hold a boolean — a typo must not read as a permission granted.
+
+    Both settings read this way default to off, so the fallback withholds
+    something; REDIS_SSL, whose default is the unencrypted side, refuses to start
+    instead (see rejson_interface.redis_ssl_enabled)."""
+    raw = os.environ.get(var_name, '').strip()
     if not raw:
         return default
-    if raw in TRUE_VALUES:
-        return True
-    if raw in FALSE_VALUES:
-        return False
-    log.error(f"{var_name}='{raw}' is not a boolean, falling back to {default}")
-    return default
+    value = parse_bool(raw)
+    if value is None:
+        log.error(f"{var_name}='{raw}' is not a boolean, falling back to {default}")
+        return default
+    return value
 
 
 def _int_env(var_name, default):
@@ -226,7 +225,11 @@ def check_configuration():
     Called at import, not from start_api(): under gunicorn nothing calls
     start_api(), and production is exactly where the check matters. A container
     that dies here never passes its health check, so the bad deployment does not
-    take traffic — the previous one keeps serving."""
+    take traffic — the previous one keeps serving.
+
+    REDIS_SSL is absent from this list on purpose: rejson_interface reads it to
+    build the connection, so it has already stopped the import above by the time
+    this runs."""
     registration_keys()
     identity.load_operators()
 
@@ -257,6 +260,11 @@ def log_configuration():
     else:
         log.info(f"{JORDAN_ENABLE_DOCS_ENV_VAR} is off: neither Swagger UI nor the OpenAPI spec "
                  f"behind it is served")
+    if redis_ssl_enabled():
+        log.info("Redis connection is encrypted")
+    else:
+        log.info(f"{REDIS_SSL_ENV_VAR} is off: the Redis password and everything this server "
+                 f"stores travel in clear, which only a private network makes acceptable")
 
 
 def _require_registration_key():

@@ -8,7 +8,40 @@ from pathlib import Path as FilePath
 from secrets import token_hex
 from dotenv import load_dotenv
 
+from jordan_constants import ConfigurationError, REDIS_SSL_ENV_VAR, parse_bool
+
 load_dotenv(FilePath(__file__).parent / '.env')
+
+
+def redis_ssl_enabled():
+    """Whether the connection to Redis is encrypted.
+
+    Off by default, because that is the only value the development stack can
+    use: it talks to a Redis on the same docker network, which serves no
+    certificate. A managed instance (Redis Cloud, Upstash) is reached over the
+    internet instead, and everything this server sends it starts with the Redis
+    password, so REDIS_SSL=true belongs in any such deployment — including a
+    laptop pointed at one, which is the case this default reads wrong.
+
+    Two provider-side conditions decide whether it can be turned on at all, both
+    in server/README.md: the plan has to offer TLS (Redis Cloud's free tier does
+    not), and the certificate has to chain to a public CA, since ssl_ca_certs is
+    not wired up here.
+
+    A value that reads as neither yes nor no stops the server, unlike the
+    exposure switches which fall back to their default: falling back here would
+    mean a typo silently downgrading the connection to clear text, and nothing
+    about a working server would say so."""
+    raw = os.environ.get(REDIS_SSL_ENV_VAR, '').strip()
+    if not raw:
+        return False
+    enabled = parse_bool(raw)
+    if enabled is None:
+        raise ConfigurationError(
+            f"{REDIS_SSL_ENV_VAR}='{raw}' is not a boolean: say true or false rather than "
+            f"leave the connection to Redis to a guess")
+    return enabled
+
 
 rj = redis.Redis(
     host=os.environ['REDIS_HOST'],
@@ -17,6 +50,11 @@ rj = redis.Redis(
     db=0,
     password=os.environ['REDIS_PASSWORD'],
     socket_timeout=None,
+    # verifies the server certificate against the system CA store, which is what
+    # a managed provider presents; redis-py's default, restated because turning
+    # it off is the usual way a TLS connection stops proving anything
+    ssl=redis_ssl_enabled(),
+    ssl_cert_reqs='required',
 )
 
 #Jordan keywords

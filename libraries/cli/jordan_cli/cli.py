@@ -58,12 +58,13 @@ def register(
     The registration key, when the server asks for one, is only needed here: the
     session file then holds the client token the other commands use.
     """
-    instance = jordan.register(server, client_name=name, registration_key=registration_key)
+    trailing_slash_server = server.rstrip("/") + "/"
+    instance = jordan.register(trailing_slash_server, client_name=name, registration_key=registration_key)
     if instance is None:
         typer.echo("Registration failed. Check the server URL and try again.", err=True)
         raise typer.Exit(1)
     session = {
-        "server": server,
+        "server": trailing_slash_server,
         "taskId": instance.task_id,
         "authToken": instance.auth_token,
         "name": name,

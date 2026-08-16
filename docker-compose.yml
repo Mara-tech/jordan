@@ -21,6 +21,10 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_PASSWORD: jordan_dev
+      # No TLS: the two containers talk over a private docker network, and this
+      # Redis serves no certificate. A managed instance reached over the
+      # internet is the case that needs REDIS_SSL=true.
+      REDIS_SSL: "false"
       # Local development token for /jordan/admin/* — override for any real deployment
       JORDAN_ADMIN_TOKEN: ${JORDAN_ADMIN_TOKEN:-jordan_dev_admin_token}
       # Named operator accounts (JSON array); build entries with:

@@ -1,0 +1,25 @@
+# The build context is server/, so this file is the one Docker reads — the
+# .dockerignore at the repository root applies to builds run from there and
+# would not keep server/.env out of an image built here.
+
+# Secrets. `.env` is gitignored, which stops it reaching the repository and
+# nothing else: `COPY . .` would still bake it into a layer, where it survives
+# every later variable change.
+.env
+.env.*
+!.env.example
+
+# Build and editor noise
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.idea/
+*.iml
+
+# Development-only material: nothing serves a request from it
+tests/
+mock.py
+deploy-railway.ps1
