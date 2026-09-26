@@ -61,6 +61,9 @@ j = jordan.register('http://localhost:5000/jordan/')
 # Send a status update
 j.send_status('Program started.')
 
+# Send a named value, drawn as a curve by the app (step is optional: time otherwise)
+j.send_metric('loss', 0.42, step=3)
+
 # Read an incoming message (non-blocking)
 msg = j.read_message()
 if msg:
@@ -79,6 +82,7 @@ python sample/01-simple-message-status.py   # register → status loop → read 
 python sample/02-custom-actions.py          # custom actions with typed parameters
 python sample/03-async.py                   # async (non-blocking) message reading
 python sample/04-multi-tasks.py             # multiple sub-tasks in parallel
+python sample/05-metrics.py                 # named values drawn as curves (a simulated training)
 ```
 
 ---

@@ -46,7 +46,7 @@ libraries/
 
 app/android/        Android active-client app (Gradle)
 
-sample/             Runnable examples (numbered 01–04)
+sample/             Runnable examples (numbered 01–05)
 ```
 
 ---
@@ -209,6 +209,7 @@ python sample/01-simple-message-status.py   # register → status loop → read 
 python sample/02-custom-actions.py          # custom actions with typed parameters
 python sample/03-async.py                   # async (non-blocking) message reading
 python sample/04-multi-tasks.py             # multiple sub-tasks in parallel
+python sample/05-metrics.py                 # named values drawn as curves (a simulated training)
 ```
 
 ---
@@ -240,6 +241,7 @@ Key rules:
 |---|---|
 | `JordanActionsDefinition` | List of actions a passive client declares at registration |
 | `JordanStatus` | Status update sent by passive client |
+| `JordanMetricSeries` | Values of one metric name sent by one task, read by `GET /admin/{taskId}/metrics` |
 | `JordanMessage` | Message sent by active client to passive client |
 | `JordanClientModel` | Client registration record |
 | `JordanTaskModel` | Sub-task record |
@@ -251,7 +253,28 @@ FAILURE_STATUS_TYPE  = 'failure'
 SUCCESS_STATUS_TYPE  = 'success'
 GENERAL_STATUS_TYPE  = 'general'
 PROGRESS_STATUS_TYPE = 'progress'
+METRIC_STATUS_TYPE   = 'metric'
 ```
+
+### Metrics
+
+A `metric` status is a status like the others — stored in the task's log, propagated to its
+parent tasks, deleted with it — whose `metric` object (`name`, `value`, optional `step`) makes it a
+point of a curve: one curve per task and name. `send_metric(name, value, step=None)` in
+`jordan_py` (`sendMetric` in `jordan-client`, `jordan metric` in the CLI) sends one.
+
+- **Validation** (`_prepared_status` in [server/api.py](server/api.py)) — a metric that cannot be
+  drawn is refused with `400`: empty or over-long name, a value or step that is not a finite
+  number. The four other types reach storage exactly as sent. A metric without a text gets one
+  (`held-out loss = 0.6648 (step 3)`), so every client reading statuses as log lines shows it.
+- **Storage** — besides `{taskId}_status`, the id goes into `{taskId}_metrics` for the task and
+  each ancestor; `GET /admin/{taskId}/metrics` reads that index, not the whole log, and groups it
+  into series (`read_metrics` / `group_metric_series` in `rejson_interface.py`).
+- **Not sent** — the libraries skip a NaN or infinite value instead of sending it: `requests`
+  refuses to encode one and would raise in the middle of the loop reporting it.
+- **Drawn** — the Android app's *Metrics* tab (`MetricsFragment`, MPAndroidChart): the operator
+  checks the names to draw and picks steps or time for the x axis; steps are disabled while a
+  checked series holds a point without one (`MetricChartSettings`).
 
 ### Message state machine
 
@@ -310,6 +333,8 @@ Each component has its own prefixed tag. Only the matching workflow fires.
    ```bash
    git tag jordan_cli/v1.0.0 && git push origin jordan_cli/v1.0.0
    ```
+   `jordan_cli` declares the `jordan_py` version it needs (`jordan_py>=2.2.0` for `jordan metric`):
+   publish that `jordan_py` first, or the new CLI installs against nothing.
 
 The same pattern applies to `server` with its own prefix.
 
