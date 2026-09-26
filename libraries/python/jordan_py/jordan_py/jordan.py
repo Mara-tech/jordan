@@ -1,6 +1,7 @@
 from time import time
 from typing import Any, Callable, Dict, List, Optional
 import json
+import math
 import os
 import requests
 import threading
@@ -23,6 +24,7 @@ FAILURE_STATUS_TYPE = 'failure'
 SUCCESS_STATUS_TYPE = 'success'
 GENERAL_STATUS_TYPE = 'general'
 PROGRESS_STATUS_TYPE = 'progress'
+METRIC_STATUS_TYPE = 'metric'
 DEFAULT_STATUS_TYPE = GENERAL_STATUS_TYPE
 
 CLIENT_NAMESPACE = 'client/'
@@ -189,16 +191,38 @@ class JordanInstance:
     def send_failure_status(self, status: str, **kwargs: Any) -> Optional[str]:
         return self.send_typed_status(FAILURE_STATUS_TYPE, status, **kwargs)
 
-    def send_typed_status(self, status_type: str, status: str, async_call: bool = False, async_callback: Optional[Callable[[str], None]] = None, **kwargs: Any) -> Optional[str]:
-        if async_call or async_callback:
-            threading.Thread(target=self._exec_send_typed_status, args=[status_type, status, async_callback]).start()
-            return None
-        return self._exec_send_typed_status(status_type, status, **kwargs)
+    def send_metric(self, name: str, value: float, step: Optional[float] = None, async_call: bool = False, async_callback: Optional[Callable[[str], None]] = None, **kwargs: Any) -> Optional[str]:
+        """Send a named value, which an active client draws as a curve: one curve per name.
 
-    def _exec_send_typed_status(self, status_type: str, status: str, async_callback: Optional[Callable[[str], None]] = None, **kwargs: Any) -> Optional[str]:
+        ``step`` is the progress point the value belongs to (the epoch, the iteration). It is
+        optional: without it, the value is placed in time. The status also carries a readable
+        text, so a client reading statuses as log lines shows the value as well.
+
+        Returns the status id, or None when the value was not sent or was refused. A value or
+        step that is not a finite number (NaN, infinity — what a diverging training reports) is
+        not sent at all: no curve can hold it, and JSON cannot carry it, so the request would
+        raise in the middle of the loop that sends it."""
+        metric: Dict[str, Any] = {'name': name, 'value': _json_number(value)}
+        if step is not None:
+            metric['step'] = _json_number(step)
+        if not all(math.isfinite(number) for number in (metric['value'], metric.get('step', 0))):
+            return None
+        text = f"{name} = {metric['value']}" + (f" (step {metric['step']})" if step is not None else '')
+        payload = {'type': METRIC_STATUS_TYPE, 'status': text, 'metric': metric}
+        return self._send_status_payload(payload, async_call, async_callback, **kwargs)
+
+    def send_typed_status(self, status_type: str, status: str, async_call: bool = False, async_callback: Optional[Callable[[str], None]] = None, **kwargs: Any) -> Optional[str]:
+        return self._send_status_payload({'type': status_type, 'status': status}, async_call, async_callback, **kwargs)
+
+    def _send_status_payload(self, payload: Dict[str, Any], async_call: bool, async_callback: Optional[Callable[[str], None]], **kwargs: Any) -> Optional[str]:
+        if async_call or async_callback:
+            threading.Thread(target=self._exec_send_status, args=[payload, async_callback]).start()
+            return None
+        return self._exec_send_status(payload, **kwargs)
+
+    def _exec_send_status(self, payload: Dict[str, Any], async_callback: Optional[Callable[[str], None]] = None, **kwargs: Any) -> Optional[str]:
         STATUS_ENDPOINT = self.base_url + STATUS_RESOURCE.format(self.task_id)
-        timestamp = int(time())
-        payload = {'type': status_type, 'status': status, 'timestamp': timestamp}
+        payload = dict(payload, timestamp=int(time()))
         r = requests.post(STATUS_ENDPOINT, json=payload, headers=self._auth_headers(), **kwargs)
 
         if r.status_code == 200:
@@ -252,6 +276,14 @@ class JordanTaskInstance(JordanInstance):
     def fatal(self, exception: Exception, **kwargs: Any) -> None:
         self.send_failure_status(str(exception))
         self.update_task(TASK_STATE_ERROR)
+
+
+def _json_number(value: Any) -> Any:
+    """A number the JSON encoder can write. Numpy and torch scalars — what a training loop
+    usually holds — are neither int nor float to it, and would fail the request."""
+    if isinstance(value, (int, float)):
+        return value
+    return float(value)
 
 
 def _registration_headers(registration_key: Optional[str]) -> Dict[str, str]:

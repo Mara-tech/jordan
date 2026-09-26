@@ -123,6 +123,40 @@ def progress(
         raise typer.Exit(1)
 
 
+def _number(text: str) -> float:
+    """An int when the text is one, so '3' stays a step 3 rather than 3.0."""
+    try:
+        return int(text)
+    except ValueError:
+        pass
+    try:
+        return float(text)
+    except ValueError:
+        raise typer.BadParameter(f"'{text}' is not a number")
+
+
+@app.command()
+def metric(
+    name: str = typer.Argument(..., help="Metric name, one curve per name (e.g. 'held-out loss')"),
+    value: str = typer.Argument(..., help="The value (a negative one goes after --: jordan metric -- delta -0.5)"),
+    step: Optional[str] = typer.Option(
+        None, "--step", help="Progress point the value belongs to (an epoch, an iteration); placed in time when omitted"
+    ),
+    task_id: Optional[int] = _TASK_ID_OPTION,
+) -> None:
+    """Send a named value, drawn as a curve by active clients."""
+    number = _number(value)
+    step_number = _number(step) if step is not None else None
+    session = _load_session()
+    instance = _make_instance_for(session, task_id)
+    status_id = instance.send_metric(name, number, step=step_number)
+    if status_id:
+        typer.echo(status_id)
+    else:
+        typer.echo("Failed to send metric.", err=True)
+        raise typer.Exit(1)
+
+
 def _print_message(msg: jordan.JordanMessage) -> None:
     output = {
         "messageId": msg.message_id,

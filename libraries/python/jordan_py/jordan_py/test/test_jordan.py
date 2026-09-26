@@ -210,6 +210,67 @@ class TestJordanInstance(unittest.TestCase):
         payload = json.loads(responses_lib.calls[0].request.body)
         self.assertEqual(payload["type"], jordan.FAILURE_STATUS_TYPE)
 
+    def _sent_metric(self, *args, **kwargs):
+        responses_lib.add(
+            responses_lib.POST,
+            _url(f"client/{TASK_ID}/status"),
+            json={"statusId": "metric-001"},
+            status=200,
+        )
+        status_id = self._make_instance().send_metric(*args, **kwargs)
+        return status_id, json.loads(responses_lib.calls[0].request.body)
+
+    @responses_lib.activate
+    def test_send_metric_carries_name_value_and_step(self):
+        status_id, payload = self._sent_metric("held-out loss", 0.6648, step=3)
+        self.assertEqual(status_id, "metric-001")
+        self.assertEqual(payload["type"], jordan.METRIC_STATUS_TYPE)
+        self.assertEqual(payload["metric"], {"name": "held-out loss", "value": 0.6648, "step": 3})
+        self.assertIsInstance(payload["timestamp"], int)
+
+    @responses_lib.activate
+    def test_send_metric_reads_as_a_log_line(self):
+        """A client that knows nothing of metrics shows the value as text."""
+        _, payload = self._sent_metric("held-out loss", 0.6648, step=3)
+        self.assertEqual(payload["status"], "held-out loss = 0.6648 (step 3)")
+
+    @responses_lib.activate
+    def test_send_metric_without_step(self):
+        _, payload = self._sent_metric("throughput", 120)
+        self.assertEqual(payload["metric"], {"name": "throughput", "value": 120})
+        self.assertEqual(payload["status"], "throughput = 120")
+
+    @responses_lib.activate
+    def test_send_metric_step_zero_is_sent(self):
+        _, payload = self._sent_metric("loss", 0.7, step=0)
+        self.assertEqual(payload["metric"]["step"], 0)
+
+    @responses_lib.activate
+    def test_send_metric_accepts_scalars_of_numeric_libraries(self):
+        """numpy.float32 or a torch scalar: not a float to the JSON encoder."""
+        class Scalar:
+            def __init__(self, value):
+                self.value = value
+
+            def __float__(self):
+                return self.value
+
+        _, payload = self._sent_metric("loss", Scalar(0.25), step=Scalar(4.0))
+        self.assertEqual(payload["metric"], {"name": "loss", "value": 0.25, "step": 4.0})
+
+    @responses_lib.activate
+    def test_send_metric_refused_returns_none(self):
+        responses_lib.add(responses_lib.POST, _url(f"client/{TASK_ID}/status"), status=400)
+        self.assertIsNone(self._make_instance().send_metric("", 0.5))
+
+    @responses_lib.activate
+    def test_send_metric_skips_what_no_curve_can_hold(self):
+        """A diverging training reports NaN: the loop sending it must not raise."""
+        instance = self._make_instance()
+        for value, step in ((float("nan"), None), (float("inf"), 3), (0.5, float("nan"))):
+            self.assertIsNone(instance.send_metric("loss", value, step=step))
+        self.assertEqual(len(responses_lib.calls), 0)
+
     @responses_lib.activate
     def test_send_status_failure_returns_none(self):
         responses_lib.add(responses_lib.POST, _url(f"client/{TASK_ID}/status"), status=500)

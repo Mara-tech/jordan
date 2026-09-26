@@ -71,3 +71,18 @@ May be easier to understand and analyze statuses (in a client app which allows f
         dessert_task.send_progress(50)
         dessert_task.send_success_status('Dessert is ready')
         dessert_task.send_typed_status('eaten', 'Dessert has been eaten by Michael')
+
+### Metric
+A named value, which an active client (the Android app, in its *Metrics* tab) draws as a curve:
+one curve per name. `step` is the progress point the value belongs to — the epoch, the
+iteration; without it, the value is placed in time.
+
+        for epoch in range(1, epochs + 1):
+            train_one_epoch()
+            training_task.send_metric('held-out loss', evaluate(), step=epoch)
+        training_task.send_metric('throughput', items_per_second)
+
+The value also reaches the log of statuses as a line of text (`held-out loss = 0.6648 (step 3)`).
+A value that is not a finite number (NaN, infinity) is not sent — `send_metric` returns `None` —
+so a diverging computation never makes the loop reporting it raise. Numpy and torch scalars are
+accepted as they are. See [sample 05](https://github.com/Mara-tech/jordan/blob/main/sample/05-metrics.py).
