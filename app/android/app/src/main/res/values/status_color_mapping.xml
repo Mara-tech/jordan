@@ -5,12 +5,14 @@
     <string name="jordan_status_type_failure">failure</string>
     <string name="jordan_status_type_general">general</string>
     <string name="jordan_status_type_progress">progress</string>
+    <string name="jordan_status_type_metric">metric</string>
 
     <array name="status_color_mapping">
         <item>@array/success_type_color_mapping</item>
         <item>@array/failure_type_color_mapping</item>
         <item>@array/general_type_color_mapping</item>
         <item>@array/progress_type_color_mapping</item>
+        <item>@array/metric_type_color_mapping</item>
         <item>@array/default_color_mapping</item>
     </array>
     <array name="success_type_color_mapping">
@@ -31,6 +33,11 @@
     <array name="progress_type_color_mapping">
         <item>@string/jordan_status_type_progress</item>
         <item>@color/status_type_progress</item>
+    </array>
+
+    <array name="metric_type_color_mapping">
+        <item>@string/jordan_status_type_metric</item>
+        <item>@color/status_type_metric</item>
     </array>
 
     <array name="default_color_mapping">

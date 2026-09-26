@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/metrics_settings_names"
+            style="@style/dialog_title" />
+
+        <!-- one filter_dialog_item per metric name, added by MetricsFragment -->
+        <LinearLayout
+            android:id="@+id/metrics_settings_names"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <TextView
+            android:id="@+id/metrics_settings_no_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/text_margin"
+            android:text="@string/no_metric_to_display"
+            android:textColor="@color/dark_grey"
+            android:visibility="gone" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/metrics_settings_axis"
+            style="@style/dialog_title" />
+
+        <RadioGroup
+            android:id="@+id/metrics_settings_axis"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <RadioButton
+                android:id="@+id/metrics_settings_axis_step"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/metrics_settings_axis_step"
+                style="@style/dialog_multi_selection_item" />
+
+            <RadioButton
+                android:id="@+id/metrics_settings_axis_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/metrics_settings_axis_time"
+                style="@style/dialog_multi_selection_item" />
+        </RadioGroup>
+
+        <TextView
+            android:id="@+id/metrics_settings_axis_step_unavailable"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/text_margin"
+            android:layout_marginEnd="@dimen/text_margin"
+            android:text="@string/metrics_settings_axis_step_unavailable"
+            android:textColor="@color/dark_grey"
+            android:visibility="gone" />
+
+        <CheckBox
+            android:id="@+id/metrics_settings_auto_refresh_cb"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/text_margin"
+            android:text="@string/status_parameters_auto_refresh_enable" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/text_margin"
+            android:text="@string/status_parameters_auto_refresh_period_title"
+            android:textSize="@dimen/dialog_title_size" />
+
+        <NumberPicker
+            android:id="@+id/metrics_settings_auto_refresh_period"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+    </LinearLayout>
+</ScrollView>

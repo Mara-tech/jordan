@@ -142,6 +142,23 @@
     <string name="message_author">Author</string>
     <string name="message_state">State</string>
 
+    <string name="client_interaction_metrics">Metrics</string>
+    <string name="metrics_settings">Chart settings</string>
+    <string name="metrics_settings_names">Metrics</string>
+    <string name="metrics_settings_axis">X axis</string>
+    <string name="metrics_settings_axis_step">Step</string>
+    <string name="metrics_settings_axis_time">Time</string>
+    <string name="metrics_settings_axis_step_unavailable">Step needs every value of the checked metrics to carry one</string>
+    <string name="metrics_loading">Loading metrics…</string>
+    <string name="no_metric_to_display">No metric sent by this task yet</string>
+    <string name="no_metric_shown">No metric checked: pick some in the chart settings</string>
+    <string name="metrics_refresh_failure">An error occurred while reading metrics</string>
+    <string name="metrics_refresh_failure_details">@string/details</string>
+    <string name="metrics_refresh_failure_details_dialog">Error while reading metrics</string>
+    <!-- curve label, value, then step and time (or time alone) -->
+    <string name="metric_marker">%1$s\n%2$s\n%3$s</string>
+    <string name="metric_marker_step">step %1$s · %2$s</string>
+
     <string name="action_definitions_refresh_failure_details">@string/details</string>
     <string name="action_definitions_refresh_failure">An error occurred while reading available actions</string>
     <string name="action_definitions_refresh_failure_details_dialog">Error while reading available actions</string>

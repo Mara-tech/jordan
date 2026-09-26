@@ -71,6 +71,9 @@ public class ClientInteractionsFragment extends InServerFragment {
                         } else if (itemId == R.id.client_interaction_messages_state) {
                             openFragment(MessagesStateFragment.newInstance(model));
                             return true;
+                        } else if (itemId == R.id.client_interaction_metrics) {
+                            openFragment(MetricsFragment.newInstance(model));
+                            return true;
                         }
                         return false;
                     }

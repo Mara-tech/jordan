@@ -23,6 +23,25 @@
     <color name="status_type_success">#4CAF50</color>
     <color name="status_type_failure">#E91E63</color>
     <color name="status_type_progress">#BCCFA65F</color>
+    <color name="status_type_metric">@color/metric_series_blue</color>
+
+    <!-- Curves of the metrics chart, in this order (Okabe-Ito: told apart with any colour vision) -->
+    <color name="metric_series_blue">#0072B2</color>
+    <color name="metric_series_vermillion">#D55E00</color>
+    <color name="metric_series_green">#009E73</color>
+    <color name="metric_series_purple">#CC79A7</color>
+    <color name="metric_series_orange">#E69F00</color>
+    <color name="metric_series_sky">#56B4E9</color>
+    <color name="metric_series_black">#000000</color>
+    <array name="metric_series_colors">
+        <item>@color/metric_series_blue</item>
+        <item>@color/metric_series_vermillion</item>
+        <item>@color/metric_series_green</item>
+        <item>@color/metric_series_purple</item>
+        <item>@color/metric_series_orange</item>
+        <item>@color/metric_series_sky</item>
+        <item>@color/metric_series_black</item>
+    </array>
 
 
 </resources>

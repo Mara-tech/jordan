@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/refresh_metrics"
+        app:showAsAction="never"
+        android:title="@string/menu_refresh" />
+    <item
+        android:id="@+id/metrics_settings"
+        app:showAsAction="ifRoom"
+        android:icon="@drawable/settings"
+        android:title="@string/metrics_settings" />
+</menu>
