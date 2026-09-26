@@ -231,6 +231,20 @@ Key rules:
 - In the Python library, `JordanInstance.create_task()` returns a `JordanTaskInstance` (same API as `JordanInstance`, but `fatal()` does not unregister).
 - In the CLI, `jordan task-create NAME` creates a sub-task and prints its ID. All commands accept `--task-id` to target a sub-task; omitting it targets the root task.
 
+### Request arguments (`jordan_py`)
+
+Every call of `jordan_py` that talks to the server takes `**kwargs` and hands them to `requests`
+for **each** request it makes — `read_message` for the read and the `CLIENT_RECEIVED` receipt it
+sends, `fatal` for its three requests, `acknowledge_and_processed` for its two. That is how a caller
+bounds a call: `read_message(timeout=5)`. `requests` has no default timeout, and the library sets
+none on purpose — a behaviour change for every client, arbitration JRD-18: a call that drops its
+`kwargs` can hang forever on a server that accepts the connection and stops answering. One known
+exception: `send_status` and its variants, `send_metric` included, drop them on their asynchronous
+path (`async_call` / `async_callback`), JRD-17. A new call forwards them too, and gets a case in
+`TestRequestArguments`
+([test_jordan.py](libraries/python/jordan_py/jordan_py/test/test_jordan.py)), which checks the
+timeout on every request the call sends.
+
 ---
 
 ## Naming conventions

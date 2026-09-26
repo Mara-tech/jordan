@@ -1,5 +1,6 @@
 import json
 import os
+import threading
 import unittest
 
 import responses as responses_lib
@@ -507,6 +508,101 @@ class TestMessageStateTransitions(unittest.TestCase):
             status=404,
         )
         self.assertFalse(self._make_msg().acknowledge())
+
+
+class TestRequestArguments(unittest.TestCase):
+    """A timeout given to a call reaches every request the call makes. requests has no default
+    one: a call that drops it waits forever on a server that accepts the connection and never
+    answers — which freezes the loop reading messages (JRD-15)."""
+
+    TIMEOUT = 3.5
+
+    def _make_instance(self, cls=jordan.JordanInstance) -> jordan.JordanInstance:
+        return cls(BASE_URL, TASK_ID, AUTH_TOKEN, "test-client")
+
+    def _make_msg(self) -> jordan.JordanMessage:
+        msg_dict = {"messageId": MSG_ID, "action": {"actionName": "stop", "placeholders": {}}}
+        return jordan.JordanMessage(BASE_URL, TASK_ID, msg_dict, AUTH_TOKEN)
+
+    def _accept_message_state(self, state: str) -> None:
+        responses_lib.add(responses_lib.PUT, _url(f"client/{TASK_ID}/{MSG_ID}/{state}"), status=202)
+
+    def _serve_a_message(self) -> None:
+        msg_payload = {"messageId": MSG_ID, "action": {"actionName": "stop", "placeholders": {}}}
+        responses_lib.add(responses_lib.GET, _url(f"client/{TASK_ID}/message"), json=msg_payload, status=200)
+        self._accept_message_state(jordan.MESSAGE_CLIENT_RECEIVED)
+
+    def _assert_every_request_bounded(self, expected_calls: int) -> None:
+        self.assertEqual(len(responses_lib.calls), expected_calls)
+        for call in responses_lib.calls:
+            with self.subTest(url=call.request.url):
+                self.assertEqual(call.request.req_kwargs["timeout"], self.TIMEOUT)
+
+    @responses_lib.activate
+    def test_read_message_bounds_the_read_and_the_receipt(self):
+        self._serve_a_message()
+        self.assertIsNotNone(self._make_instance().read_message(timeout=self.TIMEOUT))
+        self._assert_every_request_bounded(2)
+
+    @responses_lib.activate
+    def test_read_message_bounds_the_read_when_there_is_no_message(self):
+        responses_lib.add(responses_lib.GET, _url(f"client/{TASK_ID}/message"), status=204)
+        self.assertIsNone(self._make_instance().read_message(timeout=self.TIMEOUT))
+        self._assert_every_request_bounded(1)
+
+    @responses_lib.activate
+    def test_read_message_async_bounds_its_requests_too(self):
+        self._serve_a_message()
+        delivered = threading.Event()
+        self._make_instance().read_message(async_callback=lambda _msg: delivered.set(), timeout=self.TIMEOUT)
+        self.assertTrue(delivered.wait(5))
+        self._assert_every_request_bounded(2)
+
+    @responses_lib.activate
+    def test_message_state_changes_bound_their_request(self):
+        for state, change in [
+            (jordan.MESSAGE_STATE_ACKNOWLEDGED, jordan.JordanMessage.acknowledge),
+            (jordan.MESSAGE_STATE_PROCESSED, jordan.JordanMessage.processed),
+            (jordan.MESSAGE_CLIENT_RECEIVED, jordan.JordanMessage.received),
+            (jordan.CANNOT_PROCESS_MESSAGE, jordan.JordanMessage.cannot_process),
+            (jordan.MESSAGE_OVERRIDDEN, jordan.JordanMessage.overridden),
+        ]:
+            with self.subTest(state=state):
+                responses_lib.reset()
+                self._accept_message_state(state)
+                self.assertTrue(change(self._make_msg(), timeout=self.TIMEOUT))
+                self._assert_every_request_bounded(1)
+
+    @responses_lib.activate
+    def test_acknowledge_and_processed_bounds_both_requests(self):
+        self._accept_message_state(jordan.MESSAGE_STATE_ACKNOWLEDGED)
+        self._accept_message_state(jordan.MESSAGE_STATE_PROCESSED)
+        self.assertTrue(self._make_msg().acknowledge_and_processed(timeout=self.TIMEOUT))
+        self._assert_every_request_bounded(2)
+
+    @responses_lib.activate
+    def test_complete_bounds_its_request(self):
+        responses_lib.add(responses_lib.PUT, _url(f"client/{TASK_ID}/{jordan.TASK_STATE_COMPLETE}"), status=202)
+        self.assertTrue(self._make_instance().complete(timeout=self.TIMEOUT))
+        self._assert_every_request_bounded(1)
+
+    def _accept_failure_report(self) -> None:
+        responses_lib.add(responses_lib.POST, _url(f"client/{TASK_ID}/status"), json={"statusId": "s"}, status=200)
+        responses_lib.add(responses_lib.PUT, _url(f"client/{TASK_ID}/{jordan.TASK_STATE_ERROR}"), status=202)
+
+    @responses_lib.activate
+    def test_fatal_bounds_its_three_requests(self):
+        self._accept_failure_report()
+        responses_lib.add(responses_lib.POST, _url(f"client/{TASK_ID}/unregister"), status=200)
+        self._make_instance().fatal(RuntimeError("diverged"), timeout=self.TIMEOUT)
+        self._assert_every_request_bounded(3)
+
+    @responses_lib.activate
+    def test_fatal_of_a_sub_task_bounds_its_two_requests(self):
+        """A sub-task is only marked ERROR: it has nothing to unregister."""
+        self._accept_failure_report()
+        self._make_instance(jordan.JordanTaskInstance).fatal(RuntimeError("diverged"), timeout=self.TIMEOUT)
+        self._assert_every_request_bounded(2)
 
 
 if __name__ == '__main__':

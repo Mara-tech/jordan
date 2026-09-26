@@ -118,26 +118,28 @@ class JordanMessage:
             return {'Authorization': f'Bearer {self.auth_token}'}
         return {}
 
-    def acknowledge_and_processed(self) -> bool:
-        ack = self.acknowledge()
-        return self.processed() if ack else ack
+    def acknowledge_and_processed(self, **kwargs: Any) -> bool:
+        ack = self.acknowledge(**kwargs)
+        return self.processed(**kwargs) if ack else ack
 
-    def acknowledge(self) -> bool:
-        return self.update_message(MESSAGE_STATE_ACKNOWLEDGED)
+    def acknowledge(self, **kwargs: Any) -> bool:
+        return self.update_message(MESSAGE_STATE_ACKNOWLEDGED, **kwargs)
 
-    def processed(self) -> bool:
-        return self.update_message(MESSAGE_STATE_PROCESSED)
+    def processed(self, **kwargs: Any) -> bool:
+        return self.update_message(MESSAGE_STATE_PROCESSED, **kwargs)
 
-    def received(self) -> bool:
-        return self.update_message(MESSAGE_CLIENT_RECEIVED)
+    def received(self, **kwargs: Any) -> bool:
+        return self.update_message(MESSAGE_CLIENT_RECEIVED, **kwargs)
 
-    def cannot_process(self) -> bool:
-        return self.update_message(CANNOT_PROCESS_MESSAGE)
+    def cannot_process(self, **kwargs: Any) -> bool:
+        return self.update_message(CANNOT_PROCESS_MESSAGE, **kwargs)
 
-    def overridden(self) -> bool:
-        return self.update_message(MESSAGE_OVERRIDDEN)
+    def overridden(self, **kwargs: Any) -> bool:
+        return self.update_message(MESSAGE_OVERRIDDEN, **kwargs)
 
     def update_message(self, message_state: str, **kwargs: Any) -> bool:
+        """``kwargs`` go to ``requests`` as they are — ``timeout=5`` bounds the call, which
+        otherwise waits as long as the server keeps the connection open."""
         UPDATE_MESSAGE_STATE_ENDPOINT = self.base_url + UPDATE_MESSAGE_STATE_RESOURCE.format(self.task_id, self.message_id, message_state)
         r = requests.put(UPDATE_MESSAGE_STATE_ENDPOINT, headers=self._auth_headers(), **kwargs)
         return r.status_code == 202
@@ -247,7 +249,8 @@ class JordanInstance:
         if r.status_code == 200:
             message_output = json.loads(r.text)
             msg = JordanMessage(self.base_url, self.task_id, message_output, self.auth_token)
-            msg.received()
+            # the acknowledgement of receipt is a request too: bounded by the same arguments
+            msg.received(**kwargs)
             if async_callback:
                 async_callback(msg)
             return msg
@@ -255,10 +258,14 @@ class JordanInstance:
         return None
 
     def read_message(self, async_call: bool = False, async_callback: Optional[Callable[['JordanMessage'], None]] = None, **kwargs: Any) -> Optional['JordanMessage']:
+        """Read the next message, if any. ``kwargs`` go to ``requests``, for the read and for the
+        acknowledgement of receipt it sends: ``read_message(timeout=5)`` never waits more than
+        five seconds per request on a server that stopped answering — and raises
+        ``requests.exceptions.Timeout`` when it does. Without it, ``requests`` waits forever."""
         if async_call or async_callback:
-            threading.Thread(target=self._exec_read_message, args=[async_callback]).start()
+            threading.Thread(target=self._exec_read_message, args=[async_callback], kwargs=kwargs).start()
             return None
-        return self._exec_read_message()
+        return self._exec_read_message(**kwargs)
 
     def unregister(self, **kwargs: Any) -> bool:
         UNREGISTER_ENDPOINT = self.base_url + UNREGISTER_RESOURCE.format(self.task_id)
@@ -266,9 +273,11 @@ class JordanInstance:
         return r.status_code == 200
 
     def fatal(self, exception: Exception, **kwargs: Any) -> None:
-        self.send_failure_status(str(exception))
-        self.update_task(TASK_STATE_ERROR)
-        self.unregister()
+        """Report the failure, mark the task ERROR and unregister: three requests, each given
+        ``kwargs``."""
+        self.send_failure_status(str(exception), **kwargs)
+        self.update_task(TASK_STATE_ERROR, **kwargs)
+        self.unregister(**kwargs)
 
     def update_task(self, task_state: str, **kwargs: Any) -> bool:
         UPDATE_TASK_STATE_ENDPOINT = self.base_url + UPDATE_TASK_STATE_RESOURCE.format(self.task_id, task_state)
@@ -276,14 +285,14 @@ class JordanInstance:
         return r.status_code == 202
 
     def complete(self, **kwargs: Any) -> bool:
-        return self.update_task(TASK_STATE_COMPLETE)
+        return self.update_task(TASK_STATE_COMPLETE, **kwargs)
 
 
 class JordanTaskInstance(JordanInstance):
 
     def fatal(self, exception: Exception, **kwargs: Any) -> None:
-        self.send_failure_status(str(exception))
-        self.update_task(TASK_STATE_ERROR)
+        self.send_failure_status(str(exception), **kwargs)
+        self.update_task(TASK_STATE_ERROR, **kwargs)
 
 
 def _json_number(value: Any) -> Any:

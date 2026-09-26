@@ -25,9 +25,26 @@ Actions are generic, as much as the App GUI. Therefore, you already have an App 
     2. React on received message
     
             while True:
-                if jordan_message = jordan_instance.read_message():
-                        if jordan_message.action_name == 'BREAK_LOOP':
-                            break
+                if jordan_message := jordan_instance.read_message():
+                    if jordan_message.action_name == 'BREAK_LOOP':
+                        break
+
+    3. Bound each call with a timeout, when the program must not wait on the server
+
+            import requests
+
+            try:
+                message = jordan_instance.read_message(timeout=5)
+            except requests.exceptions.RequestException:
+                message = None  # server unreachable or silent: try again next time
+
+        Every call forwards its extra keyword arguments to `requests` — `timeout`, `verify`,
+        `proxies`… — for each request it makes: `read_message` for the read *and* the
+        acknowledgement of receipt it sends, `fatal` for its three requests, a message's
+        `acknowledge()` / `processed()` for theirs. `requests` has no default timeout: without one,
+        a server that accepts the connection and never answers holds the call, and the program,
+        forever. A call that times out raises `requests.exceptions.Timeout`. One exception left:
+        a status or metric sent with `async_call` / `async_callback` does not forward them yet.
 
 4. If the server closed registration (`JORDAN_REGISTRATION_KEY` set on its side), present the key
 
