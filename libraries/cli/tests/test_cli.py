@@ -115,6 +115,7 @@ class TestMissingSession:
     @pytest.mark.parametrize("cmd", [
         ["status", "hello"],
         ["progress", "50"],
+        ["metric", "loss", "0.5"],
         ["action"],
         ["complete"],
         ["error"],
@@ -208,10 +209,97 @@ class TestProgress:
         assert payload["type"] == "progress"
 
     @responses_lib.activate
+    @pytest.mark.parametrize("args", [["progress", "42%"], ["status", "42", "--type", "progress"]])
+    def test_sends_an_integer(self, args):
+        # the server moves the task's progress on a JSON integer only
+        _write_session()
+        responses_lib.add(
+            responses_lib.POST,
+            _url(f"client/{TASK_ID}/status"),
+            json={"statusId": "s"},
+            status=200,
+        )
+        result = runner.invoke(app, args)
+        assert result.exit_code == 0
+        assert json.loads(responses_lib.calls[0].request.body)["status"] == 42
+
+    @responses_lib.activate
+    @pytest.mark.parametrize("args", [["progress", "half"], ["progress", "150"], ["status", "half", "--type", "progress"]])
+    def test_not_a_percentage_is_a_usage_error(self, args):
+        _write_session()
+        result = runner.invoke(app, args)
+        assert result.exit_code == 2
+        assert "from 0 to 100" in result.output
+        assert len(responses_lib.calls) == 0
+
+    @responses_lib.activate
     def test_server_error_exits_1(self):
         _write_session()
         responses_lib.add(responses_lib.POST, _url(f"client/{TASK_ID}/status"), status=500)
         result = runner.invoke(app, ["progress", "10"])
+        assert result.exit_code == 1
+
+
+# ── metric ─────────────────────────────────────────────────────────────────────
+
+
+class TestMetric:
+
+    def _sent(self, args):
+        _write_session()
+        responses_lib.add(
+            responses_lib.POST,
+            _url(f"client/{TASK_ID}/status"),
+            json={"statusId": "m"},
+            status=200,
+        )
+        result = runner.invoke(app, ["metric", *args])
+        return result, json.loads(responses_lib.calls[0].request.body)
+
+    @responses_lib.activate
+    def test_sends_name_value_and_step(self):
+        result, payload = self._sent(["held-out loss", "0.6648", "--step", "3"])
+        assert result.exit_code == 0
+        assert result.output.strip() == "m"
+        assert payload["type"] == "metric"
+        assert payload["metric"] == {"name": "held-out loss", "value": 0.6648, "step": 3}
+        assert payload["status"] == "held-out loss = 0.6648 (step 3)"
+
+    @responses_lib.activate
+    def test_step_is_optional(self):
+        _, payload = self._sent(["throughput", "120"])
+        assert payload["metric"] == {"name": "throughput", "value": 120}
+
+    @responses_lib.activate
+    def test_negative_value_after_double_dash(self):
+        result, payload = self._sent(["--", "delta", "-0.5"])
+        assert result.exit_code == 0
+        assert payload["metric"]["value"] == -0.5
+
+    @responses_lib.activate
+    def test_targets_subtask_with_task_id(self):
+        _write_session()
+        responses_lib.add(
+            responses_lib.POST,
+            _url(f"client/{SUB_TASK_ID}/status"),
+            json={"statusId": "m"},
+            status=200,
+        )
+        result = runner.invoke(app, ["metric", "loss", "0.5", "--task-id", str(SUB_TASK_ID)])
+        assert result.exit_code == 0
+
+    @pytest.mark.parametrize("args", [["loss", "high"], ["loss", "0.5", "--step", "third"]])
+    def test_not_a_number_exits_without_calling(self, args):
+        _write_session()
+        result = runner.invoke(app, ["metric", *args])
+        assert result.exit_code != 0
+        assert "not a number" in result.output
+
+    @responses_lib.activate
+    def test_server_error_exits_1(self):
+        _write_session()
+        responses_lib.add(responses_lib.POST, _url(f"client/{TASK_ID}/status"), status=400)
+        result = runner.invoke(app, ["metric", "loss", "0.5"])
         assert result.exit_code == 1
 
 

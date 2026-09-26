@@ -99,7 +99,10 @@ def status(
     """Send a status update to the Jordan server."""
     session = _load_session()
     instance = _make_instance_for(session, task_id)
-    status_id = instance.send_status(message, status_type=type)
+    try:
+        status_id = instance.send_status(message, status_type=type)
+    except ValueError as e:  # a progress that is not a number from 0 to 100
+        raise typer.BadParameter(str(e))
     if status_id:
         typer.echo(status_id)
     else:
@@ -109,17 +112,54 @@ def status(
 
 @app.command()
 def progress(
-    value: str = typer.Argument(..., help="Progress value (e.g. 42 or '42%')"),
+    value: str = typer.Argument(..., help="Percentage from 0 to 100 (e.g. 42 or '42%'), sent as an integer"),
     task_id: Optional[int] = _TASK_ID_OPTION,
 ) -> None:
-    """Send a progress status update."""
+    """Send a progress status update: the task's progress bar in active clients."""
     session = _load_session()
     instance = _make_instance_for(session, task_id)
-    status_id = instance.send_progress(value)
+    try:
+        status_id = instance.send_progress(value)
+    except ValueError as e:
+        raise typer.BadParameter(str(e))
     if status_id:
         typer.echo(status_id)
     else:
         typer.echo("Failed to send progress.", err=True)
+        raise typer.Exit(1)
+
+
+def _number(text: str) -> float:
+    """An int when the text is one, so '3' stays a step 3 rather than 3.0."""
+    try:
+        return int(text)
+    except ValueError:
+        pass
+    try:
+        return float(text)
+    except ValueError:
+        raise typer.BadParameter(f"'{text}' is not a number")
+
+
+@app.command()
+def metric(
+    name: str = typer.Argument(..., help="Metric name, one curve per name (e.g. 'held-out loss')"),
+    value: str = typer.Argument(..., help="The value (a negative one goes after --: jordan metric -- delta -0.5)"),
+    step: Optional[str] = typer.Option(
+        None, "--step", help="Progress point the value belongs to (an epoch, an iteration); placed in time when omitted"
+    ),
+    task_id: Optional[int] = _TASK_ID_OPTION,
+) -> None:
+    """Send a named value, drawn as a curve by active clients."""
+    number = _number(value)
+    step_number = _number(step) if step is not None else None
+    session = _load_session()
+    instance = _make_instance_for(session, task_id)
+    status_id = instance.send_metric(name, number, step=step_number)
+    if status_id:
+        typer.echo(status_id)
+    else:
+        typer.echo("Failed to send metric.", err=True)
         raise typer.Exit(1)
 
 

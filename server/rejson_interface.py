@@ -62,10 +62,14 @@ TASK_ACTIONS = 'actions'
 PARENT_TASK = 'parentTask'
 SUB_TASKS = 'tasks'
 STATUS_TYPE_PROGRESS = 'progress'
+STATUS_TYPE_METRIC = 'metric'
 
 #Redis keys
 CLIENT_SET = 'clients'
 TASK_STATUS_LIST = '{}_status'
+# ids of the metric statuses only, a subset of TASK_STATUS_LIST: what a curve is
+# drawn from, without walking every log line of the task
+TASK_METRICS_LIST = '{}_metrics'
 TASK_MESSAGE_SLOT = '{}_message'
 TASK_ALL_MESSAGES_LIST = '{}_all_messages'
 ADMIN_SESSION_KEY = 'admin_session_{}'
@@ -253,11 +257,13 @@ def as_parent_task(task_id=None, task=None):
     return parent_task
 
 
-def push_status_to_parent_tasks_list(pipeline, task_id, status_id):
+def push_status_to_parent_tasks_list(pipeline, task_id, status_id, is_metric=False):
     pipeline.lpush(TASK_STATUS_LIST.format(task_id), status_id)
+    if is_metric:
+        pipeline.lpush(TASK_METRICS_LIST.format(task_id), status_id)
     task = rj.json().get(task_id)
     if 'parentTaskId' in task and task['parentTaskId'] is not None:
-        push_status_to_parent_tasks_list(pipeline, task['parentTaskId'], status_id)
+        push_status_to_parent_tasks_list(pipeline, task['parentTaskId'], status_id, is_metric)
 
 
 def push_message_to_parent_tasks_list(pipeline, task_id, message_id):
@@ -273,7 +279,7 @@ def post_status(task_id, payload):
     payload['statusId'] = status_id
     payload[PARENT_TASK] = as_parent_task(task_id=task_id)
     rp = rj.pipeline()
-    push_status_to_parent_tasks_list(rp, task_id, status_id)
+    push_status_to_parent_tasks_list(rp, task_id, status_id, payload['type'] == STATUS_TYPE_METRIC)
     rp.json().set(status_id, '.', payload)
     if payload['type'] == STATUS_TYPE_PROGRESS and type(payload['status']) is int:
         rp.json().set(task_id, '.progress', payload['status'])
@@ -294,6 +300,48 @@ def read_status(task_id, line_count):
     status_list = rj.json().mget(keys, '.')
     status_list = skip_nones(status_list)
     return status_list
+
+
+# Most recent metric points returned by read_metrics(), all series together. A
+# bound rather than a parameter: a curve is read whole, not paged, and this keeps
+# one request from pulling an unbounded history out of Redis.
+MAX_METRIC_POINTS = 10000
+
+
+def read_metrics(task_id, point_count=MAX_METRIC_POINTS):
+    log_redis_op(f"read metrics for task {task_id} and children")
+    keys = rj.lrange(TASK_METRICS_LIST.format(task_id), 0, point_count - 1)
+    if not keys:
+        return []
+    statuses = skip_nones(rj.json().mget(keys, '.'))
+    statuses.reverse()  # pushed on the left: the list holds the newest first
+    return group_metric_series(statuses)
+
+
+def group_metric_series(statuses):
+    """One series per task and metric name, its points in the order the server
+    received them.
+
+    Keyed by task as well as by name: two sub-tasks each measuring a « loss » are
+    two curves, which a root task sees side by side."""
+    series = {}
+    for status in statuses:
+        metric = status.get('metric') or {}
+        parent_task = status.get(PARENT_TASK) or {}
+        key = (parent_task.get('taskId'), metric.get('name'))
+        if key not in series:
+            series[key] = {'name': metric.get('name'), 'points': []}
+        # the latest snapshot of the task, rather than the one of its first point
+        series[key][PARENT_TASK] = parent_task
+        point = {
+            'statusId': status.get('statusId'),
+            'value': metric.get('value'),
+            'timestamp': status.get('timestamp'),
+        }
+        if metric.get('step') is not None:
+            point['step'] = metric['step']
+        series[key]['points'].append(point)
+    return list(series.values())
 
 
 def create_message_audit(state):
@@ -400,6 +448,8 @@ def recursive_delete_tasks(task, to_delete):
         to_delete.append(task_status_list)
         task_status_ids = rj.lrange(task_status_list, 0, -1)
         to_delete.extend(task_status_ids)
+        # the metric statuses are among those ids: only their index is left
+        to_delete.append(TASK_METRICS_LIST.format(task_id))
 
         # delete message slot
         to_delete.append(TASK_MESSAGE_SLOT.format(task_id))

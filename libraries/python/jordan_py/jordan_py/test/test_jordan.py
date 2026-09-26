@@ -182,9 +182,60 @@ class TestJordanInstance(unittest.TestCase):
             json={"statusId": "status-002"},
             status=200,
         )
-        self._make_instance().send_progress("50% done")
+        self._make_instance().send_progress(50)
         payload = json.loads(responses_lib.calls[0].request.body)
         self.assertEqual(payload["type"], jordan.PROGRESS_STATUS_TYPE)
+
+    def _sent_progress(self, value, send=None):
+        responses_lib.add(
+            responses_lib.POST,
+            _url(f"client/{TASK_ID}/status"),
+            json={"statusId": "status-002"},
+            status=200,
+        )
+        (send or self._make_instance().send_progress)(value)
+        return json.loads(responses_lib.calls[-1].request.body)["status"]
+
+    @responses_lib.activate
+    def test_send_progress_sends_an_integer_percentage(self):
+        # the server moves the task's progress on a JSON integer only
+        for value, expected in [(42, 42), (0, 0), (100, 100), (42.9, 42), (99.99, 99),
+                                ("42", 42), (" 42 % ", 42), ("42.5%", 42)]:
+            with self.subTest(value=value):
+                sent = self._sent_progress(value)
+                self.assertEqual(sent, expected)
+                self.assertIs(type(sent), int)
+
+    @responses_lib.activate
+    def test_send_typed_status_converts_a_progress_too(self):
+        instance = self._make_instance()
+        sent = self._sent_progress("75%", send=lambda v: instance.send_status(v, status_type=jordan.PROGRESS_STATUS_TYPE))
+        self.assertEqual(sent, 75)
+
+    @responses_lib.activate
+    def test_send_progress_refuses_what_is_not_a_percentage(self):
+        for value in ["50% done", "", "half", -1, 100.5, float("nan"), float("inf"), True, None]:
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    self._make_instance().send_progress(value)
+        self.assertEqual(len(responses_lib.calls), 0)
+
+    @responses_lib.activate
+    def test_send_progress_refuses_before_starting_an_async_call(self):
+        with self.assertRaises(ValueError):
+            self._make_instance().send_progress("half", async_call=True)
+        self.assertEqual(len(responses_lib.calls), 0)
+
+    @responses_lib.activate
+    def test_other_status_types_are_sent_as_given(self):
+        responses_lib.add(
+            responses_lib.POST,
+            _url(f"client/{TASK_ID}/status"),
+            json={"statusId": "s"},
+            status=200,
+        )
+        self._make_instance().send_status("42%")
+        self.assertEqual(json.loads(responses_lib.calls[0].request.body)["status"], "42%")
 
     @responses_lib.activate
     def test_send_success_status_uses_success_type(self):
@@ -209,6 +260,67 @@ class TestJordanInstance(unittest.TestCase):
         self._make_instance().send_failure_status("crashed")
         payload = json.loads(responses_lib.calls[0].request.body)
         self.assertEqual(payload["type"], jordan.FAILURE_STATUS_TYPE)
+
+    def _sent_metric(self, *args, **kwargs):
+        responses_lib.add(
+            responses_lib.POST,
+            _url(f"client/{TASK_ID}/status"),
+            json={"statusId": "metric-001"},
+            status=200,
+        )
+        status_id = self._make_instance().send_metric(*args, **kwargs)
+        return status_id, json.loads(responses_lib.calls[0].request.body)
+
+    @responses_lib.activate
+    def test_send_metric_carries_name_value_and_step(self):
+        status_id, payload = self._sent_metric("held-out loss", 0.6648, step=3)
+        self.assertEqual(status_id, "metric-001")
+        self.assertEqual(payload["type"], jordan.METRIC_STATUS_TYPE)
+        self.assertEqual(payload["metric"], {"name": "held-out loss", "value": 0.6648, "step": 3})
+        self.assertIsInstance(payload["timestamp"], int)
+
+    @responses_lib.activate
+    def test_send_metric_reads_as_a_log_line(self):
+        """A client that knows nothing of metrics shows the value as text."""
+        _, payload = self._sent_metric("held-out loss", 0.6648, step=3)
+        self.assertEqual(payload["status"], "held-out loss = 0.6648 (step 3)")
+
+    @responses_lib.activate
+    def test_send_metric_without_step(self):
+        _, payload = self._sent_metric("throughput", 120)
+        self.assertEqual(payload["metric"], {"name": "throughput", "value": 120})
+        self.assertEqual(payload["status"], "throughput = 120")
+
+    @responses_lib.activate
+    def test_send_metric_step_zero_is_sent(self):
+        _, payload = self._sent_metric("loss", 0.7, step=0)
+        self.assertEqual(payload["metric"]["step"], 0)
+
+    @responses_lib.activate
+    def test_send_metric_accepts_scalars_of_numeric_libraries(self):
+        """numpy.float32 or a torch scalar: not a float to the JSON encoder."""
+        class Scalar:
+            def __init__(self, value):
+                self.value = value
+
+            def __float__(self):
+                return self.value
+
+        _, payload = self._sent_metric("loss", Scalar(0.25), step=Scalar(4.0))
+        self.assertEqual(payload["metric"], {"name": "loss", "value": 0.25, "step": 4.0})
+
+    @responses_lib.activate
+    def test_send_metric_refused_returns_none(self):
+        responses_lib.add(responses_lib.POST, _url(f"client/{TASK_ID}/status"), status=400)
+        self.assertIsNone(self._make_instance().send_metric("", 0.5))
+
+    @responses_lib.activate
+    def test_send_metric_skips_what_no_curve_can_hold(self):
+        """A diverging training reports NaN: the loop sending it must not raise."""
+        instance = self._make_instance()
+        for value, step in ((float("nan"), None), (float("inf"), 3), (0.5, float("nan"))):
+            self.assertIsNone(instance.send_metric("loss", value, step=step))
+        self.assertEqual(len(responses_lib.calls), 0)
 
     @responses_lib.activate
     def test_send_status_failure_returns_none(self):

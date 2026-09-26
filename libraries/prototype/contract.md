@@ -73,8 +73,24 @@ from JordanInstance or JordanTask
     send_status(
         status : String/JordanStatus,
     ) : JordanSentStatus
+
+    send_metric(
+        name : String,
+        value : Number,
+        [step : Number,]
+    ) : JordanSentStatus
 #### Authentication
 `Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
+#### Metrics
+`send_metric` sends a status of type `metric` (see *JordanStatus*): a named value an active client
+draws as a curve, one curve per name. `step` is the progress point the value belongs to — the
+epoch, the iteration; without it, the value is placed in time.
+
+The server answers `400` to a metric it cannot draw: no `metric` object, a name empty or longer
+than 100 characters, a value or a step that is not a finite number (NaN and infinity included).
+Libraries do not send a value or a step that is not finite (they return no status id instead): a
+diverging computation reports NaN, and JSON cannot carry it. The four other types are stored as
+they come, as before.
 
 
 ## Read Message
@@ -173,8 +189,16 @@ List of actions, and their prototype
 
 ### JordanStatus
 #### Builder
-Status types : ["success", "failure", "progress", "general"]. Default type is "general".
-"progress" status type expects a float number from 0.0 to 1.0.
+Status types : ["success", "failure", "progress", "general", "metric"]. Default type is "general".
+"progress" status type expects an integer from 0 to 100, as a JSON number: the server copies it into
+the task's `progress` and sets the task `RUNNING`. Any other `status` on a progress — a fraction,
+a text such as `"42%"` — is stored in the log and moves nothing. The libraries convert what they
+are given (`42.9`, `"42%"`) into that integer, truncated, and refuse what is not a number from 0 to
+100 before sending it.
+"metric" status type carries a `metric` object: `name` (non-empty, 100 characters at most),
+`value` (finite number) and an optional `step` (finite number). Its `status` stays a text — a
+readable form of the metric, so every client reading statuses as log lines shows it; the server
+writes one when the client sent none, and the time of reception when it sent no `timestamp`.
 #### Content
 
     {
@@ -189,8 +213,16 @@ Status types : ["success", "failure", "progress", "general"]. Default type is "g
 
     {
       "type": "progress",
-      "status": 0.65
+      "status": 65
     }
+
+    {
+      "type": "metric",
+      "status": "held-out loss = 0.6648 (step 3)",
+      "metric": {"name": "held-out loss", "value": 0.6648, "step": 3}
+    }
+
+A status read back from the server carries `"metric": null` unless it is a metric.
 
 #### Nice to have
 more types : start_time, eta, or custom types
@@ -212,7 +244,7 @@ by the role carried by that token.
 | `operator` | ✔ | ✔ | |
 | `admin` | ✔ | ✔ | ✔ |
 
-- **read** — list clients, list actions, read statuses, read messages, generic query
+- **read** — list clients, list actions, read statuses, read metrics, read messages, generic query
 - **send** — send a message (command) to a passive client
 - **delete** — delete a task, a client, or the whole base
 
@@ -372,6 +404,35 @@ from JordanClientTask or JordanClientInstance
 Requires the `read` permission — roles viewer, operator, admin. 403 when the authenticated operator holds a role without it.
 #### Nice to have
 search filters -> on server or client side ?
+
+## Read metrics
+Get the values sent as `metric` statuses by the task and its sub-tasks, as curves: one series per
+task and metric name, its points in the order the server received them.
+#### HTTP API v1
+GET {taskId}/metrics
+Success response : List<JordanMetricSeries>. Code : 200 OK, or 204 No Content if the task sent no metric.
+
+    [
+      {
+        "name": "held-out loss",
+        "parentTask": {"taskId": 8, "name": "fine_tune", "state": "RUNNING"},
+        "points": [
+          {"statusId": 51234, "value": 0.6653, "step": 0, "timestamp": 1790000000},
+          {"statusId": 51240, "value": 0.6677, "step": 1, "timestamp": 1790000083}
+        ]
+      }
+    ]
+
+`step` is `null` on a point sent without one: such a series can only be drawn against time. The
+10 000 most recent points are returned, all series together.
+#### API function(s)
+from JordanClientTask or JordanClientInstance
+
+    read_metrics(
+    ) : list<JordanMetricSeries>
+#### Authentication and roles
+`Authorization: Bearer <adminToken>` — session token returned by Login, or the shared bootstrap token (`JORDAN_ADMIN_TOKEN`). 401 if the header is missing, if the token is unknown or expired, or if the server has no admin credential configured (the namespace fails closed).
+Requires the `read` permission — roles viewer, operator, admin. 403 when the authenticated operator holds a role without it.
 
 ## Delete Task
 Delete a task (including a client) and all information stored on this task.

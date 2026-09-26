@@ -242,11 +242,31 @@ def read_status(task_id, line_count):
         {"statusId" : 3, "type":"general", "status":"I'm walking South", "parentTask": legs_task, "timestamp":1607971294285, },
         {"statusId" : 4, "type":"success", "status":"Checkpoint reached !", "parentTask": legs_task, "timestamp":1607971394285, },
         {"statusId" : 5, "type":"failure", "status":"Couldn't switch to X-RAY vision.", "parentTask": eyes_task, "timestamp":1607571294285, },
-        {"statusId" : 6, "type":"general", "status":"I see a silhouette of a man.", "parentTask": eyes_task, "timestamp":time.time()*1000, }
+        {"statusId" : 6, "type":"general", "status":"I see a silhouette of a man.", "parentTask": eyes_task, "timestamp":time.time()*1000, },
+        {"statusId" : 7, "type":"metric", "status":"held-out loss = 0.6648 (step 3)", "parentTask": brain_task, "timestamp":int(time.time()),
+         "metric": {"name": "held-out loss", "value": 0.6648, "step": 3}},
         ]
     # mock_status_1 = {"status_id" : 1, "type":"general", "status":"I'm starting to think about Human condition.", "parentTask": brain_task, "timestamp":1607971392285, }
     # mock_status_2 = {"type":"progress", "status":"77%", "timestamp":1607005146, "should_not_appear":"KO"}
     # return [mock_status_1, mock_status_2]
+
+
+def read_metrics(task_id):
+    mock_log(f"read metrics for task {task_id}")
+    brain_task = {"taskId": 1, "name": "brain"}
+    eyes_task = {"taskId": 3, "name": "eyes"}
+    start = int(time.time()) - 24 * 83
+    held_out = [0.6653, 0.6677, 0.6669, 0.6648, 0.6631, 0.6625, 0.6630, 0.6618]
+    training = [0.7772, 0.6875, 0.6534, 0.6390, 0.6301, 0.6242, 0.6198, 0.6160]
+    return [
+        {"name": "held-out loss", "parentTask": brain_task,
+         "points": [{"statusId": 100 + i, "value": v, "step": i, "timestamp": start + 83 * i} for i, v in enumerate(held_out)]},
+        {"name": "training loss", "parentTask": brain_task,
+         "points": [{"statusId": 200 + i, "value": v, "step": i + 1, "timestamp": start + 83 * (i + 1)} for i, v in enumerate(training)]},
+        # no step: only drawable against time
+        {"name": "frames per second", "parentTask": eyes_task,
+         "points": [{"statusId": 300 + i, "value": 24 + (i % 5), "timestamp": start + 60 * i} for i in range(20)]},
+    ]
 
 
 def post_message(task_id, payload):

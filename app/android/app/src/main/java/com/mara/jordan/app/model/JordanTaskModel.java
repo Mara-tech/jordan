@@ -5,10 +5,12 @@ import android.content.Context;
 import com.mara.jordan.app.api.JordanApi;
 import com.mara.jordan.app.api.JordanGetActionsCallback;
 import com.mara.jordan.app.api.JordanReadMessagesCallback;
+import com.mara.jordan.app.api.JordanReadMetricsCallback;
 import com.mara.jordan.app.api.JordanReadStatusCallback;
 import com.mara.jordan.app.api.JordanSendMessageCallback;
 import com.mara.jordan.core.dto.JordanActionDefinitionWithTaskDTO;
 import com.mara.jordan.core.dto.JordanMessageStateDTO;
+import com.mara.jordan.core.dto.JordanMetricSeriesDTO;
 import com.mara.jordan.core.dto.JordanStatusDTO;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -21,7 +23,7 @@ import lombok.Getter;
 /**
  * A client, as a root task, is also represented in {@link JordanTaskModel}.
  */
-public class JordanTaskModel extends JordanClientModel implements JordanReadStatusCallback, JordanReadMessagesCallback, JordanGetActionsCallback {
+public class JordanTaskModel extends JordanClientModel implements JordanReadStatusCallback, JordanReadMessagesCallback, JordanReadMetricsCallback, JordanGetActionsCallback {
 
     private static final String TAG = "JordanClientModel";
     private final long taskId;
@@ -34,6 +36,10 @@ public class JordanTaskModel extends JordanClientModel implements JordanReadStat
     private JordanMessageStateDTO[] messages = new JordanMessageStateDTO[]{};
     @Getter
     private JordanActionDefinitionWithTaskDTO[] actionDefinitions;
+    @Getter
+    private JordanMetricSeriesDTO[] metricSeries = new JordanMetricSeriesDTO[]{};
+    @Getter
+    private final MetricChartSettings metricChartSettings = new MetricChartSettings();
 
 
     public JordanTaskModel(Context ctx, long taskId) {
@@ -53,6 +59,20 @@ public class JordanTaskModel extends JordanClientModel implements JordanReadStat
 
     @Override
     public void onStatusLoadingError(String errorMessage) {
+
+    }
+
+    public void readMetrics(JordanReadMetricsCallback... callbacks) {
+        api.readMetrics(taskId, ArrayUtils.add(callbacks, this));
+    }
+
+    @Override
+    public void onMetricsLoaded(JordanMetricSeriesDTO[] response) {
+        metricSeries = response;
+    }
+
+    @Override
+    public void onMetricsLoadingError(String errorMessage) {
 
     }
 

@@ -51,6 +51,9 @@ dependencies {
     implementation 'org.apache.commons:commons-lang3:3.17.0'
     // TODO: StickyListHeaders is unmaintained (archived); consider migrating to RecyclerView
     implementation 'com.github.emilsjolander:StickyListHeaders:2.7.0'
+    // Metrics tab. Served by JitPack only, like StickyListHeaders; unmaintained since 2020 but stable,
+    // and it spares drawing axes, legend, zoom and tap-to-inspect by hand
+    implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
     compileOnly 'org.projectlombok:lombok:1.18.36'
     annotationProcessor 'org.projectlombok:lombok:1.18.36'
     annotationProcessor "androidx.room:room-compiler:$room_version"

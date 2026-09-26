@@ -2,6 +2,7 @@ package com.mara.jordan.client;
 
 import com.google.gson.Gson;
 import com.mara.jordan.core.JordanConstants;
+import com.mara.jordan.core.MetricUtils;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -72,10 +73,44 @@ public class JordanInstance implements Closeable {
     }
 
     public String sendStatus(String status, String statusType) throws IOException {
-        String url = String.format("%sclient/%d/status", baseUrl, taskId);
         Map<String, Object> payload = new LinkedHashMap<String, Object>();
         payload.put("type", statusType);
-        payload.put("status", status);
+        // the server moves the task's progress on an integer only, and logs anything else
+        payload.put("status", JordanConstants.STATUS_TYPE_PROGRESS.equals(statusType) ? progressPercent(status) : status);
+        return postStatus(payload);
+    }
+
+    public String sendMetric(String name, double value) throws IOException {
+        return sendMetric(name, value, null);
+    }
+
+    /**
+     * Sends a named value, which an active client draws as a curve: one curve per name.
+     * The status also carries a readable text, so a client reading statuses as log lines shows the value as well.
+     *
+     * @param step progress point the value belongs to (an epoch, an iteration), or null to place the value in time
+     * @return the status id, or null when the value or the step is not a finite number (NaN, infinity — what a
+     *         diverging training reports): no curve can hold it and JSON cannot carry it, so it is not sent
+     * @throws IOException when the server refuses the value, e.g. an empty name
+     */
+    public String sendMetric(String name, double value, Double step) throws IOException {
+        if (!Double.isFinite(value) || (step != null && !Double.isFinite(step))) {
+            return null;
+        }
+        Map<String, Object> metric = new LinkedHashMap<String, Object>();
+        metric.put("name", name);
+        metric.put("value", value);
+        if (step != null) metric.put("step", step);
+
+        Map<String, Object> payload = new LinkedHashMap<String, Object>();
+        payload.put("type", JordanConstants.STATUS_TYPE_METRIC);
+        payload.put("status", MetricUtils.describe(name, value, step));
+        payload.put("metric", metric);
+        return postStatus(payload);
+    }
+
+    private String postStatus(Map<String, Object> payload) throws IOException {
+        String url = String.format("%sclient/%d/status", baseUrl, taskId);
         payload.put("timestamp", System.currentTimeMillis() / 1000L);
 
         Request request = new Request.Builder()
@@ -93,8 +128,49 @@ public class JordanInstance implements Closeable {
         }
     }
 
-    public String sendProgress(String status) throws IOException {
-        return sendStatus(status, JordanConstants.STATUS_TYPE_PROGRESS);
+    /**
+     * Sends how far the task is, from 0 to 100: the task's progress bar in active clients.
+     * The value is sent as an integer, truncated so that a task reads 100 only once it is.
+     *
+     * @throws IllegalArgumentException when the value is not a number from 0 to 100 — a fraction such as 0.65 is
+     *         read as 0.65 %, not 65 %
+     */
+    public String sendProgress(double percent) throws IOException {
+        Map<String, Object> payload = new LinkedHashMap<String, Object>();
+        payload.put("type", JordanConstants.STATUS_TYPE_PROGRESS);
+        payload.put("status", progressPercent(percent));
+        return postStatus(payload);
+    }
+
+    /**
+     * Same as {@link #sendProgress(double)}, from a text holding the number: {@code "42"} or {@code "42%"}.
+     *
+     * @throws IllegalArgumentException when the text is not a number from 0 to 100
+     */
+    public String sendProgress(String percent) throws IOException {
+        return sendStatus(percent, JordanConstants.STATUS_TYPE_PROGRESS);
+    }
+
+    static int progressPercent(String text) {
+        if (text != null) {
+            String number = text.trim();
+            if (number.endsWith("%")) {
+                number = number.substring(0, number.length() - 1);
+            }
+            try {
+                return progressPercent(Double.parseDouble(number.trim()));
+            } catch (NumberFormatException e) {
+                // reported below, with the text as it was given
+            }
+        }
+        throw new IllegalArgumentException("progress must be a number from 0 to 100, got " + (text == null ? null : "'" + text + "'"));
+    }
+
+    static int progressPercent(double percent) {
+        if (!(percent >= 0 && percent <= 100)) { // NaN fails both
+            throw new IllegalArgumentException("progress must be a number from 0 to 100, got " + percent);
+        }
+        return (int) percent;
     }
 
     public String sendSuccessStatus(String status) throws IOException {

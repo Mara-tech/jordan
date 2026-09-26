@@ -9,12 +9,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class JordanStatusDTO {
+public class JordanMetricPointDTO {
+    /** The metric status this point comes from. */
     private long statusId;
-    private String type;
-    private String status;
+    private double value;
+    /** Null when the client sent the value without a progress point. */
+    private Double step;
+    /** Seconds since 1970/1/1. */
     private long timestamp;
-    private JordanParentTaskDTO parentTask;
-    /** Set on a {@code metric} status only. */
-    private JordanMetricDTO metric;
 }

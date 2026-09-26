@@ -71,6 +71,22 @@ and handle messages (an action executed by the user).
           height="600"/>
 </p>
  
+### Metrics
+A client may also send named values — a loss per epoch, a throughput — as *metric* statuses. This
+tab draws them as curves, one per metric name and task, and follows them while the program runs
+(refreshed every 10 s by default while the tab is visible). Tapping a point shows its exact value,
+its step and its time; pinch to zoom, drag to pan.
+
+The *Chart settings* dialog chooses:
+- **the metrics drawn** — one checkbox per name. A name sent for the first time is drawn;
+- **the x axis** — *Step* (the epoch, the iteration the client attached to each value) or *Time*.
+  *Step* is greyed out while one of the checked metrics holds a value sent without a step: that
+  value would have no place on the axis. Unchecking that metric gives *Step* back;
+- **auto-refresh** and its period.
+
+These choices are kept while you stay on the client. The values also appear in *Status* as lines
+of text.
+
  ### Messages
  Eventually, here are the messages sent to the client.
  This is the feedback of your actions (and perhaps from other users).

@@ -11,6 +11,7 @@ import com.mara.jordan.core.dto.JordanAdminCredentialsDTO;
 import com.mara.jordan.core.dto.JordanAdminSessionDTO;
 import com.mara.jordan.core.dto.JordanClientDTO;
 import com.mara.jordan.core.dto.JordanMessageStateDTO;
+import com.mara.jordan.core.dto.JordanMetricSeriesDTO;
 import com.mara.jordan.core.dto.JordanSendMessageActionDTO;
 import com.mara.jordan.core.dto.JordanSendMessageDTO;
 import com.mara.jordan.core.dto.JordanStatusDTO;
@@ -203,6 +204,35 @@ public class JordanApi {
         final JordanStatusDTO[] safeResponse = response != null ? response : new JordanStatusDTO[]{};
         for(JordanReadStatusCallback callback : callbacks){
             callback.onStatusLoaded(safeResponse);
+        }
+    }
+
+    public void readMetrics(long taskId, JordanReadMetricsCallback... callbacks) {
+        String endpoint = "metrics";
+        String url = String.format("%s/%d/%s", getServerBaseUrl(), taskId, endpoint);
+        GsonGetRequest<JordanMetricSeriesDTO[]> readMetricsRequest = new GsonGetRequest<>(
+                url,
+                JordanMetricSeriesDTO[].class,
+                NetworkUtils.makeHeaders(getServerBaseUrl()),
+                response -> handleResponse(response, callbacks),
+                error -> handleError(error, callbacks)
+        );
+        Log.i(TAG, "Queuing " + endpoint + " query : " + url);
+        VolleyInterfaceSingleton.getInstance(context).addToRequestQueue(readMetricsRequest);
+    }
+
+    private void handleError(VolleyError error, JordanReadMetricsCallback[] callbacks) {
+        final String message = onRequestFailed(error);
+        for(JordanReadMetricsCallback callback : callbacks){
+            callback.onMetricsLoadingError(message);
+        }
+    }
+
+    private void handleResponse(JordanMetricSeriesDTO[] response, JordanReadMetricsCallback... callbacks) {
+        // 204 when the task sent no metric yet : an empty body, read as null
+        final JordanMetricSeriesDTO[] safeResponse = response != null ? response : new JordanMetricSeriesDTO[]{};
+        for(JordanReadMetricsCallback callback : callbacks){
+            callback.onMetricsLoaded(safeResponse);
         }
     }
 

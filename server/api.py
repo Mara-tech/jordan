@@ -9,6 +9,7 @@ from flask import Flask, request
 from flask_restx import Api, Resource, fields
 
 import json
+import math
 import os
 from hashlib import sha256
 from secrets import compare_digest, token_hex
@@ -359,15 +360,78 @@ def _require_admin_auth(permission):
 check_configuration()
 log_configuration()
 
+# Longest metric name accepted: a name is a label on a chart and a key the
+# server groups by, not a place for a sentence.
+MAX_METRIC_NAME_LENGTH = 100
+
+
+def _finite_number(value):
+    """Whether a JSON value can be placed on a curve. A bool is an int to
+    Python, and NaN or infinity are valid JSON to its parser: neither is a
+    point."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def _metric_error(payload):
+    """Why a metric status cannot be stored, or None when it can."""
+    metric = payload.get('metric')
+    if not isinstance(metric, dict):
+        return "a metric status carries a 'metric' object: {name, value[, step]}"
+    name = metric.get('name')
+    if not isinstance(name, str) or not name.strip():
+        return "metric 'name' must be a non-empty string"
+    if len(name.strip()) > MAX_METRIC_NAME_LENGTH:
+        return f"metric 'name' is {MAX_METRIC_NAME_LENGTH} characters at most"
+    if not _finite_number(metric.get('value')):
+        return "metric 'value' must be a finite number"
+    if metric.get('step') is not None and not _finite_number(metric['step']):
+        return "metric 'step' must be a finite number when given"
+    if payload.get('timestamp') is not None and not _finite_number(payload['timestamp']):
+        return "'timestamp' must be a number of seconds since 1970/1/1"
+    return None
+
+
+def _prepared_status(payload):
+    """The status as it is stored, or a 400 when it is a metric that cannot be.
+
+    The four historical types go through untouched: nothing a client sent
+    before metrics existed is refused now. A metric is checked, because a point
+    that cannot be drawn is worth refusing while its sender can still hear
+    about it, and completed with what its readers rely on — a text for every
+    client that reads it as a log line, a time for the curve drawn against
+    time."""
+    if not isinstance(payload, dict):
+        return payload
+    if payload.get('type') != STATUS_TYPE_METRIC:
+        # a metric object means something on a metric status only, and only a
+        # metric status is indexed as one
+        payload.pop('metric', None)
+        return payload
+    error = _metric_error(payload)
+    if error:
+        client_ns.abort(400, error)
+    metric = payload['metric']
+    prepared = {'name': metric['name'].strip(), 'value': metric['value']}
+    if metric.get('step') is not None:
+        prepared['step'] = metric['step']
+    payload['metric'] = prepared
+    if payload.get('timestamp') is None:
+        payload['timestamp'] = int(time())
+    if not isinstance(payload.get('status'), str) or not payload['status'].strip():
+        payload['status'] = f"{prepared['name']} = {prepared['value']}" + (
+            f" (step {prepared['step']})" if 'step' in prepared else '')
+    return payload
+
+
 #----------------------
 #---MODEL DEFINITION---
 #----------------------
 
 parent_task_model = api.model('Task', {
-    'taskId': fields.Integer(required=True, desciption="task identifier", example=456798),
-    'name': fields.String(required=True, desciption="task name", example='Loss evaluation'),
-    'progress': fields.Integer(required=False, desciption="task progress from 0 to 100", example=75),
-    'state': fields.String(required=False, desciption="state (e.g STARTED, PAUSED, COMPLETE, ERROR, TIME_OUT, etc.)", example='STARTED')
+    'taskId': fields.Integer(required=True, description="task identifier", example=456798),
+    'name': fields.String(required=True, description="task name", example='Loss evaluation'),
+    'progress': fields.Integer(required=False, description="task progress, an integer from 0 to 100 set by the last 'progress' status holding one", example=75),
+    'state': fields.String(required=False, description="state (e.g STARTED, PAUSED, COMPLETE, ERROR, TIME_OUT, etc.)", example='STARTED')
 })
 
 action_parameter_model = api.model('ActionParameter', {
@@ -393,10 +457,10 @@ action_definition_model = api.model('ActionDefinition', {
 MAX_SUBTASK_RECURSION_NB=10
 def recursive_task_model(iteration_number=MAX_SUBTASK_RECURSION_NB):
     recursive_task_mapping = {
-        'taskId': fields.Integer(required=False, desciption="task identifier", example=456798),
-        'name': fields.String(required=True, desciption="task name", example='Loss evaluation'),
-        'progress': fields.Integer(required=False, desciption="task progress from 0 to 100", example=75),
-        'state': fields.String(required=False, desciption="state (e.g RUNNING, PAUSED, COMPLETE, ERROR, TIME_OUT, etc.)", example='RUNNING'),
+        'taskId': fields.Integer(required=False, description="task identifier", example=456798),
+        'name': fields.String(required=True, description="task name", example='Loss evaluation'),
+        'progress': fields.Integer(required=False, description="task progress, an integer from 0 to 100 set by the last 'progress' status holding one", example=75),
+        'state': fields.String(required=False, description="state (e.g RUNNING, PAUSED, COMPLETE, ERROR, TIME_OUT, etc.)", example='RUNNING'),
         'password': fields.String(required=False, description='Access password', example='pwd'),
         'actions' : fields.List(fields.Nested(action_definition_model), required=False, description='Available actions'),
     }
@@ -406,13 +470,13 @@ def recursive_task_model(iteration_number=MAX_SUBTASK_RECURSION_NB):
 task_model = recursive_task_model()
 
 task_created_model = api.model('TaskCreated', {
-    'taskId': fields.Integer(required=True, desciption="task identifier", example=456798),
+    'taskId': fields.Integer(required=True, description="task identifier", example=456798),
 })
 
 client_model = api.model('Client', {
-    'clientId': fields.Integer(required=True, desciption="client identifier", example=123456),
-    'name': fields.String(required=True, desciption="client name", example='IA Training Bot 01'),
-    'state': fields.String(required=True, desciption="state (e.g REGISTERED, UNREGISTERED, COMPLETE, ERROR, TIME_OUT, etc.)", example='REGISTERED'),
+    'clientId': fields.Integer(required=True, description="client identifier", example=123456),
+    'name': fields.String(required=True, description="client name", example='IA Training Bot 01'),
+    'state': fields.String(required=True, description="state (e.g REGISTERED, UNREGISTERED, COMPLETE, ERROR, TIME_OUT, etc.)", example='REGISTERED'),
     'tasks': fields.List(fields.Nested(task_model), required=True, description='Child tasks')
 })
 
@@ -427,12 +491,34 @@ client_registered_model = api.model('ClientRegistered', {
     'authToken': fields.String(required=False, description='Authentication key for future calls on this client', example='f9bf78b9a18ce6d46a0cd2b0b86df9da'),
 })
 
+metric_model = api.model('Metric', {
+    'name': fields.String(required=True, description=f'what is measured, {MAX_METRIC_NAME_LENGTH} characters at most', example='held-out loss'),
+    'value': fields.Float(required=True, description='the measure, a finite number', example=0.6648),
+    'step': fields.Float(required=False, description='progress point the value belongs to (an epoch, an iteration). '
+                                                      'Optional: without it the value is placed in time', example=3),
+})
+
 status_model = api.model('Status', {
     'statusId' : fields.Integer(required=False, description='status id in server database', example=123456),
-    'type': fields.String(required=True, description='status type', example='general'),
-    'status': fields.String(required=True, description='status content, message', example='program still running'),
+    'type': fields.String(required=True, description='status type (success, failure, general, progress, metric)', example='general'),
+    'status': fields.String(required=True, description='status content, message. For a metric, a readable form of it. '
+                            'For a progress, an integer from 0 to 100 — anything else is logged without moving the task', example='program still running'),
     'timestamp': fields.Integer(required=True, description='Seconds since 1970/1/1', example=int(time())),
-    'parentTask': fields.Nested(parent_task_model, required=False, description='quick description of the task sending this status')
+    'parentTask': fields.Nested(parent_task_model, required=False, description='quick description of the task sending this status'),
+    'metric': fields.Nested(metric_model, required=False, allow_null=True, description="named value, on a 'metric' status only"),
+})
+
+metric_point_model = api.model('MetricPoint', {
+    'statusId': fields.Integer(required=True, description='the metric status this point comes from', example=123456),
+    'value': fields.Float(required=True, description='the measure', example=0.6648),
+    'step': fields.Float(required=False, description='progress point, when the client gave one', example=3),
+    'timestamp': fields.Integer(required=True, description='Seconds since 1970/1/1', example=int(time())),
+})
+
+metric_series_model = api.model('MetricSeries', {
+    'name': fields.String(required=True, description='metric name', example='held-out loss'),
+    'parentTask': fields.Nested(parent_task_model, required=True, description='task the values were sent by'),
+    'points': fields.List(fields.Nested(metric_point_model), required=True, description='values, in the order the server received them'),
 })
 
 status_sent_model = api.model('StatusSent', {
@@ -568,8 +654,11 @@ class SendStatus(Resource):
     @client_ns.marshal_with(status_sent_model)
     def post(self, task_id):
         _require_client_auth(task_id)
+        # aborts with a 400, so it must stay out of the try block below, which
+        # would turn it into a 500
+        payload = _prepared_status(api.payload)
         try:
-            status_sent = post_status(task_id, api.payload)
+            status_sent = post_status(task_id, payload)
             return status_sent, 200
         except Exception:
             client_ns.abort(500, 'Could not receive status')
@@ -744,6 +833,27 @@ class ReadStatus(Resource):
             return status_list, 200 if len(status_list) > 0 else 204
         except Exception:
             admin_ns.abort(500, 'Could not read any status')
+
+@admin_ns.route('/<int:task_id>/metrics')
+@admin_ns.param('task_id', 'The task identifier', default=123)
+class ReadMetrics(Resource):
+
+    @admin_ns.doc(description="Get the values sent as metric statuses by the task and its sub-tasks, "
+                              f"one series per task and metric name, points in the order received "
+                              f"({MAX_METRIC_POINTS} most recent points at most)",
+                   security=BEARER_AUTHORIZATION,
+                   responses={200: 'list of series',
+                              204: 'no metric to read',
+                              401: 'admin token missing or invalid',
+                              403: 'role not allowed to read'})
+    @admin_ns.marshal_with(metric_series_model, as_list=True)
+    def get(self, task_id):
+        _require_admin_auth(identity.PERMISSION_READ)
+        try:
+            series = read_metrics(task_id)
+            return series, 200 if len(series) > 0 else 204
+        except Exception:
+            admin_ns.abort(500, 'Could not read any metric')
 
 @admin_ns.route('/<int:task_id>/message')
 @admin_ns.param('task_id', 'The task identifier', default=123)

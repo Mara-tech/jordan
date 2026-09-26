@@ -6,11 +6,12 @@ Shared Java library for the Jordan ecosystem — DTOs, constants, and utilities 
 
 | Package | Description |
 |---|---|
-| `com.mara.jordan.core.dto` | 15 Lombok-annotated DTOs mirroring the REST API payloads |
+| `com.mara.jordan.core.dto` | 18 Lombok-annotated DTOs mirroring the REST API payloads |
 | `com.mara.jordan.core.JordanConstants` | All protocol string constants (states, status types, parameter types) |
 | `com.mara.jordan.core.DateUtils` | Timestamp formatting (seconds → locale-aware string) |
 | `com.mara.jordan.core.SerDeUtils` | Gson-based JSON serialization/deserialization |
 | `com.mara.jordan.core.JordanHelper` | Active-client utilities (task counts, progress estimation, message state) |
+| `com.mara.jordan.core.MetricUtils` | Metric series: readable form of a value, names, selection, whether series can be drawn against steps, labels |
 
 ## Requirements
 
@@ -32,7 +33,10 @@ All DTOs use Lombok `@Data @Builder @NoArgsConstructor @AllArgsConstructor`. The
 |---|---|
 | `JordanClientDTO` | A registered passive client with its tasks |
 | `JordanTaskDTO` | A task (root or sub-task) with state, progress, and action definitions |
-| `JordanStatusDTO` | A status update sent by a passive client |
+| `JordanStatusDTO` | A status update sent by a passive client; `metric` is set on a `metric` status only |
+| `JordanMetricDTO` | Named value carried by a `metric` status (name, value, optional step) |
+| `JordanMetricSeriesDTO` | Values of one metric name sent by one task, from `GET /admin/{taskId}/metrics` |
+| `JordanMetricPointDTO` | One value of a series (value, step or null, timestamp, status id) |
 | `JordanMessageStateDTO` | A message with its full state audit trail |
 | `JordanMessageStateAuditDTO` | One entry in a message's audit trail (timestamp + state) |
 | `JordanExecutedActionDTO` | An action that was triggered, with its placeholder values |
@@ -66,6 +70,7 @@ JordanConstants.STATUS_TYPE_GENERAL    // "general"
 JordanConstants.STATUS_TYPE_PROGRESS   // "progress"
 JordanConstants.STATUS_TYPE_SUCCESS    // "success"
 JordanConstants.STATUS_TYPE_FAILURE    // "failure"
+JordanConstants.STATUS_TYPE_METRIC     // "metric"
 
 // Message state machine
 JordanConstants.MESSAGE_STATE_SERVER_RECEIVED        // "SERVER_RECEIVED"

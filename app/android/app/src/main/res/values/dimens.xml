@@ -4,4 +4,6 @@
     <dimen name="read_status_text_item_margin">6dp</dimen>
     <dimen name="dialog_title_size">20sp</dimen>
     <dimen name="dialog_element_size">15sp</dimen>
+    <dimen name="metrics_chart_margin">8dp</dimen>
+    <dimen name="metrics_marker_padding">8dp</dimen>
 </resources>

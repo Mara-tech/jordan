@@ -36,7 +36,8 @@ try (JordanInstance j = Jordan.register("http://localhost:5000/jordan/", "my-jav
         msg.acknowledgeAndProcessed();
     }
 
-    j.sendProgress("75%");
+    j.sendProgress(75);                           // or "75%": a percentage, from 0 to 100
+    j.sendMetric("held-out loss", 0.6648, 3.0);   // drawn as a curve by the app; step optional
     j.complete();
 
 } // close() calls unregister() automatically
@@ -127,9 +128,11 @@ try (JordanInstance j = Jordan.register("http://localhost:5000/jordan/", "job"))
 |---|---|
 | `sendStatus(msg)` | Send a general status |
 | `sendStatus(msg, type)` | Send a typed status |
-| `sendProgress(msg)` | Send a progress status |
+| `sendProgress(percent)` | Send a progress status: a percentage from 0 to 100 (`double`, or a `String` such as `"75%"`), sent as a truncated integer; `IllegalArgumentException` otherwise |
 | `sendSuccessStatus(msg)` | Send a success status |
 | `sendFailureStatus(msg)` | Send a failure status |
+| `sendMetric(name, value)` | Send a named value, drawn as a curve against time; `null` (nothing sent) when the value is NaN or infinite |
+| `sendMetric(name, value, step)` | Same, placed at a progress point (epoch, iteration) — the curve can be drawn against steps |
 | `readMessage()` | Read next message (null if none); auto-calls `received()` |
 | `createTask(name)` | Create a sub-task |
 | `complete()` | Mark task as COMPLETE |

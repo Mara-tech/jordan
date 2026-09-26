@@ -21,6 +21,7 @@ jordan register --server http://localhost:5000/jordan/
 # 2. Send status updates during execution
 jordan status "Starting data processing"
 jordan progress "42"
+jordan metric "loss" 0.42 --step 3
 jordan status "Done" --type success
 
 # 3. Wait for an operator action (blocks up to 60 s)
@@ -38,7 +39,7 @@ Add `.jordan_session` to your `.gitignore`.
 
 ## Tasks
 
-Every Jordan client is built around a **task hierarchy**. When you `jordan register`, the server creates a **root task** whose ID is stored in `.jordan_session`. All commands (`status`, `progress`, `action`, `complete`, `error`) operate on this root task by default.
+Every Jordan client is built around a **task hierarchy**. When you `jordan register`, the server creates a **root task** whose ID is stored in `.jordan_session`. All commands (`status`, `progress`, `metric`, `action`, `complete`, `error`) operate on this root task by default.
 
 For more granular tracking you can create **sub-tasks** with `jordan task-create` and target them with `--task-id`:
 
@@ -126,7 +127,9 @@ Sends a status update. Prints the `statusId` on success.
 jordan progress VALUE [--task-id TASK_ID]
 ```
 
-Shorthand for `jordan status VALUE --type progress`.
+Shorthand for `jordan status VALUE --type progress`. `VALUE` is a percentage from 0 to 100, with or
+without `%`; it is sent as an integer (truncated). Anything else is refused as a usage error (exit
+code 2) and nothing is sent.
 
 | Option | Default | Description |
 |---|---|---|
@@ -136,6 +139,31 @@ Shorthand for `jordan status VALUE --type progress`.
 jordan progress "75"
 jordan progress "75%" --task-id 124
 ```
+
+---
+
+### `jordan metric`
+
+```
+jordan metric NAME VALUE [--step STEP] [--task-id TASK_ID]
+```
+
+Sends a named value, which active clients draw as a curve — one curve per name. Prints the
+`statusId` on success; exits `1` when the server refuses the value (an empty name) or when it is
+not a finite number, which is not sent.
+
+| Option | Default | Description |
+|---|---|---|
+| `--step` | none | Progress point the value belongs to (an epoch, an iteration); placed in time when omitted |
+| `--task-id` | root task | Target a specific sub-task |
+
+```bash
+jordan metric "held-out loss" 0.6648 --step 3
+jordan metric "rows per second" 1250 --task-id 124
+jordan metric -- "delta" -0.5        # a negative value goes after --
+```
+
+Requires `jordan_py` 2.2.0 or later.
 
 ---
 

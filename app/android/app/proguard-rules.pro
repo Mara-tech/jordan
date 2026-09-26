@@ -21,3 +21,6 @@
 -keepclassmembers @lombok.Getter class * { get*(); }
 -keepclassmembers @lombok.Setter class * { set*(...); }
 -keepclassmembers @lombok.Data class * { *; }
+
+# MPAndroidChart animates its charts through ObjectAnimator, which finds the phase setters by name
+-keep class com.github.mikephil.charting.** { *; }

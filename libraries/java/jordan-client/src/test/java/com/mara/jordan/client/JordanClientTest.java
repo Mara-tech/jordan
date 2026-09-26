@@ -156,8 +156,72 @@ public class JordanClientTest {
 
         server.takeRequest();
         String body = server.takeRequest().getBody().readUtf8();
-        assertTrue(body.contains("progress"));
-        assertTrue(body.contains("50%"));
+        assertTrue(body.contains("\"type\":\"progress\""));
+        // a JSON integer: the server moves the task's progress on nothing else
+        assertTrue(body.contains("\"status\":50,"));
+    }
+
+    private String sentProgressJson(ProgressSender sender) throws IOException, InterruptedException {
+        enqueueRegister(1, "tok");
+        enqueueStatus(10);
+        enqueueUnregister();
+
+        try (JordanInstance instance = Jordan.register(baseUrl(), "test")) {
+            sender.send(instance);
+        }
+
+        server.takeRequest();
+        return server.takeRequest().getBody().readUtf8();
+    }
+
+    private interface ProgressSender {
+        void send(JordanInstance instance) throws IOException;
+    }
+
+    @Test
+    public void testSendProgressSendsATruncatedInteger() throws IOException, InterruptedException {
+        assertTrue(sentProgressJson(i -> i.sendProgress(42.9)).contains("\"status\":42,"));
+    }
+
+    @Test
+    public void testSendProgressReadsATextWithAPercentSign() throws IOException, InterruptedException {
+        assertTrue(sentProgressJson(i -> i.sendProgress(" 42.5 % ")).contains("\"status\":42,"));
+    }
+
+    @Test
+    public void testSendStatusConvertsAProgressToo() throws IOException, InterruptedException {
+        assertTrue(sentProgressJson(i -> i.sendStatus("75", JordanConstants.STATUS_TYPE_PROGRESS)).contains("\"status\":75,"));
+    }
+
+    @Test
+    public void testOtherStatusTypesAreSentAsGiven() throws IOException, InterruptedException {
+        assertTrue(sentProgressJson(i -> i.sendStatus("75%")).contains("\"status\":\"75%\""));
+    }
+
+    @Test
+    public void testSendProgressRefusesWhatIsNotAPercentage() throws IOException {
+        enqueueRegister(1, "tok");
+        enqueueUnregister();
+
+        try (JordanInstance instance = Jordan.register(baseUrl(), "test")) {
+            for (String text : new String[]{"50% done", "", "half", "-1", "100.5", "NaN", null}) {
+                try {
+                    instance.sendProgress(text);
+                    fail("accepted " + text);
+                } catch (IllegalArgumentException expected) {
+                    assertTrue(expected.getMessage().contains("from 0 to 100"));
+                }
+            }
+            for (double value : new double[]{-0.1, 100.01, Double.NaN, Double.POSITIVE_INFINITY}) {
+                try {
+                    instance.sendProgress(value);
+                    fail("accepted " + value);
+                } catch (IllegalArgumentException expected) {
+                    // refused before any request
+                }
+            }
+        }
+        assertEquals(2, server.getRequestCount()); // register and unregister only
     }
 
     @Test
@@ -189,6 +253,75 @@ public class JordanClientTest {
         String body = server.takeRequest().getBody().readUtf8();
         assertTrue(body.contains("failure"));
         assertTrue(body.contains("exploded"));
+    }
+
+    // -------------------------------------------------------------------------
+    // sendMetric
+    // -------------------------------------------------------------------------
+
+    private Map sentMetric(Double step) throws IOException, InterruptedException {
+        enqueueRegister(1, "tok");
+        enqueueStatus(13);
+        enqueueUnregister();
+
+        try (JordanInstance instance = Jordan.register(baseUrl(), "test")) {
+            String statusId = step == null
+                    ? instance.sendMetric("throughput", 120)
+                    : instance.sendMetric("held-out loss", 0.6648, step);
+            assertEquals("13", statusId);
+        }
+
+        server.takeRequest(); // register
+        RecordedRequest req = server.takeRequest();
+        assertEquals("/jordan/client/1/status", req.getPath());
+        return new com.google.gson.Gson().fromJson(req.getBody().readUtf8(), Map.class);
+    }
+
+    @Test
+    public void testSendMetricCarriesNameValueAndStep() throws IOException, InterruptedException {
+        Map body = sentMetric(3.0);
+        assertEquals(JordanConstants.STATUS_TYPE_METRIC, body.get("type"));
+        Map metric = (Map) body.get("metric");
+        assertEquals("held-out loss", metric.get("name"));
+        assertEquals(0.6648, (Double) metric.get("value"), 0);
+        assertEquals(3.0, (Double) metric.get("step"), 0);
+        assertNotNull(body.get("timestamp"));
+    }
+
+    @Test
+    public void testSendMetricReadsAsALogLine() throws IOException, InterruptedException {
+        assertEquals("held-out loss = 0.6648 (step 3)", sentMetric(3.0).get("status"));
+    }
+
+    @Test
+    public void testSendMetricWithoutStep() throws IOException, InterruptedException {
+        Map body = sentMetric(null);
+        assertFalse(((Map) body.get("metric")).containsKey("step"));
+        assertEquals("throughput = 120", body.get("status"));
+    }
+
+    @Test
+    public void testSendMetricSkipsWhatNoCurveCanHold() throws IOException, InterruptedException {
+        enqueueRegister(1, "tok");
+        enqueueUnregister();
+
+        try (JordanInstance instance = Jordan.register(baseUrl(), "test")) {
+            assertNull(instance.sendMetric("loss", Double.NaN));
+            assertNull(instance.sendMetric("loss", Double.POSITIVE_INFINITY, 3.0));
+            assertNull(instance.sendMetric("loss", 0.5, Double.NaN));
+        }
+
+        server.takeRequest(); // register
+        assertEquals("/jordan/client/1/unregister", server.takeRequest().getPath());
+    }
+
+    @Test(expected = IOException.class)
+    public void testSendMetricThrowsWhenRefused() throws IOException {
+        enqueueRegister(1, "tok");
+        server.enqueue(new MockResponse().setResponseCode(400).setBody("{\"message\": \"metric 'name' must be a non-empty string\"}"));
+
+        JordanInstance instance = Jordan.register(baseUrl(), "test");
+        instance.sendMetric("", 0.5);
     }
 
     @Test
