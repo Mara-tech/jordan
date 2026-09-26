@@ -72,6 +72,10 @@ May be easier to understand and analyze statuses (in a client app which allows f
         dessert_task.send_success_status('Dessert is ready')
         dessert_task.send_typed_status('eaten', 'Dessert has been eaten by Michael')
 
+A progress is a percentage, from 0 to 100: `send_progress(50)`, `send_progress(100 * done / total)`
+or `send_progress('50%')` all send the integer the server stores (truncated, so 99.6 reads 99).
+Anything else — `'half'`, `150`, NaN — raises `ValueError` before any request.
+
 ### Metric
 A named value, which an active client (the Android app, in its *Metrics* tab) draws as a curve:
 one curve per name. `step` is the progress point the value belongs to — the epoch, the

@@ -1,5 +1,5 @@
 from time import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 import json
 import math
 import os
@@ -182,8 +182,13 @@ class JordanInstance:
         """Equivalent to send_typed_status(status_type, status)"""
         return self.send_typed_status(status_type, status, **kwargs)
 
-    def send_progress(self, status: str, **kwargs: Any) -> Optional[str]:
-        return self.send_typed_status(PROGRESS_STATUS_TYPE, status, **kwargs)
+    def send_progress(self, percent: Union[int, float, str], **kwargs: Any) -> Optional[str]:
+        """Send how far the task is, from 0 to 100: the task's progress bar in active clients.
+
+        ``percent`` is a number, or a text holding one (``'42'``, ``'42%'``); it is sent as an
+        integer, truncated so that a task reads 100 only once it is. Raises ``ValueError`` for
+        anything else — a fraction such as ``0.65`` is read as 0.65 %, not 65 %."""
+        return self.send_typed_status(PROGRESS_STATUS_TYPE, percent, **kwargs)
 
     def send_success_status(self, status: str, **kwargs: Any) -> Optional[str]:
         return self.send_typed_status(SUCCESS_STATUS_TYPE, status, **kwargs)
@@ -211,7 +216,10 @@ class JordanInstance:
         payload = {'type': METRIC_STATUS_TYPE, 'status': text, 'metric': metric}
         return self._send_status_payload(payload, async_call, async_callback, **kwargs)
 
-    def send_typed_status(self, status_type: str, status: str, async_call: bool = False, async_callback: Optional[Callable[[str], None]] = None, **kwargs: Any) -> Optional[str]:
+    def send_typed_status(self, status_type: str, status: Any, async_call: bool = False, async_callback: Optional[Callable[[str], None]] = None, **kwargs: Any) -> Optional[str]:
+        if status_type == PROGRESS_STATUS_TYPE:
+            # the server moves the task's progress on an integer only, and logs anything else
+            status = _progress_percent(status)
         return self._send_status_payload({'type': status_type, 'status': status}, async_call, async_callback, **kwargs)
 
     def _send_status_payload(self, payload: Dict[str, Any], async_call: bool, async_callback: Optional[Callable[[str], None]], **kwargs: Any) -> Optional[str]:
@@ -284,6 +292,26 @@ def _json_number(value: Any) -> Any:
     if isinstance(value, (int, float)):
         return value
     return float(value)
+
+
+def _progress_percent(value: Any) -> int:
+    """The progress the server stores: an integer from 0 to 100. Numbers, numpy scalars and
+    texts such as '42' or '42%' are read; the value is truncated, not rounded, so 99.6 stays 99."""
+    number: Optional[float] = None
+    if isinstance(value, str):
+        text = value.strip()
+        try:
+            number = float(text[:-1] if text.endswith('%') else text)
+        except ValueError:
+            pass
+    elif not isinstance(value, bool):
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            pass
+    if number is None or not math.isfinite(number) or not 0 <= number <= 100:
+        raise ValueError(f"progress must be a number from 0 to 100, got {value!r}")
+    return int(number)
 
 
 def _registration_headers(registration_key: Optional[str]) -> Dict[str, str]:

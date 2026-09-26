@@ -209,6 +209,30 @@ class TestProgress:
         assert payload["type"] == "progress"
 
     @responses_lib.activate
+    @pytest.mark.parametrize("args", [["progress", "42%"], ["status", "42", "--type", "progress"]])
+    def test_sends_an_integer(self, args):
+        # the server moves the task's progress on a JSON integer only
+        _write_session()
+        responses_lib.add(
+            responses_lib.POST,
+            _url(f"client/{TASK_ID}/status"),
+            json={"statusId": "s"},
+            status=200,
+        )
+        result = runner.invoke(app, args)
+        assert result.exit_code == 0
+        assert json.loads(responses_lib.calls[0].request.body)["status"] == 42
+
+    @responses_lib.activate
+    @pytest.mark.parametrize("args", [["progress", "half"], ["progress", "150"], ["status", "half", "--type", "progress"]])
+    def test_not_a_percentage_is_a_usage_error(self, args):
+        _write_session()
+        result = runner.invoke(app, args)
+        assert result.exit_code == 2
+        assert "from 0 to 100" in result.output
+        assert len(responses_lib.calls) == 0
+
+    @responses_lib.activate
     def test_server_error_exits_1(self):
         _write_session()
         responses_lib.add(responses_lib.POST, _url(f"client/{TASK_ID}/status"), status=500)

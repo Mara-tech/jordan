@@ -75,7 +75,8 @@ public class JordanInstance implements Closeable {
     public String sendStatus(String status, String statusType) throws IOException {
         Map<String, Object> payload = new LinkedHashMap<String, Object>();
         payload.put("type", statusType);
-        payload.put("status", status);
+        // the server moves the task's progress on an integer only, and logs anything else
+        payload.put("status", JordanConstants.STATUS_TYPE_PROGRESS.equals(statusType) ? progressPercent(status) : status);
         return postStatus(payload);
     }
 
@@ -127,8 +128,49 @@ public class JordanInstance implements Closeable {
         }
     }
 
-    public String sendProgress(String status) throws IOException {
-        return sendStatus(status, JordanConstants.STATUS_TYPE_PROGRESS);
+    /**
+     * Sends how far the task is, from 0 to 100: the task's progress bar in active clients.
+     * The value is sent as an integer, truncated so that a task reads 100 only once it is.
+     *
+     * @throws IllegalArgumentException when the value is not a number from 0 to 100 — a fraction such as 0.65 is
+     *         read as 0.65 %, not 65 %
+     */
+    public String sendProgress(double percent) throws IOException {
+        Map<String, Object> payload = new LinkedHashMap<String, Object>();
+        payload.put("type", JordanConstants.STATUS_TYPE_PROGRESS);
+        payload.put("status", progressPercent(percent));
+        return postStatus(payload);
+    }
+
+    /**
+     * Same as {@link #sendProgress(double)}, from a text holding the number: {@code "42"} or {@code "42%"}.
+     *
+     * @throws IllegalArgumentException when the text is not a number from 0 to 100
+     */
+    public String sendProgress(String percent) throws IOException {
+        return sendStatus(percent, JordanConstants.STATUS_TYPE_PROGRESS);
+    }
+
+    static int progressPercent(String text) {
+        if (text != null) {
+            String number = text.trim();
+            if (number.endsWith("%")) {
+                number = number.substring(0, number.length() - 1);
+            }
+            try {
+                return progressPercent(Double.parseDouble(number.trim()));
+            } catch (NumberFormatException e) {
+                // reported below, with the text as it was given
+            }
+        }
+        throw new IllegalArgumentException("progress must be a number from 0 to 100, got " + (text == null ? null : "'" + text + "'"));
+    }
+
+    static int progressPercent(double percent) {
+        if (!(percent >= 0 && percent <= 100)) { // NaN fails both
+            throw new IllegalArgumentException("progress must be a number from 0 to 100, got " + percent);
+        }
+        return (int) percent;
     }
 
     public String sendSuccessStatus(String status) throws IOException {

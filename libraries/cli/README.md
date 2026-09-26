@@ -127,7 +127,9 @@ Sends a status update. Prints the `statusId` on success.
 jordan progress VALUE [--task-id TASK_ID]
 ```
 
-Shorthand for `jordan status VALUE --type progress`.
+Shorthand for `jordan status VALUE --type progress`. `VALUE` is a percentage from 0 to 100, with or
+without `%`; it is sent as an integer (truncated). Anything else is refused as a usage error (exit
+code 2) and nothing is sent.
 
 | Option | Default | Description |
 |---|---|---|

@@ -25,7 +25,7 @@ with jordan.register(JORDAN_SERVER_BASE_URL, client_name='training', actions=act
         held_out_loss = 0.66 + 0.01 * math.exp(-epoch / 6) + 0.0004 * epoch + random.uniform(-0.002, 0.002)
         fine_tune.send_metric('training loss', training_loss, step=epoch)
         fine_tune.send_metric('held-out loss', held_out_loss, step=epoch)
-        fine_tune.send_progress(epoch / epochs)
+        fine_tune.send_progress(100 * epoch / epochs)  # a percentage, from 0 to 100
 
         # no step: this one is placed in time
         jordan_instance.send_metric('batches per second', round(batches_per_epoch / (time.time() - start), 1))

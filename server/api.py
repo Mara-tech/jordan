@@ -428,10 +428,10 @@ def _prepared_status(payload):
 #----------------------
 
 parent_task_model = api.model('Task', {
-    'taskId': fields.Integer(required=True, desciption="task identifier", example=456798),
-    'name': fields.String(required=True, desciption="task name", example='Loss evaluation'),
-    'progress': fields.Integer(required=False, desciption="task progress from 0 to 100", example=75),
-    'state': fields.String(required=False, desciption="state (e.g STARTED, PAUSED, COMPLETE, ERROR, TIME_OUT, etc.)", example='STARTED')
+    'taskId': fields.Integer(required=True, description="task identifier", example=456798),
+    'name': fields.String(required=True, description="task name", example='Loss evaluation'),
+    'progress': fields.Integer(required=False, description="task progress, an integer from 0 to 100 set by the last 'progress' status holding one", example=75),
+    'state': fields.String(required=False, description="state (e.g STARTED, PAUSED, COMPLETE, ERROR, TIME_OUT, etc.)", example='STARTED')
 })
 
 action_parameter_model = api.model('ActionParameter', {
@@ -457,10 +457,10 @@ action_definition_model = api.model('ActionDefinition', {
 MAX_SUBTASK_RECURSION_NB=10
 def recursive_task_model(iteration_number=MAX_SUBTASK_RECURSION_NB):
     recursive_task_mapping = {
-        'taskId': fields.Integer(required=False, desciption="task identifier", example=456798),
-        'name': fields.String(required=True, desciption="task name", example='Loss evaluation'),
-        'progress': fields.Integer(required=False, desciption="task progress from 0 to 100", example=75),
-        'state': fields.String(required=False, desciption="state (e.g RUNNING, PAUSED, COMPLETE, ERROR, TIME_OUT, etc.)", example='RUNNING'),
+        'taskId': fields.Integer(required=False, description="task identifier", example=456798),
+        'name': fields.String(required=True, description="task name", example='Loss evaluation'),
+        'progress': fields.Integer(required=False, description="task progress, an integer from 0 to 100 set by the last 'progress' status holding one", example=75),
+        'state': fields.String(required=False, description="state (e.g RUNNING, PAUSED, COMPLETE, ERROR, TIME_OUT, etc.)", example='RUNNING'),
         'password': fields.String(required=False, description='Access password', example='pwd'),
         'actions' : fields.List(fields.Nested(action_definition_model), required=False, description='Available actions'),
     }
@@ -470,13 +470,13 @@ def recursive_task_model(iteration_number=MAX_SUBTASK_RECURSION_NB):
 task_model = recursive_task_model()
 
 task_created_model = api.model('TaskCreated', {
-    'taskId': fields.Integer(required=True, desciption="task identifier", example=456798),
+    'taskId': fields.Integer(required=True, description="task identifier", example=456798),
 })
 
 client_model = api.model('Client', {
-    'clientId': fields.Integer(required=True, desciption="client identifier", example=123456),
-    'name': fields.String(required=True, desciption="client name", example='IA Training Bot 01'),
-    'state': fields.String(required=True, desciption="state (e.g REGISTERED, UNREGISTERED, COMPLETE, ERROR, TIME_OUT, etc.)", example='REGISTERED'),
+    'clientId': fields.Integer(required=True, description="client identifier", example=123456),
+    'name': fields.String(required=True, description="client name", example='IA Training Bot 01'),
+    'state': fields.String(required=True, description="state (e.g REGISTERED, UNREGISTERED, COMPLETE, ERROR, TIME_OUT, etc.)", example='REGISTERED'),
     'tasks': fields.List(fields.Nested(task_model), required=True, description='Child tasks')
 })
 
@@ -501,7 +501,8 @@ metric_model = api.model('Metric', {
 status_model = api.model('Status', {
     'statusId' : fields.Integer(required=False, description='status id in server database', example=123456),
     'type': fields.String(required=True, description='status type (success, failure, general, progress, metric)', example='general'),
-    'status': fields.String(required=True, description='status content, message. For a metric, a readable form of it', example='program still running'),
+    'status': fields.String(required=True, description='status content, message. For a metric, a readable form of it. '
+                            'For a progress, an integer from 0 to 100 — anything else is logged without moving the task', example='program still running'),
     'timestamp': fields.Integer(required=True, description='Seconds since 1970/1/1', example=int(time())),
     'parentTask': fields.Nested(parent_task_model, required=False, description='quick description of the task sending this status'),
     'metric': fields.Nested(metric_model, required=False, allow_null=True, description="named value, on a 'metric' status only"),

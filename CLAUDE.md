@@ -256,6 +256,17 @@ PROGRESS_STATUS_TYPE = 'progress'
 METRIC_STATUS_TYPE   = 'metric'
 ```
 
+### Progress
+
+A `progress` status carries an **integer from 0 to 100** as a JSON number: `post_status` in
+[server/rejson_interface.py](server/rejson_interface.py) copies it into the task's `progress` (the
+progress bars of the Android app, `max` 100) only when it is an `int`, and logs anything else
+without a word. So the libraries convert before sending — `send_progress` / `sendProgress` and a
+typed status of type `progress` alike take `42`, `42.9` or `"42%"`, send `42` (truncated, so 100
+means done), and raise `ValueError` / `IllegalArgumentException` on anything else. A fraction
+such as `0.65` is *not* refused: it is a valid 0.65 %, sent as `0` — the scale was 0–1 in the
+contract until JRD-12. `jordan progress` reports a refusal as a usage error.
+
 ### Metrics
 
 A `metric` status is a status like the others — stored in the task's log, propagated to its

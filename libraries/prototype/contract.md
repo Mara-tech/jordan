@@ -190,7 +190,11 @@ List of actions, and their prototype
 ### JordanStatus
 #### Builder
 Status types : ["success", "failure", "progress", "general", "metric"]. Default type is "general".
-"progress" status type expects a float number from 0.0 to 1.0.
+"progress" status type expects an integer from 0 to 100, as a JSON number: the server copies it into
+the task's `progress` and sets the task `RUNNING`. Any other `status` on a progress — a fraction,
+a text such as `"42%"` — is stored in the log and moves nothing. The libraries convert what they
+are given (`42.9`, `"42%"`) into that integer, truncated, and refuse what is not a number from 0 to
+100 before sending it.
 "metric" status type carries a `metric` object: `name` (non-empty, 100 characters at most),
 `value` (finite number) and an optional `step` (finite number). Its `status` stays a text — a
 readable form of the metric, so every client reading statuses as log lines shows it; the server
@@ -209,7 +213,7 @@ writes one when the client sent none, and the time of reception when it sent no 
 
     {
       "type": "progress",
-      "status": 0.65
+      "status": 65
     }
 
     {

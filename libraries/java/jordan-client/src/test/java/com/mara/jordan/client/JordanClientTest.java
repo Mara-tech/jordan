@@ -156,8 +156,72 @@ public class JordanClientTest {
 
         server.takeRequest();
         String body = server.takeRequest().getBody().readUtf8();
-        assertTrue(body.contains("progress"));
-        assertTrue(body.contains("50%"));
+        assertTrue(body.contains("\"type\":\"progress\""));
+        // a JSON integer: the server moves the task's progress on nothing else
+        assertTrue(body.contains("\"status\":50,"));
+    }
+
+    private String sentProgressJson(ProgressSender sender) throws IOException, InterruptedException {
+        enqueueRegister(1, "tok");
+        enqueueStatus(10);
+        enqueueUnregister();
+
+        try (JordanInstance instance = Jordan.register(baseUrl(), "test")) {
+            sender.send(instance);
+        }
+
+        server.takeRequest();
+        return server.takeRequest().getBody().readUtf8();
+    }
+
+    private interface ProgressSender {
+        void send(JordanInstance instance) throws IOException;
+    }
+
+    @Test
+    public void testSendProgressSendsATruncatedInteger() throws IOException, InterruptedException {
+        assertTrue(sentProgressJson(i -> i.sendProgress(42.9)).contains("\"status\":42,"));
+    }
+
+    @Test
+    public void testSendProgressReadsATextWithAPercentSign() throws IOException, InterruptedException {
+        assertTrue(sentProgressJson(i -> i.sendProgress(" 42.5 % ")).contains("\"status\":42,"));
+    }
+
+    @Test
+    public void testSendStatusConvertsAProgressToo() throws IOException, InterruptedException {
+        assertTrue(sentProgressJson(i -> i.sendStatus("75", JordanConstants.STATUS_TYPE_PROGRESS)).contains("\"status\":75,"));
+    }
+
+    @Test
+    public void testOtherStatusTypesAreSentAsGiven() throws IOException, InterruptedException {
+        assertTrue(sentProgressJson(i -> i.sendStatus("75%")).contains("\"status\":\"75%\""));
+    }
+
+    @Test
+    public void testSendProgressRefusesWhatIsNotAPercentage() throws IOException {
+        enqueueRegister(1, "tok");
+        enqueueUnregister();
+
+        try (JordanInstance instance = Jordan.register(baseUrl(), "test")) {
+            for (String text : new String[]{"50% done", "", "half", "-1", "100.5", "NaN", null}) {
+                try {
+                    instance.sendProgress(text);
+                    fail("accepted " + text);
+                } catch (IllegalArgumentException expected) {
+                    assertTrue(expected.getMessage().contains("from 0 to 100"));
+                }
+            }
+            for (double value : new double[]{-0.1, 100.01, Double.NaN, Double.POSITIVE_INFINITY}) {
+                try {
+                    instance.sendProgress(value);
+                    fail("accepted " + value);
+                } catch (IllegalArgumentException expected) {
+                    // refused before any request
+                }
+            }
+        }
+        assertEquals(2, server.getRequestCount()); // register and unregister only
     }
 
     @Test

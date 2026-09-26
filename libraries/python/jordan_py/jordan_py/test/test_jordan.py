@@ -182,9 +182,60 @@ class TestJordanInstance(unittest.TestCase):
             json={"statusId": "status-002"},
             status=200,
         )
-        self._make_instance().send_progress("50% done")
+        self._make_instance().send_progress(50)
         payload = json.loads(responses_lib.calls[0].request.body)
         self.assertEqual(payload["type"], jordan.PROGRESS_STATUS_TYPE)
+
+    def _sent_progress(self, value, send=None):
+        responses_lib.add(
+            responses_lib.POST,
+            _url(f"client/{TASK_ID}/status"),
+            json={"statusId": "status-002"},
+            status=200,
+        )
+        (send or self._make_instance().send_progress)(value)
+        return json.loads(responses_lib.calls[-1].request.body)["status"]
+
+    @responses_lib.activate
+    def test_send_progress_sends_an_integer_percentage(self):
+        # the server moves the task's progress on a JSON integer only
+        for value, expected in [(42, 42), (0, 0), (100, 100), (42.9, 42), (99.99, 99),
+                                ("42", 42), (" 42 % ", 42), ("42.5%", 42)]:
+            with self.subTest(value=value):
+                sent = self._sent_progress(value)
+                self.assertEqual(sent, expected)
+                self.assertIs(type(sent), int)
+
+    @responses_lib.activate
+    def test_send_typed_status_converts_a_progress_too(self):
+        instance = self._make_instance()
+        sent = self._sent_progress("75%", send=lambda v: instance.send_status(v, status_type=jordan.PROGRESS_STATUS_TYPE))
+        self.assertEqual(sent, 75)
+
+    @responses_lib.activate
+    def test_send_progress_refuses_what_is_not_a_percentage(self):
+        for value in ["50% done", "", "half", -1, 100.5, float("nan"), float("inf"), True, None]:
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    self._make_instance().send_progress(value)
+        self.assertEqual(len(responses_lib.calls), 0)
+
+    @responses_lib.activate
+    def test_send_progress_refuses_before_starting_an_async_call(self):
+        with self.assertRaises(ValueError):
+            self._make_instance().send_progress("half", async_call=True)
+        self.assertEqual(len(responses_lib.calls), 0)
+
+    @responses_lib.activate
+    def test_other_status_types_are_sent_as_given(self):
+        responses_lib.add(
+            responses_lib.POST,
+            _url(f"client/{TASK_ID}/status"),
+            json={"statusId": "s"},
+            status=200,
+        )
+        self._make_instance().send_status("42%")
+        self.assertEqual(json.loads(responses_lib.calls[0].request.body)["status"], "42%")
 
     @responses_lib.activate
     def test_send_success_status_uses_success_type(self):

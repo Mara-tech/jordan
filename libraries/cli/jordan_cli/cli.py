@@ -99,7 +99,10 @@ def status(
     """Send a status update to the Jordan server."""
     session = _load_session()
     instance = _make_instance_for(session, task_id)
-    status_id = instance.send_status(message, status_type=type)
+    try:
+        status_id = instance.send_status(message, status_type=type)
+    except ValueError as e:  # a progress that is not a number from 0 to 100
+        raise typer.BadParameter(str(e))
     if status_id:
         typer.echo(status_id)
     else:
@@ -109,13 +112,16 @@ def status(
 
 @app.command()
 def progress(
-    value: str = typer.Argument(..., help="Progress value (e.g. 42 or '42%')"),
+    value: str = typer.Argument(..., help="Percentage from 0 to 100 (e.g. 42 or '42%'), sent as an integer"),
     task_id: Optional[int] = _TASK_ID_OPTION,
 ) -> None:
-    """Send a progress status update."""
+    """Send a progress status update: the task's progress bar in active clients."""
     session = _load_session()
     instance = _make_instance_for(session, task_id)
-    status_id = instance.send_progress(value)
+    try:
+        status_id = instance.send_progress(value)
+    except ValueError as e:
+        raise typer.BadParameter(str(e))
     if status_id:
         typer.echo(status_id)
     else:
