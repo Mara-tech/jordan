@@ -221,7 +221,7 @@ declaration is refused and the server does not start.
 | `operator` | ✔ | ✔ | |
 | `admin` | ✔ | ✔ | ✔ |
 
-- **read** — list clients and actions, read statuses and messages, generic query
+- **read** — list clients and actions, read statuses, metrics and messages, generic query
 - **send** — send a message (command) to a passive client
 - **delete** — delete a task, a client, or the whole base
 
@@ -254,6 +254,7 @@ TOKEN=$(curl -s -X POST http://localhost:5000/jordan/admin/login \
 
 curl -H "Authorization: Bearer $TOKEN" http://localhost:5000/jordan/admin/clients
 curl -H "Authorization: Bearer $TOKEN" http://localhost:5000/jordan/admin/me      # role and permissions
+curl -H "Authorization: Bearer $TOKEN" http://localhost:5000/jordan/admin/123/metrics  # curves of task 123
 curl -X POST -H "Authorization: Bearer $TOKEN" http://localhost:5000/jordan/admin/logout
 ```
 

@@ -335,6 +335,128 @@ def test_post_status_no_auth_returns_401(client, auth_headers):
     assert r.status_code == 401
 
 
+# ── Client: post a metric status ──────────────────────────────────────────────
+
+
+def _post_status(client, payload, auth_headers):
+    return client.post(f'/jordan/client/{TASK_ID}/status', json=payload, headers=auth_headers)
+
+
+def _metric(**metric):
+    return {'type': 'metric', 'metric': metric, 'timestamp': 1000}
+
+
+def test_metric_status_is_accepted(client, allow_auth, captured_status, auth_headers):
+    r = _post_status(client, _metric(name='held-out loss', value=0.6648, step=3), auth_headers)
+    assert r.status_code == 200
+    assert r.get_json()['statusId'] == STATUS_ID
+    assert captured_status['metric'] == {'name': 'held-out loss', 'value': 0.6648, 'step': 3}
+
+
+def test_metric_step_is_optional(client, allow_auth, captured_status, auth_headers):
+    for payload in (_metric(name='loss', value=1), _metric(name='loss', value=1, step=None)):
+        assert _post_status(client, payload, auth_headers).status_code == 200
+        assert captured_status['metric'] == {'name': 'loss', 'value': 1}
+
+
+def test_metric_step_may_be_fractional(client, allow_auth, captured_status, auth_headers):
+    assert _post_status(client, _metric(name='loss', value=1, step=2.5), auth_headers).status_code == 200
+    assert captured_status['metric']['step'] == 2.5
+
+
+def test_metric_name_is_trimmed(client, allow_auth, captured_status, auth_headers):
+    _post_status(client, _metric(name='  held-out loss ', value=0.5), auth_headers)
+    assert captured_status['metric']['name'] == 'held-out loss'
+
+
+def test_metric_without_text_gets_a_readable_one(client, allow_auth, captured_status, auth_headers):
+    """Every client reading statuses as log lines — the app before metrics
+    existed, `jordan-admin watch` — shows the value instead of nothing."""
+    _post_status(client, _metric(name='held-out loss', value=0.6648, step=3), auth_headers)
+    assert captured_status['status'] == 'held-out loss = 0.6648 (step 3)'
+    _post_status(client, _metric(name='throughput', value=120), auth_headers)
+    assert captured_status['status'] == 'throughput = 120'
+
+
+def test_metric_keeps_the_text_its_client_wrote(client, allow_auth, captured_status, auth_headers):
+    payload = dict(_metric(name='held-out loss', value=0.6648, step=3), status='epoch 3: best so far')
+    _post_status(client, payload, auth_headers)
+    assert captured_status['status'] == 'epoch 3: best so far'
+
+
+def test_metric_without_timestamp_is_placed_at_reception(client, allow_auth, captured_status, auth_headers):
+    """The time axis is always available: a point never lacks its time."""
+    before = int(time.time())
+    _post_status(client, {'type': 'metric', 'metric': {'name': 'loss', 'value': 1}}, auth_headers)
+    assert before <= captured_status['timestamp'] <= int(time.time())
+
+
+@pytest.mark.parametrize('payload', [
+    {'type': 'metric', 'status': 'loss 0.5'},
+    {'type': 'metric', 'metric': 'loss=0.5'},
+    {'type': 'metric', 'metric': [0.5]},
+    _metric(value=0.5),
+    _metric(name='', value=0.5),
+    _metric(name='   ', value=0.5),
+    _metric(name=42, value=0.5),
+    _metric(name='x' * 101, value=0.5),
+    _metric(name='loss'),
+    _metric(name='loss', value=None),
+    _metric(name='loss', value='0.5'),
+    _metric(name='loss', value=True),
+    _metric(name='loss', value=0.5, step='3'),
+    _metric(name='loss', value=0.5, step=False),
+    dict(_metric(name='loss', value=0.5), timestamp='yesterday'),
+])
+def test_unusable_metric_returns_400(client, allow_auth, captured_status, auth_headers, payload):
+    r = _post_status(client, payload, auth_headers)
+    assert r.status_code == 400
+    assert captured_status == {}
+
+
+@pytest.mark.parametrize('literal', ['NaN', 'Infinity', '-Infinity'])
+def test_non_finite_metric_returns_400(client, allow_auth, captured_status, auth_headers, literal):
+    """Valid JSON to Python's parser, and what a diverging training reports —
+    but no point a curve can hold."""
+    for body in (f'{{"type": "metric", "metric": {{"name": "loss", "value": {literal}}}}}',
+                 f'{{"type": "metric", "metric": {{"name": "loss", "value": 1, "step": {literal}}}}}'):
+        r = client.post(f'/jordan/client/{TASK_ID}/status', data=body,
+                        content_type='application/json', headers=auth_headers)
+        assert r.status_code == 400
+    assert captured_status == {}
+
+
+def test_longest_metric_name_is_accepted(client, allow_auth, captured_status, auth_headers):
+    assert _post_status(client, _metric(name='x' * 100, value=0.5), auth_headers).status_code == 200
+
+
+def test_metric_status_no_auth_returns_401(client, captured_status):
+    r = client.post(f'/jordan/client/{TASK_ID}/status', json=_metric(name='loss', value=1))
+    assert r.status_code == 401
+    assert captured_status == {}
+
+
+@pytest.mark.parametrize('payload', [
+    {'type': 'general', 'status': 'working', 'timestamp': 1000},
+    {'type': 'success', 'status': 'done', 'timestamp': 1000},
+    {'type': 'failure', 'status': 'broken', 'timestamp': 1000},
+    {'type': 'progress', 'status': 0.65, 'timestamp': 1000},
+    {'type': 'progress', 'status': '65%'},
+    {'type': 'custom', 'status': 'anything'},
+])
+def test_existing_statuses_reach_storage_unchanged(client, allow_auth, captured_status, auth_headers, payload):
+    assert _post_status(client, payload, auth_headers).status_code == 200
+    assert captured_status == payload
+
+
+def test_metric_object_is_dropped_from_other_statuses(client, allow_auth, captured_status, auth_headers):
+    """Only a metric status is indexed as one: a stray object elsewhere would
+    read as a value that is on no curve."""
+    payload = {'type': 'general', 'status': 'working', 'metric': {'name': 'loss', 'value': 1}}
+    assert _post_status(client, payload, auth_headers).status_code == 200
+    assert 'metric' not in captured_status
+
+
 # ── Client: read message ──────────────────────────────────────────────────────
 
 
@@ -410,6 +532,7 @@ ADMIN_ROUTES = [
     ('get', '/jordan/admin/clients'),
     ('get', f'/jordan/admin/{TASK_ID}/actions'),
     ('get', f'/jordan/admin/{TASK_ID}/status/10'),
+    ('get', f'/jordan/admin/{TASK_ID}/metrics'),
     ('post', f'/jordan/admin/{TASK_ID}/message'),
     ('get', f'/jordan/admin/{TASK_ID}/messages'),
     ('get', f'/jordan/admin/{MESSAGE_ID}'),
@@ -667,6 +790,52 @@ def test_read_status_returns_list(client, mock_read_status, admin_headers):
     data = client.get(f'/jordan/admin/{TASK_ID}/status/10', headers=admin_headers).get_json()
     assert isinstance(data, list)
     assert data[0]['statusId'] == STATUS_ID
+
+
+def test_read_status_carries_the_metric(client, admin_headers, monkeypatch):
+    metric_status = {'statusId': STATUS_ID, 'type': 'metric', 'status': 'loss = 0.5', 'timestamp': 1000,
+                     'parentTask': {'taskId': TASK_ID, 'name': 'root'},
+                     'metric': {'name': 'loss', 'value': 0.5}}
+    monkeypatch.setattr('api.read_status', lambda task_id, count: [metric_status])
+    data = client.get(f'/jordan/admin/{TASK_ID}/status/10', headers=admin_headers).get_json()
+    assert data[0]['metric'] == {'name': 'loss', 'value': 0.5, 'step': None}
+    assert data[0]['status'] == 'loss = 0.5'
+
+
+def test_read_status_of_other_types_has_no_metric(client, mock_read_status, admin_headers):
+    data = client.get(f'/jordan/admin/{TASK_ID}/status/10', headers=admin_headers).get_json()
+    assert data[0]['metric'] is None
+
+
+# ── Admin: read metrics ───────────────────────────────────────────────────────
+
+
+def test_read_metrics_returns_the_series(client, mock_read_metrics, admin_headers):
+    r = client.get(f'/jordan/admin/{TASK_ID}/metrics', headers=admin_headers)
+    assert r.status_code == 200
+    series = r.get_json()
+    assert len(series) == 1
+    assert series[0]['name'] == 'held-out loss'
+    assert series[0]['parentTask']['taskId'] == TASK_ID
+    assert [p['value'] for p in series[0]['points']] == [0.6653, 0.6648]
+    assert [p['timestamp'] for p in series[0]['points']] == [1000, 1060]
+
+
+def test_read_metrics_says_when_a_point_has_no_step(client, mock_read_metrics, admin_headers):
+    """What an active client reads to decide whether a series can be drawn
+    against steps."""
+    points = client.get(f'/jordan/admin/{TASK_ID}/metrics', headers=admin_headers).get_json()[0]['points']
+    assert [p['step'] for p in points] == [0, None]
+
+
+def test_read_metrics_returns_204_when_none(client, mock_read_metrics_empty, admin_headers):
+    r = client.get(f'/jordan/admin/{TASK_ID}/metrics', headers=admin_headers)
+    assert r.status_code == 204
+
+
+def test_viewer_can_read_metrics(client, login, mock_read_metrics):
+    r = client.get(f'/jordan/admin/{TASK_ID}/metrics', headers=login('vic'))
+    assert r.status_code == 200
 
 
 # ── Admin: post message ───────────────────────────────────────────────────────

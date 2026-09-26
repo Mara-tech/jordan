@@ -41,6 +41,15 @@ _MOCK_STATUS = {
     'parentTask': {'taskId': TASK_ID, 'name': 'root'},
 }
 
+_MOCK_METRIC_SERIES = {
+    'name': 'held-out loss',
+    'parentTask': {'taskId': TASK_ID, 'name': 'root'},
+    'points': [
+        {'statusId': STATUS_ID, 'value': 0.6653, 'step': 0, 'timestamp': 1000},
+        {'statusId': STATUS_ID + 1, 'value': 0.6648, 'timestamp': 1060},
+    ],
+}
+
 _MOCK_MESSAGE = {
     'messageId': MESSAGE_ID,
     'author': 'test_author',
@@ -222,6 +231,20 @@ def mock_post_status(monkeypatch):
 
 
 @pytest.fixture
+def captured_status(monkeypatch):
+    """Status as it reaches the storage layer, to check what the server
+    validated and completed."""
+    captured = {}
+
+    def _post_status(task_id, payload):
+        captured.update(payload)
+        return {'statusId': STATUS_ID}
+
+    monkeypatch.setattr('api.post_status', _post_status)
+    return captured
+
+
+@pytest.fixture
 def mock_read_message(monkeypatch):
     monkeypatch.setattr('api.read_message', lambda task_id: _MOCK_MESSAGE)
     return _MOCK_MESSAGE
@@ -274,6 +297,17 @@ def mock_list_actions(monkeypatch):
 def mock_read_status(monkeypatch):
     monkeypatch.setattr('api.read_status', lambda task_id, count: [_MOCK_STATUS])
     return [_MOCK_STATUS]
+
+
+@pytest.fixture
+def mock_read_metrics(monkeypatch):
+    monkeypatch.setattr('api.read_metrics', lambda task_id: [_MOCK_METRIC_SERIES])
+    return [_MOCK_METRIC_SERIES]
+
+
+@pytest.fixture
+def mock_read_metrics_empty(monkeypatch):
+    monkeypatch.setattr('api.read_metrics', lambda task_id: [])
 
 
 @pytest.fixture
