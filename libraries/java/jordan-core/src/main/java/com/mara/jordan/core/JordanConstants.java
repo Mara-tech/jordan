@@ -19,6 +19,8 @@ public final class JordanConstants {
     public static final String STATUS_TYPE_PROGRESS = "progress";
     public static final String STATUS_TYPE_SUCCESS = "success";
     public static final String STATUS_TYPE_FAILURE = "failure";
+    /** A named value, drawn as a curve: see {@link com.mara.jordan.core.dto.JordanMetricDTO}. */
+    public static final String STATUS_TYPE_METRIC = "metric";
 
     // Message states (in state machine order)
     public static final String MESSAGE_STATE_SERVER_RECEIVED = "SERVER_RECEIVED";
