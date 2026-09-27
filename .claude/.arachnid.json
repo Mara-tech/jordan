@@ -14,10 +14,7 @@
     "projectPitch": "Jordan lets an executing program be interacted with from anywhere — send it commands, read its status, trigger actions."
   },
   "unconfigured": [],
-  "deferred": [
-    "localChecks",
-    "coverageCmd"
-  ],
+  "deferred": [],
   "modules": {
     "notion-backlog": {
       "version": "1.5.0",
