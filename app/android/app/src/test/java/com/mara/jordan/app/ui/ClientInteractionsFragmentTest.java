@@ -65,7 +65,9 @@ public class ClientInteractionsFragmentTest {
 
     @After
     public void closeTaskScreen() {
-        controller.pause().stop().destroy();
+        if (controller != null) {
+            controller.pause().stop().destroy();
+        }
     }
 
     @Test

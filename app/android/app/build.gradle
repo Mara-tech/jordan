@@ -30,8 +30,17 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
     testOptions {
-        // Robolectric tests inflate the app's layouts and menus
-        unitTests.includeAndroidResources = true
+        unitTests {
+            // Robolectric tests inflate the app's layouts and menus
+            includeAndroidResources = true
+            all {
+                // a failure reads in the CI log, cause included, without the HTML report
+                testLogging {
+                    events 'failed'
+                    exceptionFormat 'full'
+                }
+            }
+        }
     }
 }
 
@@ -67,6 +76,7 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     // screens driven through their lifecycle (rotation) on the JVM, by testDebugUnitTest
     testImplementation 'org.robolectric:robolectric:4.14.1'
+    testImplementation 'androidx.test:core:1.6.1'
 
     androidTestImplementation 'androidx.test:runner:1.6.2'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
