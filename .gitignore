@@ -140,3 +140,5 @@ app/releases
 # Android signing keystore — never commit; stored as GitHub secret SIGNING_KEY
 *.keystore
 *.jks
+/app/jordan-505720-356a33e1dff5.json
+/app/client_secret_165403182689-7pvui53brehp1gtqajg9jctbrcr8d842.apps.googleusercontent.com.json
