@@ -76,7 +76,9 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     // screens driven through their lifecycle (rotation) on the JVM, by testDebugUnitTest
     testImplementation 'org.robolectric:robolectric:4.14.1'
-    testImplementation 'androidx.test:core:1.6.1'
+    // Volley.newRequestQueue references the legacy Apache HttpClient, which devices provide and
+    // Robolectric no longer does since API 28: without it, the first request fails to load Volley
+    testImplementation 'org.apache.httpcomponents:httpclient:4.5.14'
 
     androidTestImplementation 'androidx.test:runner:1.6.2'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
