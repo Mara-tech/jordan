@@ -120,18 +120,14 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
     public ReadStatusFragment() {
     }
 
-    public static ReadStatusFragment newInstance(JordanTaskModel model) {
-        ReadStatusFragment fragment = new ReadStatusFragment();
-//        Bundle args = new Bundle();
-//        args.putString(client_id);
-//        fragment.setArguments(args);
-        fragment.model = model;
-        return fragment;
+    public static ReadStatusFragment newInstance() {
+        return new ReadStatusFragment();
     }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        model = ClientInteractionsFragment.taskModelOf(this);
         statusAdapter = new ReadStatusAdapter(getContext(), model);
         statusFilterTypeAdapter = new StatusFilterTypeAdapter(getContext());
         statusFilterTaskAdapter = new StatusFilterTaskAdapter(getContext());

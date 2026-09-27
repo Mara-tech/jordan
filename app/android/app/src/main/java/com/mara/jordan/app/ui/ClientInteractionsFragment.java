@@ -10,7 +10,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentTransaction;
 import androidx.navigation.fragment.NavHostFragment;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
@@ -23,7 +22,6 @@ import com.mara.jordan.app.model.JordanTaskModel;
  */
 public class ClientInteractionsFragment extends InServerFragment {
 
-    private Fragment currentFragment = null;
     private JordanTaskModel model;
 
     /**
@@ -37,7 +35,25 @@ public class ClientInteractionsFragment extends InServerFragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
-        model = new JordanTaskModel(getContext(), getArguments().getLong(JordanTaskModel.CLIENT_ID, -1L));
+    }
+
+    /**
+     * The model the four tabs share, created on first use : after a rotation, the tab restored by
+     * the child fragment manager asks for it from {@code super.onCreate}, before the rest of
+     * {@link #onCreate} has run.
+     */
+    public JordanTaskModel getTaskModel() {
+        if (model == null) {
+            model = new JordanTaskModel(getContext(), getArguments().getLong(JordanTaskModel.CLIENT_ID, -1L));
+        }
+        return model;
+    }
+
+    /**
+     * The model of the tab a fragment of this screen is : its parent is always this screen.
+     */
+    static JordanTaskModel taskModelOf(Fragment tab) {
+        return ((ClientInteractionsFragment) tab.requireParentFragment()).getTaskModel();
     }
 
     @Override
@@ -63,38 +79,74 @@ public class ClientInteractionsFragment extends InServerFragment {
                     @Override public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                         int itemId = item.getItemId();
                         if (itemId == R.id.client_interaction_status) {
-                            openFragment(ReadStatusFragment.newInstance(model));
+                            openFragment(ReadStatusFragment.newInstance());
                             return true;
                         } else if (itemId == R.id.client_interaction_action) {
-                            openFragment(TaskAndActionsFragment.newInstance(model));
+                            openFragment(TaskAndActionsFragment.newInstance());
                             return true;
                         } else if (itemId == R.id.client_interaction_messages_state) {
-                            openFragment(MessagesStateFragment.newInstance(model));
+                            openFragment(MessagesStateFragment.newInstance());
                             return true;
                         } else if (itemId == R.id.client_interaction_metrics) {
-                            openFragment(MetricsFragment.newInstance(model));
+                            openFragment(MetricsFragment.newInstance());
                             return true;
                         }
                         return false;
                     }
                 };
         bottomMenu.setOnNavigationItemSelectedListener(navigationItemSelectedListener);
-        bottomMenu.setSelectedItemId(R.id.client_interaction_action);
         return view;
     }
 
+    /**
+     * The tab displayed is the source of truth, restored by the child fragment manager after a
+     * rotation : a first display opens the Actions tab, a later one only checks the item of the tab
+     * already there. Done here rather than in {@code onCreateView}, so that the menu's own restored
+     * state cannot contradict it.
+     */
+    @Override
+    public void onViewStateRestored(@Nullable Bundle savedInstanceState) {
+        super.onViewStateRestored(savedInstanceState);
+        BottomNavigationView bottomMenu = requireView().findViewById(R.id.bottom_navigation);
+        Fragment displayed = getDisplayedTab();
+        if (displayed == null) {
+            bottomMenu.setSelectedItemId(R.id.client_interaction_action);
+        } else {
+            bottomMenu.getMenu().findItem(menuItemOf(displayed)).setChecked(true);
+        }
+    }
 
+    static int menuItemOf(Fragment tab) {
+        if (tab instanceof ReadStatusFragment) {
+            return R.id.client_interaction_status;
+        } else if (tab instanceof MessagesStateFragment) {
+            return R.id.client_interaction_messages_state;
+        } else if (tab instanceof MetricsFragment) {
+            return R.id.client_interaction_metrics;
+        }
+        return R.id.client_interaction_action;
+    }
+
+    /**
+     * The tabs belong to this screen's child fragment manager, which saves and restores them with
+     * it. Switching tabs is not a navigation step : it is kept out of the back stack, where popping
+     * it would show one tab under the item of another.
+     */
     public void openFragment(Fragment fragment) {
-        currentFragment = fragment;
-        FragmentTransaction transaction = getActivity().getSupportFragmentManager().beginTransaction();
-        transaction.replace(R.id.client_inner_host_fragment, fragment);
-        transaction.addToBackStack(null);
-        transaction.commit();
+        getChildFragmentManager().beginTransaction()
+                .setReorderingAllowed(true)
+                .replace(R.id.client_inner_host_fragment, fragment)
+                .commit();
+    }
+
+    @Nullable
+    Fragment getDisplayedTab() {
+        return getChildFragmentManager().findFragmentById(R.id.client_inner_host_fragment);
     }
 
     @Override
     protected JordanClientModel getModel() {
-        return model;
+        return getTaskModel();
     }
 
     /**
@@ -102,8 +154,12 @@ public class ClientInteractionsFragment extends InServerFragment {
      */
     @Override
     public void refreshContent() {
-        if (currentFragment instanceof JordanRefreshable && currentFragment.getView() != null) {
-            ((JordanRefreshable) currentFragment).refreshContent();
+        if (!isAdded()) {
+            return;
+        }
+        Fragment displayed = getDisplayedTab();
+        if (displayed instanceof JordanRefreshable && displayed.getView() != null) {
+            ((JordanRefreshable) displayed).refreshContent();
         }
     }
 
