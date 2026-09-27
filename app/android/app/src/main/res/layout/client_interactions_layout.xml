@@ -6,9 +6,9 @@
     android:layout_height="match_parent"
     tools:context=".ui.MainActivity"
     >
-    <fragment
+    <!-- the tabs are placed here by ClientInteractionsFragment, in its child fragment manager -->
+    <androidx.fragment.app.FragmentContainerView
         android:id="@+id/client_inner_host_fragment"
-        android:name="androidx.navigation.fragment.NavHostFragment"
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintBottom_toTopOf="@id/bottom_navigation"

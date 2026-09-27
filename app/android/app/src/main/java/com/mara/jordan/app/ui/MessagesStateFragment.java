@@ -51,18 +51,14 @@ public class MessagesStateFragment extends Fragment implements JordanReadMessage
     public MessagesStateFragment() {
     }
 
-    public static Fragment newInstance(JordanTaskModel model) {
-        MessagesStateFragment fragment = new MessagesStateFragment();
-//        Bundle args = new Bundle();
-//        args.putString(client_id);
-//        fragment.setArguments(args);
-        fragment.model = model;
-        return fragment;
+    public static Fragment newInstance() {
+        return new MessagesStateFragment();
     }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        model = ClientInteractionsFragment.taskModelOf(this);
         messageStateAdapter = new MessagesStateAdapter(getContext(), model);
         messageFilterTaskAdapter = new MessageFilterTaskAdapter(getContext());
         messageFilterAuthorAdapter = new MessageFilterAuthorAdapter(getContext());

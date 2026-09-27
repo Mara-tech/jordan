@@ -46,18 +46,14 @@ public class TaskAndActionsFragment extends Fragment implements JordanGetActions
     public TaskAndActionsFragment() {
     }
 
-    public static Fragment newInstance(JordanTaskModel model) {
-        TaskAndActionsFragment fragment = new TaskAndActionsFragment();
-//        Bundle args = new Bundle();
-//        args.putString(client_id);
-//        fragment.setArguments(args);
-        fragment.model = model;
-        return fragment;
+    public static Fragment newInstance() {
+        return new TaskAndActionsFragment();
     }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        model = ClientInteractionsFragment.taskModelOf(this);
         adapter = new TaskAndActionsAdapter(getContext(), model, this);
     }
 

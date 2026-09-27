@@ -97,10 +97,14 @@ public class MetricsFragment extends Fragment implements JordanReadMetricsCallba
     public MetricsFragment() {
     }
 
-    public static MetricsFragment newInstance(JordanTaskModel model) {
-        MetricsFragment fragment = new MetricsFragment();
-        fragment.model = model;
-        return fragment;
+    public static MetricsFragment newInstance() {
+        return new MetricsFragment();
+    }
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        model = ClientInteractionsFragment.taskModelOf(this);
     }
 
     @Override

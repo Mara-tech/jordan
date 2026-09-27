@@ -46,7 +46,9 @@ The session token lives in memory only: closing the app closes the session on th
 ## Jordan Client Interactions
 A server may have one or several clients.
 These clients are the executing program that has *register*ed.
-User can interact with a client in different forms
+User can interact with a client in different forms, one tab each at the bottom of the screen.
+The tab opened stays opened when the device is rotated. Switching tabs is not a navigation step:
+*Back* leaves the client, it does not walk through the tabs opened before.
 
 ### Status
 Client (executing program) may send status.
@@ -103,3 +105,11 @@ of text.
           height="600"/>
 </p>
 
+## Tests
+
+`./gradlew testDebugUnitTest` runs the unit tests on the JVM, which the CI runs on every pull
+request touching the app. Those driving a screen through its lifecycle use Robolectric:
+`ClientInteractionsFragmentTest` rotates the client screen and checks that the tab displayed, the
+only one held, is the one its menu shows checked. The tabs live in the screen's child fragment
+manager and read the model from it (`ClientInteractionsFragment.taskModelOf`): a field set by
+`newInstance` would be lost when the system recreates the tab.
