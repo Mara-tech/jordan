@@ -129,7 +129,6 @@ dmypy.json
 .pyre/
 
 .idea/
-.claude
 
 out/
 /libraries/.jordan_session

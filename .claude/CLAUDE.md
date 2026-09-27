@@ -1,3 +1,19 @@
+<!-- arachnid:notion-backlog -->
+## Backlog
+
+Work is tracked in the Notion database **Jordan** — see [.claude/rules/notion-tickets.md](rules/notion-tickets.md).
+
+**`/go` runs one iteration**: it takes the highest-priority `todo` ticket, implements it on a branch, opens the pull request, reports on the ticket page, and hands it over for review. The procedure is [.claude/skills/go/SKILL.md](skills/go/SKILL.md); it loads only when invoked. Pass `--ticket=<id>-n` to take that ticket instead of the top of the queue, `--auto-merge` to carry on through the merge instead of stopping at the handover, and `--with-demo` to have the pull request carry a visual demonstration of the change, written for the product owner rather than for the reviewer.
+
+**An iteration only ever starts on an explicit request from the user** — typed as a command or asked in words. Never on your own initiative, even when the next ticket is obvious and the backlog is right there.
+
+**`/go-auto` runs the same iteration unattended**, in an isolated context, always through to the merge — it is the one meant for chaining with `/loop`, and only its final report comes back. It cannot ask you anything, so it never splits a ticket on its own: it stops and says where it would have cut. `--until=JRD-n` chains iterations until that ticket reaches the top of the queue, then stops without taking it. See [.claude/skills/go-auto/SKILL.md](skills/go-auto/SKILL.md).
+
+## Local checks
+
+**Before pushing, run what [.claude/rules/checks.md](.claude/rules/checks.md) lists** — and keep that file current. It records the commands this project is verified with; when you learn one it does not have, or find one that no longer works, correct it in the same pass rather than carrying the knowledge in your head.
+<!-- /arachnid:notion-backlog -->
+
 # Jordan — Developer Guide
 
 ## Architecture

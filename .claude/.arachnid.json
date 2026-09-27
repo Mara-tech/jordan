@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "cli": "0.2.0",
+  "answers": {
+    "dataSourceUri": "collection://3be095c7-d7e4-81bd-a1a1-000b0973ceba",
+    "mainBranch": "main",
+    "ticketPrefix": "JRD",
+    "backlogName": "Jordan",
+    "backlogUrl": "https://app.notion.com/p/3be095c7d7e481b399abf729c64735c8",
+    "ticketPageUrl": "https://app.notion.com/p/crire-un-ticket-3bc095c7d7e48197acb6e133331aa977",
+    "repoLang": "English",
+    "chatLang": "French",
+    "projectName": "Jordan",
+    "projectPitch": "Jordan lets an executing program be interacted with from anywhere — send it commands, read its status, trigger actions."
+  },
+  "unconfigured": [],
+  "deferred": [
+    "localChecks",
+    "coverageCmd"
+  ],
+  "modules": {
+    "notion-backlog": {
+      "version": "1.5.0",
+      "components": {
+        "go": {
+          "installedAt": "2026-09-27T19:43:40.458Z",
+          "files": {
+            ".claude/skills/go/SKILL.md": {
+              "mode": "template",
+              "hash": "sha256:4d62668b827a84541d9c8df07c927e848c495fdb640077bb63299bef5719d94a"
+            },
+            ".claude/skills/go/references/demo.md": {
+              "mode": "vendor",
+              "hash": "sha256:dab8f955f44151295114ab088d691c808cacd07072e3bfb7f1bafb02bb642188"
+            },
+            ".claude/skills/go/references/pull-request.md": {
+              "mode": "vendor",
+              "hash": "sha256:80a13419861792069942e050ba24d758671e6d26ceef3e527901a253c615452e"
+            }
+          }
+        },
+        "go-auto": {
+          "installedAt": "2026-09-27T19:43:40.459Z",
+          "files": {
+            ".claude/skills/go-auto/SKILL.md": {
+              "mode": "vendor",
+              "hash": "sha256:7c31a73fd17e074674bcecaca7cd857f87236ab2d9aa804caa43d5ff0d1f2d2c"
+            }
+          }
+        },
+        "notion-rules": {
+          "installedAt": "2026-09-27T19:43:40.459Z",
+          "files": {
+            ".claude/rules/notion-tickets.md": {
+              "mode": "template",
+              "hash": "sha256:5bd4536105061a662c2aee0cceaa2a426959243d2cec467889ff45d16d61e17e"
+            }
+          }
+        },
+        "language": {
+          "installedAt": "2026-09-27T19:43:40.459Z",
+          "files": {
+            ".claude/rules/language.md": {
+              "mode": "template",
+              "hash": "sha256:de7eebdd627eb60fc35328515e48804b591d0242a645c5200750ae92b8c8d61e"
+            }
+          }
+        },
+        "checks": {
+          "installedAt": "2026-09-27T19:43:40.459Z",
+          "files": {
+            ".claude/rules/checks.md": {
+              "mode": "seed",
+              "hash": "sha256:d4c426491ad414c9529d905f0e402d43bd35b63821aee0909fc4fc3a69119b2e"
+            }
+          }
+        },
+        "project-instructions": {
+          "installedAt": "2026-09-27T19:43:40.459Z",
+          "files": {
+            "arachnid-project-instructions.md": {
+              "mode": "template",
+              "hash": "sha256:9b588e6256fc5f7ff3c4d717f2a89c2d7b51870a42966a89ef4bf757eef40c34"
+            }
+          }
+        }
+      }
+    }
+  }
+}

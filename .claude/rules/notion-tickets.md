@@ -1,0 +1,67 @@
+# The Notion backlog
+
+Work on this project is tracked in the Notion database **Jordan**, data source
+`collection://3be095c7-d7e4-81bd-a1a1-000b0973ceba`
+([open it](https://app.notion.com/p/3be095c7d7e481b399abf729c64735c8)).
+
+**How a ticket is written in the Notion page
+[Writing a ticket](https://app.notion.com/p/crire-un-ticket-3bc095c7d7e48197acb6e133331aa977)**, next to the database:
+every property, which ones are mandatory, when and how to fill the optional ones, how to place a
+priority, how to write a Definition of Done. That page is shared by every backlog and it is the
+authority — read it before creating or filling a ticket, and do not restate it here. What follows is
+only what this repository adds to it.
+
+Tickets are written and reported on in the **conversation language**; the code they produce is in the
+**repository language**. Which is which is in [language.md](language.md).
+
+## What this repository adds
+
+- **A ticket is designated by its `JRD-n` ID, never by its title** — in other tickets, in reports, in
+  pull requests, in any comment left in the code. A title gets reworded; an ID does not.
+- **`Genre` decides the branch prefix.** The mapping is in the `/go` skill, at the step that creates
+  the branch.
+- **`done` follows the merge, or a split.** Exactly two things move a ticket to `done`: its pull
+  request was merged, or **the user agreed to split it** and its content now lives in the children.
+  Never a green CI, a review that read well, or an opinion that the work is finished.
+  - Normally the user merges, and that merge *is* the review verdict.
+  - Under `/go --auto-merge` and `/go-auto`, the skill merges, on an authorization given at the
+    invocation. The verdict is then « whatever checks the project has, plus a triaged review », which
+    is **weaker** — no human read the diff, and on a repository with no checks wired to its pull
+    requests, nothing read it at all. Say which of the two it was, rather than letting a `done` imply
+    someone looked.
+- **`cancelled` is the user's call, never yours.** A ticket leaves the queue undelivered only because
+  the user says the need is gone — obsolete, arbitrated the other way, absorbed by another ticket.
+  Never cancel one on your own initiative, and never because it turned out to be harder than it read.
+  Put what made it moot in `Commentaires`, with the ID of whatever replaces it if something does: a
+  `cancelled` with no reason is indistinguishable from a ticket someone gave up on.
+- **`Commentaires` carries the pull request**: its link and its current state, rewritten as that
+  state changes. The `/go` skill has the wording.
+
+## Running an iteration
+
+The procedure — pick, branch, implement, PR, report, hand over — is the `/go` skill
+(`.claude/skills/go/SKILL.md`). It loads when invoked, so it is not in context right now.
+
+Two entry points, one procedure:
+
+- **`/go`** runs it in this conversation and stops at the handover, leaving the ticket in
+  `review in progress`. `--auto-merge` makes it go through to the merge.
+- **`/go-auto`** (`.claude/skills/go-auto/SKILL.md`) runs the same thing in an isolated context and
+  always goes through to the merge. It is the one meant for `/loop`; only its report comes back.
+  `--until=JRD-n` chains iterations until that ticket reaches the top of the queue,
+  then stops without taking it.
+
+**An iteration only ever starts on an explicit request from the user** — typed as `/go` or
+`/go-auto`, or asked in words. **Never on your own initiative**, even when the next ticket is obvious
+and the backlog is right there: not because the queue is long, not because the previous iteration
+went well, not because nobody is watching.
+
+The rule is about **initiative, not execution**, and the two are easily conflated.
+`disable-model-invocation: true` on both skills would enforce « the model never runs one », which
+also refuses « run them for me » said in a sentence — so an explicit request, about work the user had
+no wish to arbitrate, would have no way through. The flag is therefore off on `/go-auto`, the
+unattended entry point built to be chained, and stays on for `/go`, where the human who would type
+it is present by definition. What guards the initiative is this paragraph, not the flag.
+
+Anything found along the way that does not belong to the ticket in hand becomes its own ticket rather
+than a remark that gets lost, or a fix smuggled into an unrelated pull request.
