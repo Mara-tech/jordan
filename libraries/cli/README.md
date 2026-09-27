@@ -37,6 +37,30 @@ jordan complete
 
 Add `.jordan_session` to your `.gitignore`.
 
+## Request timeout
+
+Every command of both `jordan` and `jordan-admin` gives up on a request the server does not answer
+within `--request-timeout` seconds — **30** by default, or `$JORDAN_REQUEST_TIMEOUT`. Without a
+bound, a server that accepts the connection and then stops answering would hold the command, and the
+script running it, forever. A request that times out is reported as such, and the command exits `1`:
+
+```
+No answer from the server within 30 s (--request-timeout).
+```
+
+A command stopped this way did not finish: `jordan complete` and `jordan error` keep
+`.jordan_session`, so they can be run again. The value must be greater than 0; lower it for a script
+that would rather fail fast, raise it for a server known to be slow to wake up.
+
+```bash
+export JORDAN_REQUEST_TIMEOUT=10
+jordan status "Starting"                 # gives up after 10 s
+jordan status "Done" --request-timeout 5 # the option wins over the variable
+```
+
+`requests` bounds the wait for the connection and the wait between two pieces of the answer, not the
+whole exchange: a server that trickles its answer byte by byte can still stretch a request beyond it.
+
 ## Tasks
 
 Every Jordan client is built around a **task hierarchy**. When you `jordan register`, the server creates a **root task** whose ID is stored in `.jordan_session`. All commands (`status`, `progress`, `metric`, `action`, `complete`, `error`) operate on this root task by default.
@@ -170,7 +194,7 @@ Requires `jordan_py` 2.2.0 or later.
 ### `jordan action`
 
 ```
-jordan action [--wait] [--timeout SECONDS] [--interval SECONDS] [--task-id TASK_ID]
+jordan action [--wait] [--timeout SECONDS] [--interval SECONDS] [--task-id TASK_ID] [--request-timeout SECONDS]
 ```
 
 Reads the next pending action from the server and prints it as JSON.
@@ -191,8 +215,15 @@ Reads the next pending action from the server and prints it as JSON.
 | `--timeout` | `60` | Max wait time in seconds (used with `--wait`) |
 | `--interval` | `2.0` | Polling interval in seconds (used with `--wait`) |
 | `--task-id` | root task | Read an action sent to a specific sub-task |
+| `--request-timeout` | `30` / `$JORDAN_REQUEST_TIMEOUT` | Max wait for the server's answer to each request |
 
 Exits with code 1 if no action is pending (or timeout is reached).
+
+With `--wait`, `--timeout` bounds the whole command, requests included: each read is given the
+smaller of `--request-timeout` and the time left, and the pause between two reads is cut to the time
+left too. A server that stops answering therefore returns the command to the script around
+`--timeout`, with `Timeout: no action received.` A read that goes unanswered before then does not end
+the wait — it is polled again, like an empty queue.
 
 **Shell script example — react on an action:**
 
@@ -274,7 +305,7 @@ jordan-admin logout
 
 ### Authentication
 
-Every command accepts `--server URL` and `--token TOKEN`; both fall back to an environment variable (`JORDAN_SERVER`, `JORDAN_ADMIN_TOKEN`), and then to the session opened by `jordan-admin login`.
+Every command accepts `--server URL` and `--token TOKEN` (and `--request-timeout`, see [Request timeout](#request-timeout)); both fall back to an environment variable (`JORDAN_SERVER`, `JORDAN_ADMIN_TOKEN`), and then to the session opened by `jordan-admin login`.
 
 | Source | Used for |
 |---|---|
@@ -391,7 +422,7 @@ Prints the assigned message ID on success.
 jordan-admin watch TASK_ID [--interval SECONDS] [--lines N] [--server URL] [--token TOKEN]
 ```
 
-Polls the server for new status updates from the given task and prints them as they arrive. Press Ctrl+C to stop. Works on both root tasks and sub-tasks. A session that expires under the loop stops it — polling on would only repeat the refusal.
+Polls the server for new status updates from the given task and prints them as they arrive. Press Ctrl+C to stop. Works on both root tasks and sub-tasks. A session that expires under the loop stops it — polling on would only repeat the refusal. A poll the server does not answer within `--request-timeout` does not: the watch says so and polls on, since it is meant to outlast a server's bad moment.
 
 | Option | Default | Description |
 |---|---|---|

@@ -8,6 +8,8 @@ from typing import List, Optional
 import requests
 import typer
 
+from jordan_cli.request_timeout import REQUEST_TIMEOUT_OPTION, bounded
+
 admin_app = typer.Typer(help="Jordan admin CLI — manage passive clients from the command line.")
 
 ADMIN_TOKEN_ENV_VAR = "JORDAN_ADMIN_TOKEN"
@@ -178,6 +180,7 @@ def _describe(session: dict) -> str:
 
 
 @admin_app.command("login")
+@bounded
 def login_command(
     login: str = typer.Option(..., "--login", prompt=True, help="Operator login declared in JORDAN_ADMIN_USERS"),
     password: Optional[str] = typer.Option(
@@ -188,12 +191,13 @@ def login_command(
              f"history and the process list; ${ADMIN_PASSWORD_ENV_VAR} covers scripts",
     ),
     server: Optional[str] = _SERVER_OPTION,
+    request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """Open an operator session and store its token for the other commands."""
     base = _base(server)
     if password is None:
         password = typer.prompt("Password", hide_input=True)
-    response = requests.post(base + "admin/login", json={"login": login, "password": password})
+    response = requests.post(base + "admin/login", json={"login": login, "password": password}, timeout=request_timeout)
     if response.status_code != 200:
         if response.status_code == 401:
             typer.echo("Invalid login or password.", err=True)
@@ -207,13 +211,15 @@ def login_command(
 
 
 @admin_app.command("logout")
+@bounded
 def logout(
     server: Optional[str] = _SERVER_OPTION,
     token: Optional[str] = _TOKEN_OPTION,
+    request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """Close the session on the server and drop the local token."""
     base = _base(server)
-    response = requests.post(base + "admin/logout", headers=_headers(_auth(base, token)))
+    response = requests.post(base + "admin/logout", headers=_headers(_auth(base, token)), timeout=request_timeout)
     # the local token goes either way: a session the server already dropped, or
     # one it never knew, is of no use here
     _forget_session(base)
@@ -224,13 +230,15 @@ def logout(
 
 
 @admin_app.command("whoami")
+@bounded
 def whoami(
     server: Optional[str] = _SERVER_OPTION,
     token: Optional[str] = _TOKEN_OPTION,
+    request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """Show the identity and permissions the server grants the current token."""
     base = _base(server)
-    response = requests.get(base + "admin/me", headers=_headers(_auth(base, token)))
+    response = requests.get(base + "admin/me", headers=_headers(_auth(base, token)), timeout=request_timeout)
     if response.status_code != 200:
         _fail(response)
     typer.echo(_describe(response.json()))
@@ -240,13 +248,15 @@ def whoami(
 
 
 @admin_app.command("list")
+@bounded
 def list_clients(
     server: Optional[str] = _SERVER_OPTION,
     token: Optional[str] = _TOKEN_OPTION,
+    request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """List registered passive clients and their current state."""
     base = _base(server)
-    r = requests.get(base + "admin/clients", headers=_headers(_auth(base, token)))
+    r = requests.get(base + "admin/clients", headers=_headers(_auth(base, token)), timeout=request_timeout)
     if r.status_code != 200:
         _fail(r)
     clients = r.json()
@@ -264,6 +274,7 @@ def list_clients(
 
 
 @admin_app.command("send")
+@bounded
 def send(
     client_id: int = typer.Argument(..., help="Client or task ID to send the action to"),
     action_name: str = typer.Argument(..., help="Action name (must match one declared at registration)"),
@@ -272,6 +283,7 @@ def send(
     ),
     server: Optional[str] = _SERVER_OPTION,
     token: Optional[str] = _TOKEN_OPTION,
+    request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """Send a message (action) to a passive client."""
     placeholders: dict = {}
@@ -285,7 +297,10 @@ def send(
     payload = {"action": {"actionName": action_name, "placeholders": placeholders}}
     base = _base(server)
     r = requests.post(
-        base + f"admin/{client_id}/message", json=payload, headers=_headers(_auth(base, token))
+        base + f"admin/{client_id}/message",
+        json=payload,
+        headers=_headers(_auth(base, token)),
+        timeout=request_timeout,
     )
     if r.status_code != 201:
         _fail(r)
@@ -299,6 +314,7 @@ def watch(
     lines: int = typer.Option(10, help="Number of status lines to fetch per poll"),
     server: Optional[str] = _SERVER_OPTION,
     token: Optional[str] = _TOKEN_OPTION,
+    request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """Stream status updates from a passive client (polling loop). Press Ctrl+C to stop."""
     base = _base(server)
@@ -307,7 +323,15 @@ def watch(
     typer.echo(f"Watching client {client_id}... (Ctrl+C to stop)")
     try:
         while True:
-            r = requests.get(base + f"admin/{client_id}/status/{lines}", headers=headers)
+            try:
+                r = requests.get(
+                    base + f"admin/{client_id}/status/{lines}", headers=headers, timeout=request_timeout
+                )
+            except requests.exceptions.Timeout:
+                # a watch is meant to outlast a server's bad moment: say so, and poll on
+                typer.echo(f"No answer from the server within {request_timeout:g} s, polling on.", err=True)
+                _time.sleep(interval)
+                continue
             # 204 is an empty history, not a failure; 401 means the session died
             # under the loop, and polling on would only repeat the refusal
             if r.status_code in (401, 403):
@@ -324,14 +348,16 @@ def watch(
 
 
 @admin_app.command("message-status")
+@bounded
 def message_status(
     message_id: int = typer.Argument(..., help="Message ID"),
     server: Optional[str] = _SERVER_OPTION,
     token: Optional[str] = _TOKEN_OPTION,
+    request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """Display the state machine audit trail for a message."""
     base = _base(server)
-    r = requests.get(base + f"admin/{message_id}", headers=_headers(_auth(base, token)))
+    r = requests.get(base + f"admin/{message_id}", headers=_headers(_auth(base, token)), timeout=request_timeout)
     if r.status_code == 204:
         typer.echo(f"Message {message_id} not found.", err=True)
         raise typer.Exit(1)

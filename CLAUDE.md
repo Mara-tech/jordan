@@ -245,6 +245,15 @@ path (`async_call` / `async_callback`), JRD-17. A new call forwards them too, an
 ([test_jordan.py](libraries/python/jordan_py/jordan_py/test/test_jordan.py)), which checks the
 timeout on every request the call sends.
 
+`jordan_cli` is the one caller that does choose a bound, since it runs unattended in scripts: every
+command of `jordan` and `jordan-admin` takes `--request-timeout` (default 30 s,
+`$JORDAN_REQUEST_TIMEOUT`, [request_timeout.py](libraries/cli/jordan_cli/request_timeout.py)) and
+passes it on every request; `@bounded` turns an expired one into exit code `1` and a message instead
+of a traceback. `jordan action --wait` cuts each read to the time left before `--timeout`, so the
+wait ends on time even when the server stops answering (JRD-16). A new command takes the option,
+forwards it, and gets a case in `TestRequestTimeout` ([test_cli.py](libraries/cli/tests/test_cli.py),
+[test_admin.py](libraries/cli/tests/test_admin.py)).
+
 ---
 
 ## Naming conventions
@@ -358,7 +367,8 @@ Each component has its own prefixed tag. Only the matching workflow fires.
    ```bash
    git tag jordan_cli/v1.0.0 && git push origin jordan_cli/v1.0.0
    ```
-   `jordan_cli` declares the `jordan_py` version it needs (`jordan_py>=2.2.0` for `jordan metric`):
+   `jordan_cli` declares the `jordan_py` version it needs (`jordan_py>=2.2.1`, the first to forward a
+   timeout on reading a message, which `jordan action` relies on):
    publish that `jordan_py` first, or the new CLI installs against nothing.
 
 The same pattern applies to `server` with its own prefix.

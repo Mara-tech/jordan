@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
+import requests
 import responses as responses_lib
 from typer.testing import CliRunner
 
@@ -358,6 +359,62 @@ class TestAction:
         assert result.exit_code == 1
         assert "Timeout" in result.output
 
+    def test_wait_returns_by_its_timeout_when_the_server_stops_answering(self, silent_server, invoke_within):
+        # JRD-16: --timeout bounded the loop, not the reads inside it, so one read
+        # held by a silent server held the command forever
+        Path(".jordan_session").write_text(json.dumps(dict(SESSION, server=silent_server)))
+        result, took = invoke_within(app, ["action", "--wait", "--timeout", "1", "--interval", "0"], seconds=10)
+        assert result.exit_code == 1
+        assert "Timeout: no action received." in result.output
+        assert took < 3
+
+    @responses_lib.activate
+    def test_wait_polls_on_after_an_unanswered_read(self):
+        _write_session()
+        responses_lib.add(
+            responses_lib.GET, _url(f"client/{TASK_ID}/message"), body=requests.exceptions.ReadTimeout()
+        )
+        responses_lib.add(
+            responses_lib.GET, _url(f"client/{TASK_ID}/message"), json=MSG_PAYLOAD, status=200
+        )
+        responses_lib.add(
+            responses_lib.PUT,
+            _url(f"client/{TASK_ID}/{MSG_ID}/CLIENT_RECEIVED"),
+            status=202,
+        )
+        result = runner.invoke(app, ["action", "--wait", "--timeout", "10", "--interval", "0"])
+        assert result.exit_code == 0
+        assert json.loads(result.output)["actionName"] == "stop"
+
+    @responses_lib.activate
+    def test_wait_cuts_each_read_to_the_time_left(self):
+        _write_session()
+        responses_lib.add(responses_lib.GET, _url(f"client/{TASK_ID}/message"), status=204)
+        result = runner.invoke(
+            app, ["action", "--wait", "--timeout", "1", "--interval", "0.3", "--request-timeout", "30"]
+        )
+        assert result.exit_code == 1
+        timeouts = [call.request.req_kwargs["timeout"] for call in responses_lib.calls]
+        assert len(timeouts) >= 2
+        assert all(0 < t <= 1 for t in timeouts)
+        assert timeouts == sorted(timeouts, reverse=True)
+
+    @responses_lib.activate
+    def test_wait_gives_each_request_the_request_timeout_while_time_is_left(self):
+        _write_session()
+        responses_lib.add(
+            responses_lib.GET, _url(f"client/{TASK_ID}/message"), json=MSG_PAYLOAD, status=200
+        )
+        responses_lib.add(
+            responses_lib.PUT,
+            _url(f"client/{TASK_ID}/{MSG_ID}/CLIENT_RECEIVED"),
+            status=202,
+        )
+        result = runner.invoke(app, ["action", "--wait", "--timeout", "60", "--request-timeout", "5"])
+        assert result.exit_code == 0
+        # the read and its receipt
+        assert [call.request.req_kwargs["timeout"] for call in responses_lib.calls] == [5, 5]
+
 
 # ── task-create ────────────────────────────────────────────────────────────────
 
@@ -485,3 +542,89 @@ class TestUnregister:
         result = runner.invoke(app, ["unregister"])
         assert result.exit_code == 1
         assert Path(".jordan_session").exists()
+
+
+# ── request timeout ────────────────────────────────────────────────────────────
+
+
+def _serve_every_endpoint() -> None:
+    ok = {
+        (responses_lib.POST, "client/register"): (200, {"taskId": TASK_ID, "authToken": AUTH_TOKEN}),
+        (responses_lib.POST, f"client/{TASK_ID}/task"): (201, {"taskId": SUB_TASK_ID}),
+        (responses_lib.POST, f"client/{TASK_ID}/status"): (200, {"statusId": "s-1"}),
+        (responses_lib.GET, f"client/{TASK_ID}/message"): (200, MSG_PAYLOAD),
+        (responses_lib.PUT, f"client/{TASK_ID}/{MSG_ID}/CLIENT_RECEIVED"): (202, None),
+        (responses_lib.PUT, f"client/{TASK_ID}/COMPLETE"): (202, None),
+        (responses_lib.PUT, f"client/{TASK_ID}/ERROR"): (202, None),
+        (responses_lib.POST, f"client/{TASK_ID}/unregister"): (200, None),
+    }
+    for (method, path), (status, body) in ok.items():
+        responses_lib.add(method, _url(path), json=body, status=status)
+
+
+class TestRequestTimeout:
+    """Every request the CLI sends is bounded: requests waits forever otherwise,
+    on a server that accepts the connection and never answers (JRD-16)."""
+
+    # each command, and how many requests it sends
+    @pytest.mark.parametrize("cmd, requests_sent", [
+        (["register", "--server", BASE_URL], 1),
+        (["task-create", "child"], 1),
+        (["status", "hello"], 1),
+        (["progress", "50"], 1),
+        (["metric", "loss", "0.5"], 1),
+        (["action"], 2),
+        (["complete"], 2),
+        (["error", "boom"], 3),
+        (["unregister"], 1),
+    ])
+    @responses_lib.activate
+    def test_every_request_of_every_command_is_bounded(self, cmd, requests_sent):
+        _write_session()
+        _serve_every_endpoint()
+        result = runner.invoke(app, cmd + ["--request-timeout", "7.5"])
+        assert result.exit_code == 0, result.output
+        assert [call.request.req_kwargs["timeout"] for call in responses_lib.calls] == [7.5] * requests_sent
+
+    @responses_lib.activate
+    def test_default_is_30_seconds(self):
+        _write_session()
+        _serve_every_endpoint()
+        runner.invoke(app, ["status", "hello"])
+        assert responses_lib.calls[0].request.req_kwargs["timeout"] == 30
+
+    @responses_lib.activate
+    def test_read_from_environment(self, monkeypatch):
+        monkeypatch.setenv("JORDAN_REQUEST_TIMEOUT", "4")
+        _write_session()
+        _serve_every_endpoint()
+        runner.invoke(app, ["status", "hello"])
+        assert responses_lib.calls[0].request.req_kwargs["timeout"] == 4
+
+    @pytest.mark.parametrize("value", ["0", "-1"])
+    @responses_lib.activate
+    def test_not_a_positive_number_is_a_usage_error(self, value):
+        _write_session()
+        result = runner.invoke(app, ["status", "hello", "--request-timeout", value])
+        assert result.exit_code == 2
+        assert len(responses_lib.calls) == 0
+
+    def test_unanswered_request_exits_1_and_says_why(self, silent_server, invoke_within):
+        Path(".jordan_session").write_text(json.dumps(dict(SESSION, server=silent_server)))
+        result, _ = invoke_within(app, ["status", "hello", "--request-timeout", "0.5"], seconds=10)
+        assert result.exit_code == 1
+        assert "No answer from the server within 0.5 s" in result.output
+
+    def test_unanswered_complete_keeps_the_session(self, silent_server, invoke_within):
+        # the task is not known to be complete: the session stays, to try again
+        Path(".jordan_session").write_text(json.dumps(dict(SESSION, server=silent_server)))
+        result, _ = invoke_within(app, ["complete", "--request-timeout", "0.5"], seconds=10)
+        assert result.exit_code == 1
+        assert Path(".jordan_session").exists()
+
+    def test_unanswered_register_writes_no_session(self, silent_server, invoke_within):
+        result, _ = invoke_within(
+            app, ["register", "--server", silent_server, "--request-timeout", "0.5"], seconds=10
+        )
+        assert result.exit_code == 1
+        assert not Path(".jordan_session").exists()

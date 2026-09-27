@@ -5,6 +5,7 @@ import sys
 import time
 
 import pytest
+import requests
 import responses as responses_lib
 from typer.testing import CliRunner
 
@@ -307,6 +308,21 @@ class TestWatch:
         assert result.exit_code == 1
         assert "jordan-admin login" in result.output
 
+    @responses_lib.activate
+    def test_polls_on_after_an_unanswered_poll(self):
+        responses_lib.add(
+            responses_lib.GET, _url("admin/1/status/10"), body=requests.exceptions.ReadTimeout()
+        )
+        responses_lib.add(responses_lib.GET, _url("admin/1/status/10"), status=401)
+        _open_session()
+        result = runner.invoke(
+            admin_app, ["watch", "1", "--interval", "0", "--request-timeout", "2"] + SERVER_OPT
+        )
+        assert "No answer from the server within 2 s, polling on." in result.output
+        # the second poll did go out, and its 401 ended the watch
+        assert len(responses_lib.calls) == 2
+        assert result.exit_code == 1
+
 
 # ── message-status ─────────────────────────────────────────────────────────────
 
@@ -339,3 +355,44 @@ class TestMessageStatus:
     def test_no_server_url_exits_1(self):
         result = runner.invoke(admin_app, ["message-status", "5"])
         assert result.exit_code == 1
+
+
+# ── request timeout ────────────────────────────────────────────────────────────
+
+
+class TestRequestTimeout:
+    """Every request jordan-admin sends is bounded: requests waits forever
+    otherwise, on a server that accepts the connection and never answers (JRD-16)."""
+
+    @pytest.mark.parametrize("cmd, method, path, status, body", [
+        (["login", "--login", "bob", "--password", "s3cret"], responses_lib.POST, "admin/login", 200,
+         dict(SESSION, expiresAt=int(time.time()) + 3600)),
+        (["logout"], responses_lib.POST, "admin/logout", 200, None),
+        (["whoami"], responses_lib.GET, "admin/me", 200, SESSION),
+        (["list"], responses_lib.GET, "admin/clients", 200, []),
+        (["send", "1", "stop"], responses_lib.POST, "admin/1/message", 201, 42),
+        (["message-status", "42"], responses_lib.GET, "admin/42", 200, {"state": "CLIENT_RECEIVED"}),
+        # a watch only ends on a refusal
+        (["watch", "1"], responses_lib.GET, "admin/1/status/10", 401, None),
+    ])
+    @responses_lib.activate
+    def test_every_command_bounds_its_request(self, cmd, method, path, status, body):
+        responses_lib.add(method, _url(path), json=body, status=status)
+        _open_session()
+        runner.invoke(admin_app, cmd + ["--request-timeout", "7.5"] + SERVER_OPT)
+        assert [call.request.req_kwargs["timeout"] for call in responses_lib.calls] == [7.5]
+
+    @responses_lib.activate
+    def test_default_is_30_seconds(self):
+        responses_lib.add(responses_lib.GET, _url("admin/clients"), json=[], status=200)
+        _open_session()
+        runner.invoke(admin_app, ["list"] + SERVER_OPT)
+        assert responses_lib.calls[0].request.req_kwargs["timeout"] == 30
+
+    def test_unanswered_request_exits_1_and_says_why(self, silent_server, invoke_within):
+        result, _ = invoke_within(
+            admin_app, ["list", "--server", silent_server, "--token", TOKEN, "--request-timeout", "0.5"],
+            seconds=10,
+        )
+        assert result.exit_code == 1
+        assert "No answer from the server within 0.5 s" in result.output
