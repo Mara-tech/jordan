@@ -604,6 +604,26 @@ class TestRequestArguments(unittest.TestCase):
         self._make_instance(jordan.JordanTaskInstance).fatal(RuntimeError("diverged"), timeout=self.TIMEOUT)
         self._assert_every_request_bounded(2)
 
+    @responses_lib.activate
+    def test_async_status_sends_bound_their_request(self):
+        """The asynchronous path runs the request on a thread of its own: it has to carry the
+        arguments there too (JRD-17)."""
+        for name, send in [
+            ("send_status", lambda instance, **kw: instance.send_status("epoch 3", **kw)),
+            ("send_progress", lambda instance, **kw: instance.send_progress(42, **kw)),
+            ("send_success_status", lambda instance, **kw: instance.send_success_status("done", **kw)),
+            ("send_failure_status", lambda instance, **kw: instance.send_failure_status("diverged", **kw)),
+            ("send_typed_status", lambda instance, **kw: instance.send_typed_status(jordan.GENERAL_STATUS_TYPE, "x", **kw)),
+            ("send_metric", lambda instance, **kw: instance.send_metric("loss", 0.5, step=3, **kw)),
+        ]:
+            with self.subTest(call=name):
+                responses_lib.reset()
+                responses_lib.add(responses_lib.POST, _url(f"client/{TASK_ID}/status"), json={"statusId": "s"}, status=200)
+                sent = threading.Event()
+                send(self._make_instance(), async_callback=lambda _status_id: sent.set(), timeout=self.TIMEOUT)
+                self.assertTrue(sent.wait(5))
+                self._assert_every_request_bounded(1)
+
 
 if __name__ == '__main__':
     unittest.main()

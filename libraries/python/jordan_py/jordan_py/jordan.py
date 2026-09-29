@@ -226,7 +226,7 @@ class JordanInstance:
 
     def _send_status_payload(self, payload: Dict[str, Any], async_call: bool, async_callback: Optional[Callable[[str], None]], **kwargs: Any) -> Optional[str]:
         if async_call or async_callback:
-            threading.Thread(target=self._exec_send_status, args=[payload, async_callback]).start()
+            threading.Thread(target=self._exec_send_status, args=[payload, async_callback], kwargs=kwargs).start()
             return None
         return self._exec_send_status(payload, **kwargs)
 
