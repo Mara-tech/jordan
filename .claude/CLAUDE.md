@@ -254,10 +254,10 @@ for **each** request it makes — `read_message` for the read and the `CLIENT_RE
 sends, `fatal` for its three requests, `acknowledge_and_processed` for its two. That is how a caller
 bounds a call: `read_message(timeout=5)`. `requests` has no default timeout, and the library sets
 none on purpose — a behaviour change for every client, arbitration JRD-18: a call that drops its
-`kwargs` can hang forever on a server that accepts the connection and stops answering. One known
-exception: `send_status` and its variants, `send_metric` included, drop them on their asynchronous
-path (`async_call` / `async_callback`), JRD-17. A new call forwards them too, and gets a case in
-`TestRequestArguments`
+`kwargs` can hang forever on a server that accepts the connection and stops answering. The
+asynchronous paths (`async_call` / `async_callback`) carry them onto their thread as well —
+`read_message` since JRD-15, `send_status` and its variants, `send_metric` included, since JRD-17.
+A new call forwards them too, and gets a case in `TestRequestArguments`
 ([test_jordan.py](libraries/python/jordan_py/jordan_py/test/test_jordan.py)), which checks the
 timeout on every request the call sends.
 
