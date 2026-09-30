@@ -41,6 +41,17 @@ services:
       # host, and it is a Python console for anyone who reaches it.
       JORDAN_ENABLE_DOCS: ${JORDAN_ENABLE_DOCS:-true}
       JORDAN_DEBUG: ${JORDAN_DEBUG:-false}
+    # Without it, a server that dies at startup leaves `docker compose up -d`
+    # reporting success with Redis alone running, and a client pointed at
+    # localhost:5000 talks to whatever else holds the port (JRD-20).
+    # `docker compose up --wait` fails on it. Python rather than curl: the slim
+    # image ships no curl.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/jordan/hello', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     depends_on:
       redis:
         condition: service_healthy

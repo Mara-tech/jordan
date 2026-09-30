@@ -77,6 +77,11 @@ python jordan_server.py --check   # validate the settings, start nothing
 python jordan_server.py
 ```
 
+Or, from the repository root, `docker compose up -d --build --wait`: the same development server
+next to its own Redis, from the root [Dockerfile](Dockerfile) — no `.env` needed. Keep `--wait`: it
+blocks on the server's healthcheck, where a bare `up -d` reports success even when the server died
+at startup (JRD-20). CI starts it the same way (`ci-python` / `compose-stack`).
+
 `--check` runs the same validation the boot runs (it is the import of `api` that performs it) and
 exits non-zero with the reason. It exists because a bad declaration stops the boot on purpose: a
 platform then keeps the previous deployment serving, and *that* one answers the URL and writes the

@@ -7,12 +7,16 @@ on:
       - "server/**"
       - "libraries/python/**"
       - "libraries/cli/**"
+      - "Dockerfile"
+      - "docker-compose.yml"
   pull_request:
     branches: [main]
     paths:
       - "server/**"
       - "libraries/python/**"
       - "libraries/cli/**"
+      - "Dockerfile"
+      - "docker-compose.yml"
 
 jobs:
   lint:
@@ -90,6 +94,37 @@ jobs:
       - name: Stop it
         if: always()
         run: docker rm -f jordan-ci || true
+
+  # The local development stack builds the root Dockerfile, which nothing else
+  # builds: it once shipped a start command that died on import, and
+  # `docker compose up -d` still reported success (JRD-20). `--wait` fails on the
+  # server's healthcheck, and the last step proves the server reached the Redis
+  # of this stack rather than one configured elsewhere.
+  compose-stack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start the local stack
+        run: docker compose up -d --build --wait --wait-timeout 120
+
+      - name: The server answers on port 5000
+        run: curl -sf http://localhost:5000/jordan/hello
+
+      - name: It stores in the Redis of the stack
+        run: |
+          id=$(curl -sf -X POST -H 'Content-Type: application/json' \
+            -d '{"name":"ci-compose-stack"}' http://localhost:5000/jordan/client/register \
+            | python3 -c 'import json, sys; print(json.load(sys.stdin)["taskId"])')
+          test "$(docker compose exec -T redis redis-cli -a jordan_dev --no-auth-warning EXISTS "$id")" = 1
+
+      - name: Show what the stack reported
+        if: always()
+        run: docker compose ps -a && docker compose logs
+
+      - name: Stop it
+        if: always()
+        run: docker compose down -v
 
   test-library:
     runs-on: ubuntu-latest
