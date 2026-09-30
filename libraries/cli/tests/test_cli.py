@@ -415,6 +415,51 @@ class TestAction:
         # the read and its receipt
         assert [call.request.req_kwargs["timeout"] for call in responses_lib.calls] == [5, 5]
 
+    # JRD-19: the read takes the action off the queue; an acknowledgement of receipt that
+    # fails afterwards must not lose it — least of all under --wait, which read a timeout as
+    # an empty queue and went on waiting for the action it had just consumed
+
+    @staticmethod
+    def _serve_a_message_whose_receipt(**receipt) -> None:
+        responses_lib.add(
+            responses_lib.GET, _url(f"client/{TASK_ID}/message"), json=MSG_PAYLOAD, status=200
+        )
+        responses_lib.add(
+            responses_lib.PUT, _url(f"client/{TASK_ID}/{MSG_ID}/CLIENT_RECEIVED"), **receipt
+        )
+
+    @pytest.mark.parametrize("args", [["action"], ["action", "--wait", "--timeout", "10", "--interval", "0"]])
+    @pytest.mark.parametrize("receipt", [
+        {"body": requests.exceptions.ReadTimeout("receipt unanswered")},
+        {"body": requests.exceptions.ConnectionError("connection dropped")},
+        {"status": 500},
+    ], ids=["timeout", "connection-error", "refused"])
+    @responses_lib.activate
+    def test_prints_the_action_when_its_receipt_fails(self, args, receipt):
+        _write_session()
+        self._serve_a_message_whose_receipt(**receipt)
+        result = runner.invoke(app, args)
+        assert result.exit_code == 0
+        assert json.loads(result.stdout)["actionName"] == "stop"
+        assert f"did not record that action {MSG_ID} was received" in result.stderr
+        # read once, acknowledged once: no second read waiting on an action already taken
+        assert len(responses_lib.calls) == 2
+
+    @responses_lib.activate
+    def test_names_the_error_that_kept_the_receipt_from_the_server(self):
+        _write_session()
+        self._serve_a_message_whose_receipt(body=requests.exceptions.ReadTimeout("receipt unanswered"))
+        result = runner.invoke(app, ["action"])
+        assert "receipt unanswered" in result.stderr
+
+    @responses_lib.activate
+    def test_no_warning_when_the_receipt_is_recorded(self):
+        _write_session()
+        self._serve_a_message_whose_receipt(status=202)
+        result = runner.invoke(app, ["action"])
+        assert result.exit_code == 0
+        assert result.stderr == ""
+
 
 # ── task-create ────────────────────────────────────────────────────────────────
 

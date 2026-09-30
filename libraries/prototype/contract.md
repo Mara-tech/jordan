@@ -107,6 +107,9 @@ from JordanInstance or JordanTask
 `Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
 #### Workflow
 When a message is received here, status on server-side becomes MESSAGE_DELIVERED.
+The read takes the message off the queue: it is handed out once. The library then sends CLIENT_RECEIVED
+at best effort — when that acknowledgement fails, `read_message` still returns the message and says so
+on it (`receipt_recorded`, `receipt_error` in `jordan_py`) rather than raising and losing it.
 Developers should use 'Acknowledge Message' and 'Processed Message' functions to update Message workflow.
 
 ## Acknowledge Message

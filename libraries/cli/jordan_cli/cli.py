@@ -185,6 +185,14 @@ def _print_message(msg: jordan.JordanMessage) -> None:
         "placeholders": msg.placeholders.placehoders,
     }
     typer.echo(json.dumps(output, indent=2))
+    if not msg.receipt_recorded:
+        # the read took the action off the queue, so it is printed all the same (JRD-19); the
+        # operator's side just goes on showing it as delivered rather than received
+        reason = f": {msg.receipt_error}" if msg.receipt_error else ""
+        typer.echo(
+            f"Warning: the server did not record that action {msg.message_id} was received{reason}.",
+            err=True,
+        )
 
 
 @app.command()

@@ -347,6 +347,12 @@ MESSAGE_PROCESSED          ← normal terminal state
 
 Error/alternate terminal states: `ERROR_CANNOT_PROCESS_MESSAGE`, `MESSAGE_OVERRIDDEN`
 
+The read hands the message out once — the server takes it off the queue — so `CLIENT_RECEIVED` is
+sent at **best effort**: when it fails, `read_message` still returns the message, with
+`receipt_recorded` false and `receipt_error` set, and `jordan action` prints it with a warning
+instead of dropping it (JRD-19). Only a failed *read* raises. `jordan-client` (Java) does not do
+this yet.
+
 ### Task states
 
 `STARTED → RUNNING → PAUSED → COMPLETE | ERROR | TIME_OUT`
@@ -388,8 +394,9 @@ Each component has its own prefixed tag. Only the matching workflow fires.
    ```bash
    git tag jordan_cli/v1.0.0 && git push origin jordan_cli/v1.0.0
    ```
-   `jordan_cli` declares the `jordan_py` version it needs (`jordan_py>=2.2.1`, the first to forward a
-   timeout on reading a message, which `jordan action` relies on):
+   `jordan_cli` declares the `jordan_py` version it needs (`jordan_py>=2.3.0`, the first to return a
+   message whose acknowledgement of receipt failed, with `receipt_recorded`, which `jordan action`
+   relies on — JRD-19):
    publish that `jordan_py` first, or the new CLI installs against nothing.
 
 The same pattern applies to `server` with its own prefix.

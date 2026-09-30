@@ -112,6 +112,10 @@ class JordanMessage:
         self.message_id = msg['messageId']
         self.action_name = msg['action']['actionName']
         self.placeholders = JordanMessagePlaceholders(msg['action']['placeholders'])
+        # whether the server recorded CLIENT_RECEIVED; read_message sends it at best effort
+        self.receipt_recorded = False
+        # the error that kept that acknowledgement from reaching the server, if one did
+        self.receipt_error: Optional[requests.exceptions.RequestException] = None
 
     def _auth_headers(self) -> Dict[str, str]:
         if self.auth_token:
@@ -129,7 +133,12 @@ class JordanMessage:
         return self.update_message(MESSAGE_STATE_PROCESSED, **kwargs)
 
     def received(self, **kwargs: Any) -> bool:
-        return self.update_message(MESSAGE_CLIENT_RECEIVED, **kwargs)
+        """Tell the server the message reached the program. ``read_message`` already sends it;
+        calling it again retries an acknowledgement that did not get through."""
+        self.receipt_recorded = self.update_message(MESSAGE_CLIENT_RECEIVED, **kwargs)
+        if self.receipt_recorded:
+            self.receipt_error = None
+        return self.receipt_recorded
 
     def cannot_process(self, **kwargs: Any) -> bool:
         return self.update_message(CANNOT_PROCESS_MESSAGE, **kwargs)
@@ -249,8 +258,13 @@ class JordanInstance:
         if r.status_code == 200:
             message_output = json.loads(r.text)
             msg = JordanMessage(self.base_url, self.task_id, message_output, self.auth_token)
-            # the acknowledgement of receipt is a request too: bounded by the same arguments
-            msg.received(**kwargs)
+            # the acknowledgement of receipt is a request too: bounded by the same arguments.
+            # It is sent at best effort: the server removed the message from the queue when it
+            # answered the read, so raising here would lose it for good (JRD-19)
+            try:
+                msg.received(**kwargs)
+            except requests.exceptions.RequestException as error:
+                msg.receipt_error = error
             if async_callback:
                 async_callback(msg)
             return msg
@@ -261,7 +275,12 @@ class JordanInstance:
         """Read the next message, if any. ``kwargs`` go to ``requests``, for the read and for the
         acknowledgement of receipt it sends: ``read_message(timeout=5)`` never waits more than
         five seconds per request on a server that stopped answering — and raises
-        ``requests.exceptions.Timeout`` when it does. Without it, ``requests`` waits forever."""
+        ``requests.exceptions.Timeout`` when the read does. Without it, ``requests`` waits forever.
+
+        The server hands a message out once: reading it takes it off the queue. So a message that
+        was read is always returned, even when its acknowledgement of receipt then fails —
+        ``msg.receipt_recorded`` is False, ``msg.receipt_error`` holds the request error if there
+        was one, and ``msg.received()`` sends the acknowledgement again."""
         if async_call or async_callback:
             threading.Thread(target=self._exec_read_message, args=[async_callback], kwargs=kwargs).start()
             return None

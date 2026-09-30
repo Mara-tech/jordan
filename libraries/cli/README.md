@@ -225,6 +225,12 @@ left too. A server that stops answering therefore returns the command to the scr
 `--timeout`, with `Timeout: no action received.` A read that goes unanswered before then does not end
 the wait — it is polled again, like an empty queue.
 
+Reading an action takes it off the server's queue; the command then tells the server it was received.
+When that acknowledgement fails — unanswered, refused — the action is printed all the same and the
+command exits 0, with `Warning: the server did not record that action <messageId> was received…` on
+stderr: the operator's side goes on showing it as delivered rather than received. With or without
+`--wait`, an action that was read is never dropped.
+
 **Shell script example — react on an action:**
 
 ```bash

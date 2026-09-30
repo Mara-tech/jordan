@@ -46,6 +46,13 @@ Actions are generic, as much as the App GUI. Therefore, you already have an App 
         forever. A call that times out raises `requests.exceptions.Timeout`. One exception left:
         a status or metric sent with `async_call` / `async_callback` does not forward them yet.
 
+        A message that was read is always returned, even when the acknowledgement of receipt
+        `read_message` sends afterwards fails: the server took it off the queue when it answered
+        the read, so raising would lose it for good. `message.receipt_recorded` says whether the
+        server recorded it as received, `message.receipt_error` holds the request error when
+        there was one, and `message.received()` sends the acknowledgement again. Only a read
+        that fails raises — and then no message was handed out.
+
 4. If the server closed registration (`JORDAN_REGISTRATION_KEY` set on its side), present the key
 
         jordan_instance = jordan.register('<jordan_server_url>', registration_key='<key>')
