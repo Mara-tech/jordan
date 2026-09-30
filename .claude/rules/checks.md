@@ -7,7 +7,7 @@ by the work itself — a ticket that adds a linter adds its line here, in the sa
 | What | Command |
 |---|---|
 | before a push | the rows of [By module](#by-module) whose paths the branch touches — `git diff --name-only origin/main...HEAD` |
-| on every pull request | `ci-python.yml`, `ci-java.yml`, `ci-android.yml` — **path-filtered**: a pull request touching none of their paths (docs, `.claude/`, `sample/`) registers no check, and that is expected |
+| on every pull request | `ci-python.yml`, `ci-java.yml`, `ci-android.yml` — **path-filtered**: a pull request touching none of their paths (docs, `.claude/`, `sample/`) registers no check, and that is expected. `ci-python.yml` also watches the root `Dockerfile` and `docker-compose.yml` |
 | coverage | Python modules only — see [Coverage](#coverage); Java and Android measure none |
 
 ## How to use it
@@ -47,6 +47,7 @@ Commands start from the repository root, in Git Bash, with `python` meaning the 
 | Python lint | `server/`, `libraries/python/`, `libraries/cli/` | `python -m ruff check server/ libraries/python/ libraries/cli/` | `ci-python` / `lint` |
 | Server | `server/` | `cd server && python -m pytest tests/` | `ci-python` / `test-server` |
 | Server image | `server/Dockerfile`, `server/requirements.txt`, `server/.dockerignore`, a new file under `server/` | see [Server image](#server-image) | `ci-python` / `build-image` |
+| Compose stack | `Dockerfile`, `docker-compose.yml`, `server/` | see [Compose stack](#compose-stack) | `ci-python` / `compose-stack` |
 | `jordan_py` | `libraries/python/` | `python -m pytest libraries/python/` | `ci-python` / `test-library` |
 | `jordan_cli` | `libraries/cli/`, and `libraries/python/` (it runs on `jordan_py`) | `python -m pytest libraries/cli/tests/` | `ci-python` / `test-cli` |
 | Java libraries | `libraries/java/` | `cd libraries/java && ./gradlew test` | `ci-java` / `build-java` |
@@ -98,6 +99,27 @@ collection with `ModuleNotFoundError: No module named 'werkzeug'`.
 `ruff` is pinned to the version `ci-python.yml` installs; bump both together. `ruff.toml` at the root
 is its configuration. CI runs Python 3.11; a local 3.14 passes too, but a failure that only shows in
 CI may be the version.
+
+### Compose stack
+
+What `ci-python` / `compose-stack` checks — the local development stack of `docker-compose.yml`,
+built from the root `Dockerfile`, which no other job builds:
+
+```bash
+docker compose up -d --build --wait --wait-timeout 120
+curl -sf http://localhost:5000/jordan/hello
+id=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"name":"ci-compose-stack"}' \
+  http://localhost:5000/jordan/client/register | python -c 'import json, sys; print(json.load(sys.stdin)["taskId"])')
+test "$(docker compose exec -T redis redis-cli -a jordan_dev --no-auth-warning EXISTS "$id")" = 1
+docker compose down -v
+```
+
+`--wait` is the check: a bare `up -d` returns success while the server dies at startup. The last
+line proves the server wrote into the Redis of the stack. It needs port 5000 and 6379 free. Run it
+when `Dockerfile` or `docker-compose.yml` changed, or when a server change can affect how it
+starts; a change inside `api.py` alone is covered by the server tests. In a sandbox whose egress
+re-terminates TLS, `pip` inside the build rejects the proxy's certificate — a build-environment
+limit, not a failure of the stack.
 
 ### Java toolchain
 

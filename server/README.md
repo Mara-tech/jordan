@@ -54,6 +54,19 @@ documentation.
 | `http://<host>:5000/jordan/client/` | Passive client endpoints |
 | `http://<host>:5000/jordan/admin/` | Active client / admin endpoints |
 
+### With Docker Compose
+
+From the repository root, `docker compose up -d --build --wait` starts the same development server
+next to a Redis of its own, with the development admin token `jordan_dev_admin_token` and Swagger UI
+on — no `.env` needed. It builds the root [`Dockerfile`](../Dockerfile), not the production one
+below.
+
+`--wait` is what makes a failed start visible: without it, `up -d` returns success as soon as the
+containers are created, even when the server dies a second later, and a client pointed at
+`localhost:5000` then reaches whatever else holds the port. With it, the command blocks on the
+server's healthcheck (`/jordan/hello`) and fails if the server never answers. CI starts the stack
+the same way (`ci-python` / `compose-stack`).
+
 ### Checking the settings without starting a server
 
 ```bash
