@@ -178,16 +178,28 @@ def metric(
         raise typer.Exit(1)
 
 
-def _print_message(msg: jordan.JordanMessage) -> None:
+def _deliver_action(msg: jordan.JordanMessage, request_timeout: float) -> None:
+    """Print the action, then tell the server it was received. The read took it off the queue,
+    so it is printed whatever becomes of that acknowledgement (JRD-19). The acknowledgement gets
+    the whole --request-timeout: under --wait, the read was cut to the time left, and an action
+    already in hand is no reason to rush its receipt into a timeout."""
     output = {
         "messageId": msg.message_id,
         "actionName": msg.action_name,
         "placeholders": msg.placeholders.placehoders,
     }
     typer.echo(json.dumps(output, indent=2))
-    if not msg.receipt_recorded:
-        # the read took the action off the queue, so it is printed all the same (JRD-19); the
-        # operator's side just goes on showing it as delivered rather than received
+    if msg.received(timeout=request_timeout):
+        return
+    # the operator's side goes on showing the action as delivered rather than received
+    if isinstance(msg.receipt_error, requests.exceptions.Timeout):
+        # the server may have recorded it and only its answer was lost
+        typer.echo(
+            f"Warning: could not confirm that the server recorded action {msg.message_id} "
+            f"as received: {msg.receipt_error}.",
+            err=True,
+        )
+    else:
         reason = f": {msg.receipt_error}" if msg.receipt_error else ""
         typer.echo(
             f"Warning: the server did not record that action {msg.message_id} was received{reason}.",
@@ -204,34 +216,34 @@ def action(
     task_id: Optional[int] = _TASK_ID_OPTION,
     request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
-    """Read a pending action and print it as JSON. Acknowledges and marks it as received."""
+    """Read a pending action and print it as JSON. Tells the server it was received, at best effort."""
     session = _load_session()
     instance = _make_instance_for(session, task_id)
 
     if wait:
-        # --timeout is a promise to the script waiting on this command: every
-        # request and every pause is cut to the time left, so a server that
-        # stops answering cannot hold the command past it
+        # --timeout is a promise to the script waiting on this command for an
+        # action: every read and every pause is cut to the time left, so a server
+        # that stops answering cannot hold the wait past it
         deadline = time.monotonic() + timeout
         while True:
             left = deadline - time.monotonic()
             if left <= 0:
                 break
             try:
-                msg = instance.read_message(timeout=min(request_timeout, left))
+                msg = instance.read_message(timeout=min(request_timeout, left), send_receipt=False)
             except requests.exceptions.Timeout:
                 # a silent server is waited on like an empty queue, until the deadline
                 msg = None
             if msg:
-                _print_message(msg)
+                _deliver_action(msg, request_timeout)
                 return
             time.sleep(max(0.0, min(interval, deadline - time.monotonic())))
         typer.echo("Timeout: no action received.", err=True)
         raise typer.Exit(1)
     else:
-        msg = instance.read_message(timeout=request_timeout)
+        msg = instance.read_message(timeout=request_timeout, send_receipt=False)
         if msg:
-            _print_message(msg)
+            _deliver_action(msg, request_timeout)
         else:
             typer.echo("No action pending.", err=True)
             raise typer.Exit(1)

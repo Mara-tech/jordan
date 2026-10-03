@@ -219,17 +219,20 @@ Reads the next pending action from the server and prints it as JSON.
 
 Exits with code 1 if no action is pending (or timeout is reached).
 
-With `--wait`, `--timeout` bounds the whole command, requests included: each read is given the
+With `--wait`, `--timeout` bounds the wait for an action, requests included: each read is given the
 smaller of `--request-timeout` and the time left, and the pause between two reads is cut to the time
 left too. A server that stops answering therefore returns the command to the script around
 `--timeout`, with `Timeout: no action received.` A read that goes unanswered before then does not end
 the wait — it is polled again, like an empty queue.
 
-Reading an action takes it off the server's queue; the command then tells the server it was received.
-When that acknowledgement fails — unanswered, refused — the action is printed all the same and the
-command exits 0, with `Warning: the server did not record that action <messageId> was received…` on
-stderr: the operator's side goes on showing it as delivered rather than received. With or without
-`--wait`, an action that was read is never dropped.
+Reading an action takes it off the server's queue; the command prints it, then tells the server it
+was received, with the whole `--request-timeout` — under `--wait` too, since an action already in
+hand is no reason to rush its receipt. When that acknowledgement fails, the action stays printed and
+the command exits 0, with a warning on stderr: `Warning: the server did not record that action
+<messageId> was received…` when it refused or could not be reached, `Warning: could not confirm that
+the server recorded action <messageId> as received…` when it did not answer in time — it may have
+recorded it. Either way the operator's side may go on showing the action as delivered rather than
+received. With or without `--wait`, an action that was read is never dropped.
 
 **Shell script example — react on an action:**
 

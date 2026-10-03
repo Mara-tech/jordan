@@ -10,6 +10,13 @@ from jordan_cli.cli import app
 
 runner = CliRunner()
 
+# For the tests that read stdout and stderr apart: Click 8.2 always captures them separately,
+# Click 8.1 — which typer>=0.9.0 still allows — merges them unless told otherwise
+try:
+    split_runner = CliRunner(mix_stderr=False)
+except TypeError:
+    split_runner = CliRunner()
+
 BASE_URL = "http://testserver/jordan/"
 TASK_ID = "task-abc-123"
 AUTH_TOKEN = "token-xyz-456"
@@ -429,36 +436,44 @@ class TestAction:
         )
 
     @pytest.mark.parametrize("args", [["action"], ["action", "--wait", "--timeout", "10", "--interval", "0"]])
-    @pytest.mark.parametrize("receipt", [
-        {"body": requests.exceptions.ReadTimeout("receipt unanswered")},
-        {"body": requests.exceptions.ConnectionError("connection dropped")},
-        {"status": 500},
+    @pytest.mark.parametrize("receipt, warning", [
+        # a timeout leaves the outcome unknown: the server may have recorded it and lost the answer
+        ({"body": requests.exceptions.ReadTimeout("receipt unanswered")},
+         f"could not confirm that the server recorded action {MSG_ID} as received: receipt unanswered"),
+        ({"body": requests.exceptions.ConnectionError("connection dropped")},
+         f"the server did not record that action {MSG_ID} was received: connection dropped"),
+        ({"status": 500}, f"the server did not record that action {MSG_ID} was received."),
     ], ids=["timeout", "connection-error", "refused"])
     @responses_lib.activate
-    def test_prints_the_action_when_its_receipt_fails(self, args, receipt):
+    def test_prints_the_action_when_its_receipt_fails(self, args, receipt, warning):
         _write_session()
         self._serve_a_message_whose_receipt(**receipt)
-        result = runner.invoke(app, args)
+        result = split_runner.invoke(app, args)
         assert result.exit_code == 0
         assert json.loads(result.stdout)["actionName"] == "stop"
-        assert f"did not record that action {MSG_ID} was received" in result.stderr
+        assert warning in result.stderr
         # read once, acknowledged once: no second read waiting on an action already taken
         assert len(responses_lib.calls) == 2
 
     @responses_lib.activate
-    def test_names_the_error_that_kept_the_receipt_from_the_server(self):
-        _write_session()
-        self._serve_a_message_whose_receipt(body=requests.exceptions.ReadTimeout("receipt unanswered"))
-        result = runner.invoke(app, ["action"])
-        assert "receipt unanswered" in result.stderr
-
-    @responses_lib.activate
-    def test_no_warning_when_the_receipt_is_recorded(self):
+    def test_no_warning_when_the_receipt_is_confirmed(self):
         _write_session()
         self._serve_a_message_whose_receipt(status=202)
-        result = runner.invoke(app, ["action"])
+        result = split_runner.invoke(app, ["action"])
         assert result.exit_code == 0
         assert result.stderr == ""
+
+    @responses_lib.activate
+    def test_wait_gives_the_receipt_the_whole_request_timeout(self):
+        # the read is cut to the time left before --timeout; the receipt of an action already
+        # read is not, or a healthy server answering late in the wait fails it for nothing
+        _write_session()
+        self._serve_a_message_whose_receipt(status=202)
+        result = runner.invoke(app, ["action", "--wait", "--timeout", "1", "--request-timeout", "30"])
+        assert result.exit_code == 0
+        read, receipt = (call.request.req_kwargs["timeout"] for call in responses_lib.calls)
+        assert read <= 1
+        assert receipt == 30
 
 
 # ── task-create ────────────────────────────────────────────────────────────────

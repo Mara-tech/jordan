@@ -43,15 +43,18 @@ Actions are generic, as much as the App GUI. Therefore, you already have an App 
         acknowledgement of receipt it sends, `fatal` for its three requests, a message's
         `acknowledge()` / `processed()` for theirs. `requests` has no default timeout: without one,
         a server that accepts the connection and never answers holds the call, and the program,
-        forever. A call that times out raises `requests.exceptions.Timeout`. One exception left:
-        a status or metric sent with `async_call` / `async_callback` does not forward them yet.
+        forever. A call that times out raises `requests.exceptions.Timeout`. The asynchronous
+        calls (`async_call` / `async_callback`) forward them too, onto their thread.
 
-        A message that was read is always returned, even when the acknowledgement of receipt
-        `read_message` sends afterwards fails: the server took it off the queue when it answered
-        the read, so raising would lose it for good. `message.receipt_recorded` says whether the
-        server recorded it as received, `message.receipt_error` holds the request error when
-        there was one, and `message.received()` sends the acknowledgement again. Only a read
-        that fails raises — and then no message was handed out.
+        The acknowledgement of receipt is the one request that never raises: the server took the
+        message off the queue when it answered the read, so raising would lose it for good. A
+        message the server handed out is returned even when that acknowledgement fails —
+        `message.receipt_confirmed` says whether the server confirmed it, `message.receipt_error`
+        holds the request error of the last attempt, and `message.received()` sends it again.
+        After a `requests.exceptions.Timeout` the outcome is unknown rather than negative: the
+        server may have recorded it and only its answer was lost. `read_message(send_receipt=False)`
+        leaves the acknowledgement to you, to bound it apart from the read. Only a read that
+        fails raises — and then no message was handed out.
 
 4. If the server closed registration (`JORDAN_REGISTRATION_KEY` set on its side), present the key
 

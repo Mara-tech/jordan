@@ -410,10 +410,10 @@ class TestReceiptAtBestEffort(unittest.TestCase):
         responses_lib.add(responses_lib.PUT, self.RECEIPT_URL, **receipt)
 
     @responses_lib.activate
-    def test_a_recorded_receipt_is_reported(self):
+    def test_a_confirmed_receipt_is_reported(self):
         self._serve_a_message(status=202)
         msg = self._make_instance().read_message()
-        self.assertTrue(msg.receipt_recorded)
+        self.assertTrue(msg.receipt_confirmed)
         self.assertIsNone(msg.receipt_error)
 
     @responses_lib.activate
@@ -421,7 +421,7 @@ class TestReceiptAtBestEffort(unittest.TestCase):
         self._serve_a_message(body=requests.exceptions.ReadTimeout("receipt unanswered"))
         msg = self._make_instance().read_message(timeout=1)
         self.assertEqual(msg.action_name, "stop")
-        self.assertFalse(msg.receipt_recorded)
+        self.assertFalse(msg.receipt_confirmed)
         self.assertIsInstance(msg.receipt_error, requests.exceptions.Timeout)
 
     @responses_lib.activate
@@ -429,7 +429,7 @@ class TestReceiptAtBestEffort(unittest.TestCase):
         self._serve_a_message(body=requests.exceptions.ConnectionError("connection dropped"))
         msg = self._make_instance().read_message()
         self.assertEqual(msg.action_name, "stop")
-        self.assertFalse(msg.receipt_recorded)
+        self.assertFalse(msg.receipt_confirmed)
         self.assertIsInstance(msg.receipt_error, requests.exceptions.ConnectionError)
 
     @responses_lib.activate
@@ -437,7 +437,7 @@ class TestReceiptAtBestEffort(unittest.TestCase):
         self._serve_a_message(status=500)
         msg = self._make_instance().read_message()
         self.assertEqual(msg.action_name, "stop")
-        self.assertFalse(msg.receipt_recorded)
+        self.assertFalse(msg.receipt_confirmed)
         self.assertIsNone(msg.receipt_error)
 
     @responses_lib.activate
@@ -458,8 +458,46 @@ class TestReceiptAtBestEffort(unittest.TestCase):
         msg = self._make_instance().read_message()
         responses_lib.replace(responses_lib.PUT, self.RECEIPT_URL, status=202)
         self.assertTrue(msg.received())
-        self.assertTrue(msg.receipt_recorded)
+        self.assertTrue(msg.receipt_confirmed)
         self.assertIsNone(msg.receipt_error)
+
+    @responses_lib.activate
+    def test_a_retry_that_times_out_does_not_raise_either(self):
+        # the retry the docs recommend is made while the program holds the message
+        self._serve_a_message(status=500)
+        msg = self._make_instance().read_message()
+        responses_lib.replace(
+            responses_lib.PUT, self.RECEIPT_URL, body=requests.exceptions.ReadTimeout("retry unanswered")
+        )
+        self.assertFalse(msg.received(timeout=1))
+        self.assertFalse(msg.receipt_confirmed)
+        self.assertIn("retry unanswered", str(msg.receipt_error))
+
+    @responses_lib.activate
+    def test_receipt_error_describes_the_last_attempt(self):
+        self._serve_a_message(body=requests.exceptions.ReadTimeout("receipt unanswered"))
+        msg = self._make_instance().read_message()
+        responses_lib.replace(responses_lib.PUT, self.RECEIPT_URL, status=500)
+        self.assertFalse(msg.received())
+        self.assertFalse(msg.receipt_confirmed)
+        self.assertIsNone(msg.receipt_error)
+
+    @responses_lib.activate
+    def test_receipt_can_be_left_to_the_caller(self):
+        self._serve_a_message(status=202)
+        msg = self._make_instance().read_message(send_receipt=False, timeout=1)
+        self.assertEqual(len(responses_lib.calls), 1)
+        self.assertFalse(msg.receipt_confirmed)
+        self.assertTrue(msg.received(timeout=7))
+        self.assertEqual(responses_lib.calls[1].request.req_kwargs["timeout"], 7)
+
+    @responses_lib.activate
+    def test_async_read_can_leave_the_receipt_to_the_caller(self):
+        self._serve_a_message(status=202)
+        done = threading.Event()
+        self._make_instance().read_message(async_callback=lambda _msg: done.set(), send_receipt=False)
+        self.assertTrue(done.wait(5))
+        self.assertEqual(len(responses_lib.calls), 1)
 
     @responses_lib.activate
     def test_a_read_that_times_out_still_raises(self):
