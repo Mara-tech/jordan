@@ -124,6 +124,10 @@
     <string name="no_status_to_display">No status to display</string>
     <string name="status_type">Type</string>
     <string name="status_task">Task</string>
+    <string name="status_text">Text</string>
+    <string name="status_filter_text_hint">Keyword the status contains</string>
+    <string name="status_filter_text_regex">Regular expression</string>
+    <string name="status_filter_text_invalid">Invalid regular expression : %1$s</string>
 
     <string name="message_state_details_title">Message</string>
     <string name="message_state_details_id">ID : %d</string>

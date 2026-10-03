@@ -3,6 +3,8 @@ package com.mara.jordan.app.ui;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.os.Handler;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -13,6 +15,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.NumberPicker;
@@ -27,12 +30,14 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
+import com.google.re2j.PatternSyntaxException;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.adapter.ReadStatusAdapter;
 import com.mara.jordan.app.adapter.StatusFilterTaskAdapter;
 import com.mara.jordan.app.adapter.StatusFilterTypeAdapter;
 import com.mara.jordan.app.api.JordanReadStatusCallback;
 import com.mara.jordan.app.model.JordanTaskModel;
+import com.mara.jordan.app.model.StatusTextFilter;
 import com.mara.jordan.core.dto.JordanStatusDTO;
 
 import java.util.Map;
@@ -96,6 +101,10 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
     private StatusFilterTypeAdapter statusFilterTypeAdapter;
     private StatusFilterTaskAdapter statusFilterTaskAdapter;
     private String currentSearchQuery;
+    /**
+     * Text of the filter dialog, applied on top of {@link ReadStatusFragment#currentSearchQuery}.
+     */
+    private StatusTextFilter textFilter = StatusTextFilter.NONE;
     private Map<String, Boolean> typeFilter;
     private Map<String, Boolean> taskFilter;
     private JordanTaskModel model;
@@ -164,14 +173,15 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
         updateStatusAdapter();
     }
 
-    private void setStatusFilters(Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter) {
+    private void setStatusFilters(StatusTextFilter textFilter, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter) {
+        this.textFilter = textFilter;
         this.typeFilter = typeFilter;
         this.taskFilter = taskFilter;
         updateStatusAdapter();
     }
 
     private void updateStatusAdapter() {
-        statusAdapter.select(currentSearchQuery, typeFilter, taskFilter);
+        statusAdapter.select(currentSearchQuery, textFilter, typeFilter, taskFilter);
     }
 
     @Override
@@ -346,7 +356,9 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
     }
 
     /**
-     * Show dialog with task+type checkboxes
+     * Show dialog with text field + task+type checkboxes. The text is checked before anything is
+     * applied : an invalid regular expression keeps the dialog open, says why, and leaves every
+     * filter as it was.
       */
     private void filterStatusDialog() {
 
@@ -355,24 +367,49 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
 
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         View filterDialogView = requireActivity().getLayoutInflater().inflate(R.layout.status_filter_dialog, null);
+        EditText textField = filterDialogView.findViewById(R.id.status_filter_text);
+        textField.setText(textFilter.getText());
+        CheckBox regexBox = filterDialogView.findViewById(R.id.status_filter_text_regex);
+        regexBox.setChecked(textFilter.isRegex());
+        TextView textError = filterDialogView.findViewById(R.id.status_filter_text_error);
+        textField.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                textError.setVisibility(View.GONE);
+            }
+        });
+        regexBox.setOnCheckedChangeListener((buttonView, isChecked) -> textError.setVisibility(View.GONE));
         ListView typeList = filterDialogView.findViewById(R.id.status_filter_type_list);
         typeList.setAdapter(statusFilterTypeAdapter);
         ListView taskList = filterDialogView.findViewById(R.id.status_filter_task_list);
         taskList.setAdapter(statusFilterTaskAdapter);
 
-        builder.setView(filterDialogView)
-                .setPositiveButton(R.string.apply, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        statusFilterTypeAdapter.applyTempView();
-                        statusFilterTaskAdapter.applyTempView();
-                        setStatusFilters(statusFilterTypeAdapter.getFilterMapping(),
-                                statusFilterTaskAdapter.getFilterMapping());
-                    }
-                })
-                .setNeutralButton(R.string.cancel, (dialog, which) -> {})
+        AlertDialog dialog = builder.setView(filterDialogView)
+                // replaced once shown : the default click dismisses the dialog, an invalid text included
+                .setPositiveButton(R.string.apply, null)
+                .setNeutralButton(R.string.cancel, (d, which) -> {})
 
                 .show();
+
+        dialog.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(v -> {
+            StatusTextFilter appliedText;
+            try {
+                appliedText = StatusTextFilter.of(textField.getText().toString(), regexBox.isChecked());
+            } catch (PatternSyntaxException e) {
+                textError.setText(getString(R.string.status_filter_text_invalid, e.getDescription()));
+                textError.setVisibility(View.VISIBLE);
+                return;
+            }
+            statusFilterTypeAdapter.applyTempView();
+            statusFilterTaskAdapter.applyTempView();
+            setStatusFilters(appliedText, statusFilterTypeAdapter.getFilterMapping(),
+                    statusFilterTaskAdapter.getFilterMapping());
+            dialog.dismiss();
+        });
 
     }
 
@@ -380,7 +417,7 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
         if(!statusListRefreshLayout.isRefreshing()){
             statusListRefreshLayout.setRefreshing(true);
         }
-        statusAdapter.refresh(currentSearchQuery, typeFilter, taskFilter, Integer.parseInt(DEPTH_CHOICES[statusDepth]), this);
+        statusAdapter.refresh(currentSearchQuery, textFilter, typeFilter, taskFilter, Integer.parseInt(DEPTH_CHOICES[statusDepth]), this);
     }
 
     @Override

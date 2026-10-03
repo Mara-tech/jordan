@@ -30,6 +30,13 @@
         <item name="android:textColor">@color/black</item>
     </style>
 
+    <style name="dialog_field_error">
+        <item name="android:textSize">@dimen/dialog_element_size</item>
+        <item name="android:textColor">@color/status_type_failure</item>
+        <item name="android:layout_marginStart">20dp</item>
+        <item name="android:layout_marginEnd">20dp</item>
+    </style>
+
     <style name="dialog_multi_selection_item">
         <item name="android:textSize">@dimen/dialog_element_size</item>
         <item name="android:paddingStart">20dp</item>

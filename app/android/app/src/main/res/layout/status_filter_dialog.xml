@@ -8,6 +8,47 @@
     >
 
     <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/status_text"
+            style="@style/dialog_title"
+            />
+
+        <EditText
+            android:id="@+id/status_filter_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:layout_marginEnd="20dp"
+            android:hint="@string/status_filter_text_hint"
+            android:inputType="text"
+            android:importantForAutofill="no"
+            />
+
+        <CheckBox
+            android:id="@+id/status_filter_text_regex"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/status_filter_text_regex"
+            style="@style/dialog_multi_selection_item"
+            />
+
+        <TextView
+            android:id="@+id/status_filter_text_error"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            style="@style/dialog_field_error"
+            />
+
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical">
