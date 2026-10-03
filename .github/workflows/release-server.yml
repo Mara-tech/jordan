@@ -7,7 +7,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/jordan-server
 
 jobs:
   build-and-push:
@@ -29,11 +28,20 @@ jobs:
       - name: Extract version from tag
         run: echo "VERSION=${GITHUB_REF_NAME#server/v}" >> $GITHUB_ENV
 
+      # A Docker repository name must be lowercase, and the owner is `Mara-tech`:
+      # `${{ github.repository_owner }}` used as is would make the push fail
+      # with "repository name must be lowercase" (JRD-22).
+      - name: Compute the image name
+        run: echo "IMAGE=${REGISTRY}/${GITHUB_REPOSITORY_OWNER,,}/jordan-server" >> $GITHUB_ENV
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: server/
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE }}:${{ env.VERSION }}
+            ${{ env.IMAGE }}:latest
+          # links the package to this repository on ghcr.io
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}

@@ -402,7 +402,40 @@ Each component has its own prefixed tag. Only the matching workflow fires.
    relies on — JRD-19):
    publish that `jordan_py` first, or the new CLI installs against nothing.
 
-The same pattern applies to `server` with its own prefix.
+**To release `server`:** nothing to bump — the version is the tag. `Api(version='1')` in
+[server/api.py](server/api.py) is the version of the REST API, not of the release, and does not move
+with it.
+
+```bash
+git tag server/v1.0.0 && git push origin server/v1.0.0
+```
+
+The run builds [server/Dockerfile](server/Dockerfile) (`context: server/`, the image `ci-python` /
+`build-image` already builds and starts on every push) and pushes it to
+**`ghcr.io/mara-tech/jordan-server`**, tagged with the version (`1.0.0`) and `latest`. The name is
+lowercased in the workflow: a Docker repository name must be lowercase, and
+`${{ github.repository_owner }}` is `Mara-tech` — used as is, the push fails with `repository name
+must be lowercase` (JRD-22). The image carries `org.opencontainers.image.source`, which links the
+package to this repository.
+
+An organization package is born **private**, whatever the visibility of the repository. After the
+first push of a new package, make it public once — *Package settings* → *Danger Zone* → *Change
+visibility* on the package page of the organization — then check it pulls without credentials:
+
+```bash
+docker logout ghcr.io
+docker pull ghcr.io/mara-tech/jordan-server:1.0.0
+docker run --rm -d --name jordan-release-check -p 8080:8080 \
+  -e REDIS_HOST=redis.invalid -e REDIS_PORT=6379 -e REDIS_PASSWORD=check -e JORDAN_ADMIN_TOKEN=check \
+  ghcr.io/mara-tech/jordan-server:1.0.0
+sleep 5 && curl -sf http://localhost:8080/jordan/hello; docker rm -f jordan-release-check
+```
+
+No Redis is needed for that probe, the same as in `build-image`: the client connects on its first
+command, and `/jordan/hello` issues none.
+
+A tag is immutable once consumed: to fix a published version, release the next one rather than moving
+the tag.
 
 **To release `app/android`:** nothing to bump — tag and push, both version fields are injected by the
 workflow.

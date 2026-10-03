@@ -141,3 +141,14 @@ The job then starts the container and probes `/jordan/hello`, `/jordan/admin/cli
 `/jordan/swagger.json` (`404`) — the full sequence is in the workflow. Run it when the change can
 affect how the image is built or starts; a change inside `api.py` alone is covered by the server
 tests.
+
+### Release workflows
+
+The four `release-*.yml` run only on their tag, and no pull request check watches them: a change to
+one registers nothing and is first executed by the release it is meant to make. Before pushing one,
+check at least that it parses — `python -c "import yaml; yaml.safe_load(open('.github/workflows/<file>'))"`
+— and replay its shell steps locally with the variables Actions would give them (`GITHUB_REF_NAME`,
+`GITHUB_REPOSITORY_OWNER`, a temporary `GITHUB_ENV`) under `bash -e`, the default shell of a `run:`
+step. For `release-server.yml`, the image name it computes must pass Docker's reference parser:
+`docker tag <any-local-image> <name>:<version>` rejects an invalid one with `invalid reference format`
+before it contacts the daemon.
