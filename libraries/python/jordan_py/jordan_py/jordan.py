@@ -112,6 +112,10 @@ class JordanMessage:
         self.message_id = msg['messageId']
         self.action_name = msg['action']['actionName']
         self.placeholders = JordanMessagePlaceholders(msg['action']['placeholders'])
+        # whether the server confirmed CLIENT_RECEIVED, and the request error of the last attempt
+        # if it raised one — both written by received() alone
+        self.receipt_confirmed = False
+        self.receipt_error: Optional[requests.exceptions.RequestException] = None
 
     def _auth_headers(self) -> Dict[str, str]:
         if self.auth_token:
@@ -129,7 +133,21 @@ class JordanMessage:
         return self.update_message(MESSAGE_STATE_PROCESSED, **kwargs)
 
     def received(self, **kwargs: Any) -> bool:
-        return self.update_message(MESSAGE_CLIENT_RECEIVED, **kwargs)
+        """Tell the server the message reached the program, at best effort: a request error is
+        kept in ``receipt_error`` rather than raised, since the message is already in the
+        program's hands (JRD-19). ``read_message`` sends it; calling it again retries one that
+        was not confirmed. Returns ``receipt_confirmed``.
+
+        After a ``requests.exceptions.Timeout`` the outcome is unknown, not negative: the server
+        may have recorded the receipt and only its answer was lost — a retry then records it
+        twice in the message's history."""
+        self.receipt_error = None
+        try:
+            self.receipt_confirmed = self.update_message(MESSAGE_CLIENT_RECEIVED, **kwargs)
+        except requests.exceptions.RequestException as error:
+            self.receipt_confirmed = False
+            self.receipt_error = error
+        return self.receipt_confirmed
 
     def cannot_process(self, **kwargs: Any) -> bool:
         return self.update_message(CANNOT_PROCESS_MESSAGE, **kwargs)
@@ -243,29 +261,39 @@ class JordanInstance:
 
         return None
 
-    def _exec_read_message(self, async_callback: Optional[Callable[['JordanMessage'], None]] = None, **kwargs: Any) -> Optional['JordanMessage']:
+    def _exec_read_message(self, async_callback: Optional[Callable[['JordanMessage'], None]] = None, send_receipt: bool = True, **kwargs: Any) -> Optional['JordanMessage']:
         MESSAGE_ENDPOINT = self.base_url + MESSAGE_RESOURCE.format(self.task_id)
         r = requests.get(MESSAGE_ENDPOINT, headers=self._auth_headers(), **kwargs)
         if r.status_code == 200:
             message_output = json.loads(r.text)
             msg = JordanMessage(self.base_url, self.task_id, message_output, self.auth_token)
-            # the acknowledgement of receipt is a request too: bounded by the same arguments
-            msg.received(**kwargs)
+            if send_receipt:
+                # a request too, bounded by the same arguments; it never raises, since the
+                # server took the message off the queue when it answered the read (JRD-19)
+                msg.received(**kwargs)
             if async_callback:
                 async_callback(msg)
             return msg
 
         return None
 
-    def read_message(self, async_call: bool = False, async_callback: Optional[Callable[['JordanMessage'], None]] = None, **kwargs: Any) -> Optional['JordanMessage']:
+    def read_message(self, async_call: bool = False, async_callback: Optional[Callable[['JordanMessage'], None]] = None, send_receipt: bool = True, **kwargs: Any) -> Optional['JordanMessage']:
         """Read the next message, if any. ``kwargs`` go to ``requests``, for the read and for the
         acknowledgement of receipt it sends: ``read_message(timeout=5)`` never waits more than
         five seconds per request on a server that stopped answering — and raises
-        ``requests.exceptions.Timeout`` when it does. Without it, ``requests`` waits forever."""
+        ``requests.exceptions.Timeout`` when the read does. Without it, ``requests`` waits forever.
+
+        The server hands a message out once: reading it takes it off the queue. So a message the
+        server handed out and the library could decode is returned even when its acknowledgement
+        of receipt then fails — ``msg.receipt_confirmed`` is False, ``msg.receipt_error`` holds
+        the request error if there was one, and ``msg.received()`` sends it again.
+
+        ``send_receipt=False`` leaves the acknowledgement to the caller, for one that bounds it
+        differently from the read: ``msg.received(timeout=...)``."""
         if async_call or async_callback:
-            threading.Thread(target=self._exec_read_message, args=[async_callback], kwargs=kwargs).start()
+            threading.Thread(target=self._exec_read_message, args=[async_callback, send_receipt], kwargs=kwargs).start()
             return None
-        return self._exec_read_message(**kwargs)
+        return self._exec_read_message(send_receipt=send_receipt, **kwargs)
 
     def unregister(self, **kwargs: Any) -> bool:
         UNREGISTER_ENDPOINT = self.base_url + UNREGISTER_RESOURCE.format(self.task_id)

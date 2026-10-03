@@ -271,7 +271,8 @@ command of `jordan` and `jordan-admin` takes `--request-timeout` (default 30 s,
 `$JORDAN_REQUEST_TIMEOUT`, [request_timeout.py](libraries/cli/jordan_cli/request_timeout.py)) and
 passes it on every request; `@bounded` turns an expired one into exit code `1` and a message instead
 of a traceback. `jordan action --wait` cuts each read to the time left before `--timeout`, so the
-wait ends on time even when the server stops answering (JRD-16). A new command takes the option,
+wait ends on time even when the server stops answering (JRD-16); the receipt of an action it read
+gets the whole `--request-timeout` (`read_message(send_receipt=False)`, JRD-19). A new command takes the option,
 forwards it, and gets a case in `TestRequestTimeout` ([test_cli.py](libraries/cli/tests/test_cli.py),
 [test_admin.py](libraries/cli/tests/test_admin.py)).
 
@@ -347,6 +348,13 @@ MESSAGE_PROCESSED          ← normal terminal state
 
 Error/alternate terminal states: `ERROR_CANNOT_PROCESS_MESSAGE`, `MESSAGE_OVERRIDDEN`
 
+The read hands the message out once — the server takes it off the queue — so `CLIENT_RECEIVED` is
+sent at **best effort**: `JordanMessage.received()` never raises — it sets `receipt_confirmed` and
+`receipt_error` (the last attempt's request error) — so `read_message` still returns the message,
+and `jordan action` prints it with a warning instead of dropping it (JRD-19). A timed-out receipt
+is *unconfirmed*, not refused: the server may have recorded it. Only a failed *read* raises. `jordan-client` (Java) does not do
+this yet.
+
 ### Task states
 
 `STARTED → RUNNING → PAUSED → COMPLETE | ERROR | TIME_OUT`
@@ -388,8 +396,10 @@ Each component has its own prefixed tag. Only the matching workflow fires.
    ```bash
    git tag jordan_cli/v1.0.0 && git push origin jordan_cli/v1.0.0
    ```
-   `jordan_cli` declares the `jordan_py` version it needs (`jordan_py>=2.2.1`, the first to forward a
-   timeout on reading a message, which `jordan action` relies on):
+   `jordan_cli` declares the `jordan_py` version it needs (`jordan_py>=2.3.0`, the first to return a
+   message whose acknowledgement of receipt failed, with `receipt_confirmed` and
+   `send_receipt`, which `jordan action`
+   relies on — JRD-19):
    publish that `jordan_py` first, or the new CLI installs against nothing.
 
 The same pattern applies to `server` with its own prefix.

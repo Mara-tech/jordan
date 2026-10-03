@@ -10,6 +10,13 @@ from jordan_cli.cli import app
 
 runner = CliRunner()
 
+# For the tests that read stdout and stderr apart: Click 8.2 always captures them separately,
+# Click 8.1 — which typer>=0.9.0 still allows — merges them unless told otherwise
+try:
+    split_runner = CliRunner(mix_stderr=False)
+except TypeError:
+    split_runner = CliRunner()
+
 BASE_URL = "http://testserver/jordan/"
 TASK_ID = "task-abc-123"
 AUTH_TOKEN = "token-xyz-456"
@@ -414,6 +421,59 @@ class TestAction:
         assert result.exit_code == 0
         # the read and its receipt
         assert [call.request.req_kwargs["timeout"] for call in responses_lib.calls] == [5, 5]
+
+    # JRD-19: the read takes the action off the queue; an acknowledgement of receipt that
+    # fails afterwards must not lose it — least of all under --wait, which read a timeout as
+    # an empty queue and went on waiting for the action it had just consumed
+
+    @staticmethod
+    def _serve_a_message_whose_receipt(**receipt) -> None:
+        responses_lib.add(
+            responses_lib.GET, _url(f"client/{TASK_ID}/message"), json=MSG_PAYLOAD, status=200
+        )
+        responses_lib.add(
+            responses_lib.PUT, _url(f"client/{TASK_ID}/{MSG_ID}/CLIENT_RECEIVED"), **receipt
+        )
+
+    @pytest.mark.parametrize("args", [["action"], ["action", "--wait", "--timeout", "10", "--interval", "0"]])
+    @pytest.mark.parametrize("receipt, warning", [
+        # a timeout leaves the outcome unknown: the server may have recorded it and lost the answer
+        ({"body": requests.exceptions.ReadTimeout("receipt unanswered")},
+         f"could not confirm that the server recorded action {MSG_ID} as received: receipt unanswered"),
+        ({"body": requests.exceptions.ConnectionError("connection dropped")},
+         f"the server did not record that action {MSG_ID} was received: connection dropped"),
+        ({"status": 500}, f"the server did not record that action {MSG_ID} was received."),
+    ], ids=["timeout", "connection-error", "refused"])
+    @responses_lib.activate
+    def test_prints_the_action_when_its_receipt_fails(self, args, receipt, warning):
+        _write_session()
+        self._serve_a_message_whose_receipt(**receipt)
+        result = split_runner.invoke(app, args)
+        assert result.exit_code == 0
+        assert json.loads(result.stdout)["actionName"] == "stop"
+        assert warning in result.stderr
+        # read once, acknowledged once: no second read waiting on an action already taken
+        assert len(responses_lib.calls) == 2
+
+    @responses_lib.activate
+    def test_no_warning_when_the_receipt_is_confirmed(self):
+        _write_session()
+        self._serve_a_message_whose_receipt(status=202)
+        result = split_runner.invoke(app, ["action"])
+        assert result.exit_code == 0
+        assert result.stderr == ""
+
+    @responses_lib.activate
+    def test_wait_gives_the_receipt_the_whole_request_timeout(self):
+        # the read is cut to the time left before --timeout; the receipt of an action already
+        # read is not, or a healthy server answering late in the wait fails it for nothing
+        _write_session()
+        self._serve_a_message_whose_receipt(status=202)
+        result = runner.invoke(app, ["action", "--wait", "--timeout", "1", "--request-timeout", "30"])
+        assert result.exit_code == 0
+        read, receipt = (call.request.req_kwargs["timeout"] for call in responses_lib.calls)
+        assert read <= 1
+        assert receipt == 30
 
 
 # ── task-create ────────────────────────────────────────────────────────────────
