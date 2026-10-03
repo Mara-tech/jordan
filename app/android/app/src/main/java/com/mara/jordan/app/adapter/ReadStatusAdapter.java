@@ -20,6 +20,7 @@ import com.google.common.collect.Lists;
 import com.mara.jordan.app.R;
 import com.mara.jordan.app.api.JordanReadStatusCallback;
 import com.mara.jordan.app.model.JordanTaskModel;
+import com.mara.jordan.app.model.StatusTextFilter;
 import com.mara.jordan.core.dto.JordanParentTaskDTO;
 import com.mara.jordan.core.dto.JordanStatusDTO;
 import com.mara.jordan.app.ui.ReadStatusFragment;
@@ -117,11 +118,11 @@ public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
 
     }
 
-    public void refresh(String query, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter, int depth, JordanReadStatusCallback callback) {
+    public void refresh(String query, StatusTextFilter textFilter, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter, int depth, JordanReadStatusCallback callback) {
         model.readStatus(depth, callback, new JordanReadStatusCallback() {
             @Override
             public void onStatusLoaded(JordanStatusDTO[] statuses) {
-                select(query, typeFilter, taskFilter, statuses);
+                select(query, textFilter, typeFilter, taskFilter, statuses);
             }
 
             @Override
@@ -131,23 +132,27 @@ public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
         });
     }
 
-    public void select(String query, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter) {
-        select(query, typeFilter, taskFilter, model.getStatuses());
+    public void select(String query, StatusTextFilter textFilter, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter) {
+        select(query, textFilter, typeFilter, taskFilter, model.getStatuses());
     }
 
-    private void select(String query, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter, JordanStatusDTO[] statuses) {
-        final Collection<JordanStatusDTO> statusToDisplay = applyFilters(query, typeFilter, taskFilter, statuses);
+    private void select(String query, StatusTextFilter textFilter, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter, JordanStatusDTO[] statuses) {
+        final Collection<JordanStatusDTO> statusToDisplay = applyFilters(query, textFilter, typeFilter, taskFilter, statuses);
         clear();
         addAll(statusToDisplay);
     }
 
-    private static List<JordanStatusDTO> applyFilters(String textQuery, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter, JordanStatusDTO[] statuses) {
+    /**
+     * A status is displayed when it passes every filter : the search of the toolbar, the text of
+     * the filter dialog, and its type and task checkboxes.
+     *
+     * @param textQuery  search of the toolbar, a keyword
+     * @param textFilter text of the filter dialog, a keyword or a regular expression
+     */
+    static List<JordanStatusDTO> applyFilters(String textQuery, StatusTextFilter textFilter, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter, JordanStatusDTO[] statuses) {
+        StatusTextFilter searchFilter = StatusTextFilter.keyword(textQuery);
         List<JordanStatusDTO> list = new ArrayList<>();
         for (JordanStatusDTO s : statuses) {
-            boolean validStatus = true;
-            if(!Strings.isNullOrEmpty(textQuery)) {
-                validStatus = s.getStatus().toLowerCase().contains(textQuery.toLowerCase());
-            }
             boolean validType = true;
             if(!MapUtils.isEmpty(typeFilter)){
                 String type = s.getType();
@@ -168,7 +173,10 @@ public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
                     validTask = taskFilter.get(task);
                 }
             }
-            if(validStatus && validType && validTask){
+            // the text last : a regular expression costs more than a lookup, so it only reads the
+            // statuses the checkboxes kept
+            if(validType && validTask && searchFilter.matches(s.getStatus())
+                    && (textFilter == null || textFilter.matches(s.getStatus()))){
                 list.add(s);
             }
         }

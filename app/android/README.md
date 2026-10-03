@@ -61,6 +61,17 @@ It may be considered as logs, dedicated to take actions from a Jordan User Inter
 </p>
 These statuses may help the user to decide if an action should be taken.
 
+Two filters narrow a long list, and a status is displayed when it passes both:
+- **the search of the toolbar** filters as you type, on a keyword;
+- **the *Filter* dialog** applies when you press *Apply*: a text the status must contain, with the
+  types and tasks to keep. Checking *Regular expression* reads the text as a pattern found anywhere
+  in the status (`loss = 0\.[0-4]`, `^epoch \d+$`). Both the keyword and the pattern ignore case.
+
+Patterns use [RE2 syntax](https://github.com/google/re2/wiki/Syntax), matched in a time linear in the
+length of the status whatever the pattern: no backreferences (`\1`) and no lookarounds (`(?=…)`). An
+invalid pattern keeps the dialog open with the reason, and the filters in place stay as they were.
+The dialog's text is kept across refreshes, and shown again when the dialog reopens.
+
 ### Actions
 This is the central part of Interactions in Jordan.
 The user is able to send a message back to the client so the program may act in consequence.
@@ -112,4 +123,6 @@ request touching the app. Those driving a screen through its lifecycle use Robol
 `ClientInteractionsFragmentTest` rotates the client screen and checks that the tab displayed, the
 only one held, is the one its menu shows checked. The tabs live in the screen's child fragment
 manager and read the model from it (`ClientInteractionsFragment.taskModelOf`): a field set by
-`newInstance` would be lost when the system recreates the tab.
+`newInstance` would be lost when the system recreates the tab. `ReadStatusFragmentTest` drives the
+*Filter* dialog of the Status tab the same way, on statuses served by a model that overrides
+`readStatus` instead of calling a server.

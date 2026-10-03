@@ -67,6 +67,9 @@ dependencies {
     // Metrics tab. Served by JitPack only, like StickyListHeaders; unmaintained since 2020 but stable,
     // and it spares drawing axes, legend, zoom and tap-to-inspect by hand
     implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
+    // Regular expressions of the status filter: matched in linear time, where java.util.regex runs
+    // in ICU on Android and can backtrack for minutes on the UI thread, uninterruptibly (JRD-10)
+    implementation 'com.google.re2j:re2j:1.8'
     compileOnly 'org.projectlombok:lombok:1.18.36'
     annotationProcessor 'org.projectlombok:lombok:1.18.36'
     annotationProcessor "androidx.room:room-compiler:$room_version"
