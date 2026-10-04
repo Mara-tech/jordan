@@ -52,6 +52,7 @@ server/             Flask-RESTX server + Redis interface
   jordan_server.py  Entry point: python jordan_server.py
   mock.py           Dev/test data fixtures
   requirements.txt  Pinned dependencies
+  deploy.sh         Deploys one image to Railway production (release workflow and workstations)
 
 libraries/
   prototype/contract.md   API specification (authoritative)
