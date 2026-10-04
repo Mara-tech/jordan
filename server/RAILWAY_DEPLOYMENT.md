@@ -3,16 +3,25 @@
 ## Prerequisites
 
 1. A Railway account (https://railway.app)
-2. The Railway CLI: `npm install -g @railway/cli`
-3. Git configured for this repository
+2. The Railway CLI, recent enough to have `railway api` (5.41.2 is the version the release workflow
+   pins): `npm install -g @railway/cli`, then `railway login`
+3. Bash — Git Bash on Windows: [deploy.sh](deploy.sh) is a bash script
+4. For a test from a workstation only: Docker, logged in to `ghcr.io` (see
+   [A test from a workstation](#a-test-from-a-workstation))
 
 ## Deployment architecture
 
 ```
-                 HTTPS (Railway proxy)
-                        │
-┌───────────────────────▼─────────┐
-│  Railway (App Container)        │
+   tag server/vX.Y.Z                    workstation
+   release-server.yml                   server/deploy.sh --build
+          │ pushes X.Y.Z                      │ pushes test-<commit>
+┌─────────▼───────────────────────────────────▼───┐
+│  ghcr.io/mara-tech/jordan-server   (public)     │
+└────────────────────────┬────────────────────────┘
+                         │ server/deploy.sh <tag> — Railway pulls that tag
+                         │                   HTTPS (Railway proxy)
+┌────────────────────────▼────────┐                  │
+│  Railway (App Container)        ◄──────────────────┘
 │  gunicorn api:app  ·  $PORT     │
 │  non-root user "jordan"         │
 └──────────────┬──────────────────┘
@@ -23,18 +32,34 @@
 └─────────────────────────────────┘
 ```
 
-Both links leave the machine. The Railway proxy encrypts the upper one; the lower one is encrypted
-only if `REDIS_SSL=true` — see step 3.
+Railway builds nothing. The source of the service is an image of the public package
+`ghcr.io/mara-tech/jordan-server`, named by its tag, and [deploy.sh](deploy.sh) is the only thing
+that changes it — from the release workflow and from a workstation alike, see step 4. The service is
+connected to no repository, and nothing uploads sources to it: either would run code that nobody can
+name afterwards, nor return to.
 
-## Step 1: Create a Railway project
+Both links below the container leave the machine. The Railway proxy encrypts the one from the
+internet; the one to Redis is encrypted only if `REDIS_SSL=true` — see step 3.
+
+## Step 1: The Railway project
+
+It exists: project `jordan`, a single environment `production`, a service `jordan`. Their ids, and
+the public URL, are the defaults of [deploy.sh](deploy.sh). Link a working copy to it once, for the
+`railway variable` and `railway logs` commands below:
 
 ```bash
-railway init
-# Choose: Create new project
-# Project name: jordan
+cd server
+railway link            # project jordan, environment production, service jordan
 ```
 
-railway project link jordan
+Starting over in another project means creating the service from the image, then pointing the
+script at it — `RAILWAY_SERVICE_ID`, `RAILWAY_ENVIRONMENT_ID` and `JORDAN_URL` override its defaults,
+and `railway status --json` gives the ids:
+
+```bash
+railway init                                                       # project name: jordan
+railway add --service jordan --image ghcr.io/mara-tech/jordan-server:<version>
+```
 
 ## Step 2: Set up RedisCloud
 
@@ -48,8 +73,8 @@ The free 30MB plan carries one limitation that matters for a public deployment: 
 so the link between Railway and the database cannot be encrypted. See step 3.
 
 ## Step 3: Configure the environment variables on Railway
-Catch: the service has to exist before variables can be added to it. But `railway up` starts the
-service without them, so it crashes.
+Catch: the service has to exist before variables can be added to it. A deployment started before
+they are set fails at boot, which is harmless — set them, then deploy with step 4.
 
 ```bash
 railway variable set REDIS_HOST=your-redis-host.rediscloud.com
@@ -98,13 +123,13 @@ to skip that check. Redis Cloud's `redis_ca.pem` bundle contains a publicly trus
 one of those fails verification, and passing the bundle to the client is not supported by this
 server yet. Verify the handshake against a real database before relying on it.
 
-**No secret goes into a file.** Not the `Dockerfile`, not [railway.json](railway.json), not a
-`.env`: all three are versioned, and a Railway variable can be changed without rebuilding the
-image. `server/.env` is covered twice — [.railwayignore](.railwayignore) keeps it out of what
-`railway up` uploads, [.dockerignore](.dockerignore) out of what enters the image. The second
-matters just as much: `.env` is indeed in `.gitignore`, but that protects the repository, not the
-`COPY . .` of the build, and a secret baked into an image layer stays there long after the variable
-has been changed.
+**No secret goes into a file.** Not the `Dockerfile`, not [deploy.sh](deploy.sh), not a `.env`:
+the first two are versioned, and a Railway variable can be changed without rebuilding the image.
+`server/.env` is kept out of the image by [.dockerignore](.dockerignore), and that matters more than
+it seems: `.env` is indeed in `.gitignore`, but that protects the repository, not the `COPY . .` of
+the build — and `deploy.sh --build` builds from your working copy, where a `.env` does exist. A
+secret baked into an image layer stays there long after the variable has been changed, in an image
+anyone can pull: the package is public.
 
 Then declare the operator accounts (named identities, hashed passwords):
 
@@ -158,8 +183,8 @@ one has to be revoked.
 ⚠️ a value that is set but unusable (invalid JSON, an empty object, an entry without a key or
 without a name, an array) **stops the server from starting**, with the reason spelled out in the
 logs. That is deliberate: ignoring the faulty entry would leave a key its operator believes valid,
-silently refusing its clients. The `healthcheckPath` in [railway.json](railway.json) does the rest —
-the faulty deployment never takes traffic, and the previous one keeps serving.
+silently refusing its clients. The health check [deploy.sh](deploy.sh) sets on the service does the
+rest — the faulty deployment never takes traffic, and the previous one keeps serving.
 
 That last property has a cost worth knowing before you meet it: the URL keeps answering, from the
 *previous* configuration, and the logs you see are that deployment's. A variable you have just set
@@ -176,18 +201,80 @@ never takes traffic.
 
 ## Step 4: Deploy
 
-```bash
-# Option 1: through the CLI
-cd server
-railway up
+Production runs one image of `ghcr.io/mara-tech/jordan-server`, named by its tag. One command
+deploys any of them, and it is the same from the release workflow and from a workstation — only the
+tag differs:
 
-# Option 2: through Git (recommended for CI/CD)
-git add server/Dockerfile server/railway.json
-git commit -m "Add Railway deployment configuration"
-git push origin main
+```bash
+server/deploy.sh 1.2.0        # a released version
+server/deploy.sh --build      # this checkout, pushed as test-<commit>
+server/deploy.sh --release    # the last released version: the way back
 ```
 
-Railway detects the `Dockerfile` and builds it automatically.
+What it does, in order, stopping at the first refusal:
+
+1. reads, anonymously, the digest the tag designates on `ghcr.io`. A tag that does not exist stops
+   it here, before the service is touched;
+2. points the service at the image, and sets the settings `railway.json` used to carry: health check
+   `/jordan/hello`, region `europe-west4-drams3a`, one replica. A service whose source is an image
+   has no source tree to read that file from, and its own settings were empty — without this, a
+   deployment dying at boot would take the traffic. Plus `sleepApplication: true`, which the free
+   plan requires on every update;
+3. asks for a deployment and waits until it takes the traffic. A *deployment*, not a *redeploy*:
+   the latter repeats the previous deployment, image included;
+4. checks that Railway runs the digest of step 1, not something re-pushed under the tag meanwhile;
+5. probes `/jordan/hello` on the public URL.
+
+`latest` is refused: it names whatever was pushed last, which says nothing about what runs.
+Authentication is the CLI's — the session of `railway login` on a workstation, a project token in
+`RAILWAY_TOKEN` in the workflow; the script never reads a token. `RAILWAY_SERVICE_ID`,
+`RAILWAY_ENVIRONMENT_ID` and `JORDAN_URL` override the service it deploys to.
+
+### A release
+
+Push a `server/v*` tag (*To release `server`* in [.claude/CLAUDE.md](../.claude/CLAUDE.md)).
+[release-server.yml](../.github/workflows/release-server.yml) pushes the image under the version and
+`latest`, then its `deploy` job runs `server/deploy.sh <version>`. No approval: pushing the tag is
+the decision to deploy.
+
+The job needs one secret, set once:
+
+1. Railway → project `jordan` → *Settings* → *Tokens*: create a **project token** for the environment
+   `production`. It opens that one environment of that one project, nothing else — the narrowest
+   token Railway has;
+2. GitHub → repository *Settings* → *Secrets and variables* → *Actions*: new repository secret
+   `RAILWAY_TOKEN`, holding it.
+
+Without it the job fails after the image is pushed: the version exists, production did not move.
+To check a token before trusting a release to it, deploy the current version with it from a
+workstation — `RAILWAY_TOKEN=<token> server/deploy.sh <current version>` changes nothing that runs.
+
+### A test from a workstation
+
+There is one environment, and it is production: a test replaces it for as long as it lasts.
+
+```bash
+docker login ghcr.io -u <github-login>   # password: a classic token holding write:packages
+git commit ...                            # --build refuses uncommitted changes under server/
+server/deploy.sh --build
+```
+
+It builds `server/` for `linux/amd64` — what Railway runs, whatever the workstation — pushes it as
+`ghcr.io/mara-tech/jordan-server:test-<commit>`, and deploys it like a release. The tag says which
+commit runs, which is why a working copy with uncommitted changes under `server/` is refused: its
+image would carry a commit's name and something else. Like the rest of the package, a `test-` image
+is public.
+
+### Back to the last release
+
+```bash
+server/deploy.sh --release
+```
+
+It deploys the highest `server/v*` tag on `origin` — what was released, not what your clone has
+fetched. That is the way back after a test. After a bad release the highest tag *is* the bad one:
+name the version before it instead, `server/deploy.sh <previous version>`, then release a fix
+rather than moving the tag.
 
 ### What the container runs
 
@@ -206,9 +293,9 @@ CMD ["sh", "-c", "exec gunicorn api:app --bind 0.0.0.0:${PORT:-8080} --workers 2
 - **`USER jordan`** — the process owns none of the files it serves: the code and the interpreter
   stay owned by `root`, read-only. A flaw in the server then buys a shell that cannot modify the
   image it runs from.
-- **no `startCommand` in [railway.json](railway.json)** — it would shadow the `CMD` without
-  replacing it in the file you read. One start command, in the `Dockerfile`, rather than two that
-  diverge the day one of them is fixed.
+- **no start command on the service** — it would shadow the `CMD` without replacing it in the file
+  you read. [deploy.sh](deploy.sh) sets none; leave the field empty in the dashboard too. One start
+  command, in the `Dockerfile`, rather than two that diverge the day one of them is fixed.
 
 ## Step 5: Check the deployment
 
@@ -224,9 +311,9 @@ railway open
 # complete map of its API; leave it off, and turn it on for the length of a test.
 ```
 
-Check the region. How is it changed?
-Check the port in Settings/Public Networking: it must match the one the container exposes. Does not
-work well with 5000. Better with 8080.
+The region is set by [deploy.sh](deploy.sh) on every deployment — change it there, not in the
+dashboard, or the next deployment puts it back. The public domain targets port 8080, the one the
+image listens on (`ENV PORT=8080` in the `Dockerfile`): *Settings* → *Public Networking*.
 
 ## Checklist before going live
 
@@ -440,5 +527,6 @@ The Railway dashboard shows:
 - Service health
 
 Useful links:
-- https://docs.railway.app/deploy/dockerfiles
+- https://docs.railway.com/reference/public-api — the API [deploy.sh](deploy.sh) drives through
+  `railway api`, and its token types
 - https://docs.railway.app/reference/environment-variables
