@@ -10,8 +10,10 @@
 # settings that used to live in railway.json are set by this script on every deployment, since a
 # service whose source is an image has no source tree to read that file from.
 #
-# Authentication is the `railway` CLI's: the project token in $RAILWAY_TOKEN when set (the release
-# workflow), the session of `railway login` otherwise. This script never reads a token.
+# Authentication is the `railway` CLI's: a workspace token in $RAILWAY_API_TOKEN when set (the
+# release workflow), the session of `railway login` otherwise. This script never reads a token.
+# Not a project token ($RAILWAY_TOKEN): Railway answers "Not Authorized" to serviceInstanceUpdate
+# for one, and the CLI prefers it over any other credential — see the check below.
 #
 # Exit status: 0 once the deployment is live, runs the image the tag designates, and answers
 # /jordan/hello; non-zero with the reason otherwise.
@@ -53,6 +55,12 @@ usage() {
   sed -n '2,6p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
   exit 2
 }
+
+# A project token cannot point the service at another image: the first release refused with it
+# (JRD-26). Set, it would also shadow a valid RAILWAY_API_TOKEN or `railway login` session, since
+# the CLI uses it first — so it is refused here, before anything is asked of anyone.
+[ -z "${RAILWAY_TOKEN:-}" ] \
+  || die "RAILWAY_TOKEN is set: a project token, which Railway refuses for changing the service's image. Unset it, and authenticate with a workspace token in RAILWAY_API_TOKEN or with railway login"
 
 # Any Python 3 reads JSON. On Windows `python3` and `python` are often the Microsoft Store stubs,
 # which exist and run nothing, while `py`, the launcher, works; $PYTHON names one outright.

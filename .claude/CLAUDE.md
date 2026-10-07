@@ -445,8 +445,11 @@ Then the run **deploys that version to production**: its `deploy` job runs
 `server/deploy.sh <version>` — the exact version, never `latest` — which fails the run unless Railway
 reports the deployment live, running the digest the tag designates, and `/jordan/hello` answers on
 the public URL. No approval: pushing the tag is the decision to deploy (arbitration of JRD-26). The
-job needs the repository secret `RAILWAY_TOKEN`, a Railway **project token** of the `production`
-environment; without it the image is published and production does not move. The same script is
+job needs the repository secret `RAILWAY_API_TOKEN`, a Railway **workspace token** of the workspace
+holding the project (`My Projects`); without it the image is published and production does not
+move. Not a project token (`RAILWAY_TOKEN`): Railway refuses one for `serviceInstanceUpdate` with
+`Not Authorized`, which is how `server/v1.0.1` failed to deploy, and `deploy.sh` refuses to run while
+`RAILWAY_TOKEN` is set, since the CLI would prefer it over any other credential. The same script is
 the way back — `server/deploy.sh --release` redeploys the last released version after a test from a
 workstation, `server/deploy.sh <previous version>` after a bad release — see
 [server/RAILWAY_DEPLOYMENT.md](server/RAILWAY_DEPLOYMENT.md), step 4.

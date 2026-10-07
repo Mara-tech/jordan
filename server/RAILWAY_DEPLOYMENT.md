@@ -226,9 +226,10 @@ What it does, in order, stopping at the first refusal:
 5. probes `/jordan/hello` on the public URL.
 
 `latest` is refused: it names whatever was pushed last, which says nothing about what runs.
-Authentication is the CLI's — the session of `railway login` on a workstation, a project token in
-`RAILWAY_TOKEN` in the workflow; the script never reads a token. `RAILWAY_SERVICE_ID`,
-`RAILWAY_ENVIRONMENT_ID` and `JORDAN_URL` override the service it deploys to.
+Authentication is the CLI's — the session of `railway login` on a workstation, a workspace token in
+`RAILWAY_API_TOKEN` in the workflow; the script never reads a token. It refuses to run while
+`RAILWAY_TOKEN` is set: see below. `RAILWAY_SERVICE_ID`, `RAILWAY_ENVIRONMENT_ID` and `JORDAN_URL`
+override the service it deploys to.
 
 ### A release
 
@@ -239,15 +240,25 @@ the decision to deploy.
 
 The job needs one secret, set once:
 
-1. Railway → project `jordan` → *Settings* → *Tokens*: create a **project token** for the environment
-   `production`. It opens that one environment of that one project, nothing else — the narrowest
-   token Railway has;
+1. Railway → *Account Settings* → *Tokens* (railway.com/account/tokens): create a token and pick the
+   **workspace** that holds the project — `My Projects` — rather than *No workspace*, which would make
+   it an account token, valid on every workspace;
 2. GitHub → repository *Settings* → *Secrets and variables* → *Actions*: new repository secret
-   `RAILWAY_TOKEN`, holding it.
+   `RAILWAY_API_TOKEN`, holding it. The CLI sends it as `Authorization: Bearer`.
 
-Without it the job fails after the image is pushed: the version exists, production did not move.
-To check a token before trusting a release to it, deploy the current version with it from a
-workstation — `RAILWAY_TOKEN=<token> server/deploy.sh <current version>` changes nothing that runs.
+Not a **project token** (`RAILWAY_TOKEN`), although it would be narrower — one environment of one
+project: Railway answers `Not Authorized` to `serviceInstanceUpdate` for a project token
+([confirmed on Railway's forum](https://station.railway.com/questions/project-token-permission-for-service-ins-6b2ea971)),
+which is how the release `server/v1.0.1` failed, before touching the service. A workspace token is the
+narrowest one that can change the image. It opens every project of the workspace — `jordan` alone
+today; a project created there later is within its reach too. And the CLI prefers `RAILWAY_TOKEN`
+over any other credential when it is set, so `deploy.sh` refuses to run beside one rather than fail
+the same way.
+
+Without the secret the job fails after the image is pushed: the version exists, production did not
+move. To check a token before trusting a release to it, deploy the current version with it from a
+workstation — `RAILWAY_API_TOKEN=<token> server/deploy.sh <current version>` redeploys what already
+runs.
 
 ### A test from a workstation
 
