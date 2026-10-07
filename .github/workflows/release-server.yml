@@ -75,12 +75,13 @@ jobs:
 
       - name: Deploy the version to production
         env:
-          # project token of the `production` environment, read by the CLI — never by the script
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          # workspace token, read by the CLI — never by the script. Not a project token: Railway
+          # refuses one for serviceInstanceUpdate ("Not Authorized"), which failed server/v1.0.1.
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
           VERSION: ${{ needs.build-and-push.outputs.version }}
         run: |
-          if [ -z "$RAILWAY_TOKEN" ]; then
-            echo "::error::RAILWAY_TOKEN is not set: ${VERSION} is published, production was not deployed"
+          if [ -z "$RAILWAY_API_TOKEN" ]; then
+            echo "::error::RAILWAY_API_TOKEN is not set: ${VERSION} is published, production was not deployed"
             exit 1
           fi
           bash server/deploy.sh "$VERSION"

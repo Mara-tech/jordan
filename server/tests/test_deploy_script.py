@@ -125,7 +125,8 @@ def deploy(tmp_path):
         stub.chmod(0o755)
 
     def run(*args, statuses=('SUCCESS',), registry_digest=DIGEST, deployed_digest=DIGEST,
-            remote_tags=(), dirty='', hello_exit=0, docker_build_exit=0, deploy_timeout=600):
+            remote_tags=(), dirty='', hello_exit=0, docker_build_exit=0, deploy_timeout=600,
+            **extra_env):
         (tmp_path / 'statuses').write_text('\n'.join(statuses) + '\n', newline='\n')
         (tmp_path / 'remote_tags').write_text(
             ''.join(f'{"0" * 40}\trefs/tags/server/v{tag}\n' for tag in remote_tags), newline='\n')
@@ -133,8 +134,9 @@ def deploy(tmp_path):
         for leftover in ('calls', 'update_input.json', 'polls'):
             (tmp_path / leftover).unlink(missing_ok=True)
         env = {key: value for key, value in os.environ.items()
-               if key not in ('RAILWAY_TOKEN', 'GITHUB_STEP_SUMMARY', 'IMAGE_REPOSITORY',
-                              'RAILWAY_SERVICE_ID', 'RAILWAY_ENVIRONMENT_ID', 'JORDAN_URL')}
+               if key not in ('RAILWAY_TOKEN', 'RAILWAY_API_TOKEN', 'GITHUB_STEP_SUMMARY',
+                              'IMAGE_REPOSITORY', 'RAILWAY_SERVICE_ID', 'RAILWAY_ENVIRONMENT_ID',
+                              'JORDAN_URL')}
         env.update(
             PATH=str(bin_dir) + os.pathsep + os.environ['PATH'],
             STUB_DIR=tmp_path.as_posix(),
@@ -145,6 +147,7 @@ def deploy(tmp_path):
             DOCKER_BUILD_EXIT=str(docker_build_exit),
             DEPLOY_TIMEOUT=str(deploy_timeout),
             POLL_INTERVAL='0',
+            **extra_env,
         )
         # generous: every stub is a process, and spawning one under Git Bash on a loaded Windows
         # machine can take seconds
@@ -190,6 +193,24 @@ def test_latest_is_refused_before_anything_is_asked(deploy):
     assert run.returncode != 0
     assert 'name the version' in run.stderr
     assert run.calls == []
+
+
+def test_a_project_token_is_refused_before_anything_is_asked(deploy):
+    # Railway answers "Not Authorized" to serviceInstanceUpdate for a project token — the first
+    # release under JRD-26 failed on it — and the CLI would use it over RAILWAY_API_TOKEN
+    run = deploy('1.2.0', RAILWAY_TOKEN='a-project-token', RAILWAY_API_TOKEN='a-workspace-token')
+
+    assert run.returncode != 0
+    assert 'RAILWAY_TOKEN is set' in run.stderr
+    assert 'RAILWAY_API_TOKEN' in run.stderr
+    assert run.calls == []
+
+
+def test_a_workspace_token_is_left_to_the_cli(deploy):
+    run = deploy('1.2.0', RAILWAY_API_TOKEN='a-workspace-token')
+
+    assert run.returncode == 0, run.stderr
+    assert 'a-workspace-token' not in ' '.join(run.calls)
 
 
 def test_a_tag_missing_from_the_registry_leaves_the_service_untouched(deploy):
