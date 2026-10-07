@@ -22,4 +22,4 @@ __pycache__/
 # Development-only material: nothing serves a request from it
 tests/
 mock.py
-deploy-railway.ps1
+deploy.sh

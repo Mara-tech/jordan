@@ -106,7 +106,7 @@ What `ci-python` / `compose-stack` checks — the local development stack of `do
 built from the root `Dockerfile`, which no other job builds:
 
 ```bash
-docker compose up -d --build --wait --wait-timeout 120
+JORDAN_REGISTRATION_KEY= docker compose up -d --build --wait --wait-timeout 120
 curl -sf http://localhost:5000/jordan/hello
 id=$(curl -sf -X POST -H 'Content-Type: application/json' -d '{"name":"ci-compose-stack"}' \
   http://localhost:5000/jordan/client/register | python -c 'import json, sys; print(json.load(sys.stdin)["taskId"])')
@@ -115,7 +115,10 @@ docker compose down -v
 ```
 
 `--wait` is the check: a bare `up -d` returns success while the server dies at startup. The last
-line proves the server wrote into the Redis of the stack. It needs port 5000 and 6379 free. Run it
+line proves the server wrote into the Redis of the stack. The empty `JORDAN_REGISTRATION_KEY=` is
+not decoration: `docker-compose.yml` hands the server whatever the shell holds, and a workstation
+that runs passive clients often has that variable set — registration then answers `401` and the
+`register` line fails, with nothing wrong in the stack. It needs port 5000 and 6379 free. Run it
 when `Dockerfile` or `docker-compose.yml` changed, or when a server change can affect how it
 starts; a change inside `api.py` alone is covered by the server tests. In a sandbox whose egress
 re-terminates TLS, `pip` inside the build rejects the proxy's certificate — a build-environment
@@ -152,3 +155,8 @@ check at least that it parses — `python -c "import yaml; yaml.safe_load(open('
 step. For `release-server.yml`, the image name it computes must pass Docker's reference parser:
 `docker tag <any-local-image> <name>:<version>` rejects an invalid one with `invalid reference format`
 before it contacts the daemon.
+
+Its `deploy` job is [server/deploy.sh](../../server/deploy.sh), and the script is not left to the
+release: `server/tests/test_deploy_script.py` runs it under bash against stubs of `railway`, `curl`,
+`git` and `docker`, in the **Server** row above — on Windows through Git Bash, about a minute where
+Linux takes seconds. A real run deploys production: never run it as a check, only to deploy.

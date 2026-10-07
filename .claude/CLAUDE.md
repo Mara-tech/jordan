@@ -52,6 +52,7 @@ server/             Flask-RESTX server + Redis interface
   jordan_server.py  Entry point: python jordan_server.py
   mock.py           Dev/test data fixtures
   requirements.txt  Pinned dependencies
+  deploy.sh         Deploys one image to Railway production (release workflow and workstations)
 
 libraries/
   prototype/contract.md   API specification (authoritative)
@@ -98,11 +99,17 @@ cd server && gunicorn api:app --bind 0.0.0.0:${PORT:-5000} --workers 2
 ```
 
 [server/Dockerfile](server/Dockerfile) runs that command as the unprivileged `jordan` user and is
-the single source of the start command — [server/railway.json](server/railway.json) deliberately
-declares no `startCommand`, which would shadow it. Secrets are platform variables, never files:
-`server/.dockerignore` (the build context is `server/`, so the root one does not apply) and
-`server/.railwayignore` both exclude `.env`. Deployment guide:
-[server/RAILWAY_DEPLOYMENT.md](server/RAILWAY_DEPLOYMENT.md).
+the single source of the start command — [server/deploy.sh](server/deploy.sh) deliberately sets no
+start command on the Railway service, which would shadow it. Secrets are platform variables, never
+files: `server/.dockerignore` (the build context is `server/`, so the root one does not apply)
+excludes `.env`, which matters doubly since the image is public.
+
+Production on Railway runs a published image, never sources: `server/deploy.sh <version>` points the
+service at `ghcr.io/mara-tech/jordan-server:<version>`, sets the settings `railway.json` used to
+carry (an image source has no source tree to read it from), deploys, and checks the digest and
+`/jordan/hello`. The release workflow runs it on a `server/v*` tag; a workstation runs it with
+`--build` (pushes `test-<commit>`) or `--release` (back to the last release) — see *To release
+`server`* below. Deployment guide: [server/RAILWAY_DEPLOYMENT.md](server/RAILWAY_DEPLOYMENT.md).
 
 **Required environment variables** (in `server/.env`):
 
@@ -377,7 +384,7 @@ Each component has its own prefixed tag. Only the matching workflow fires.
 |---|---|---|---|
 | `jordan_py` | `jordan_py/v*` | `release-library-python.yml` | PyPI |
 | `jordan_cli` | `jordan_cli/v*` | `release-cli-python.yml` | PyPI |
-| `server` | `server/v*` | `release-server.yml` | ghcr.io Docker image |
+| `server` | `server/v*` | `release-server.yml` | ghcr.io Docker image, then deployed to Railway production |
 | `app/android` | `android/v*` | `release-android.yml` | GitHub Release (signed APK + AAB) and Google Play *internal* track |
 | `jordan-core` + `jordan-client` | `java/v*` | *(planned)* | GitHub Packages |
 
@@ -433,6 +440,16 @@ sleep 5 && curl -sf http://localhost:8080/jordan/hello; docker rm -f jordan-rele
 
 No Redis is needed for that probe, the same as in `build-image`: the client connects on its first
 command, and `/jordan/hello` issues none.
+
+Then the run **deploys that version to production**: its `deploy` job runs
+`server/deploy.sh <version>` — the exact version, never `latest` — which fails the run unless Railway
+reports the deployment live, running the digest the tag designates, and `/jordan/hello` answers on
+the public URL. No approval: pushing the tag is the decision to deploy (arbitration of JRD-26). The
+job needs the repository secret `RAILWAY_TOKEN`, a Railway **project token** of the `production`
+environment; without it the image is published and production does not move. The same script is
+the way back — `server/deploy.sh --release` redeploys the last released version after a test from a
+workstation, `server/deploy.sh <previous version>` after a bad release — see
+[server/RAILWAY_DEPLOYMENT.md](server/RAILWAY_DEPLOYMENT.md), step 4.
 
 A tag is immutable once consumed: to fix a published version, release the next one rather than moving
 the tag.

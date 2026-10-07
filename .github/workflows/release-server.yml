@@ -14,6 +14,9 @@ jobs:
     permissions:
       contents: read
       packages: write
+    # $GITHUB_ENV does not cross jobs: the deploy job reads the version from here
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +29,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract version from tag
-        run: echo "VERSION=${GITHUB_REF_NAME#server/v}" >> $GITHUB_ENV
+        id: version
+        run: |
+          echo "VERSION=${GITHUB_REF_NAME#server/v}" >> $GITHUB_ENV
+          echo "version=${GITHUB_REF_NAME#server/v}" >> $GITHUB_OUTPUT
 
       # A Docker repository name must be lowercase, and the owner is `Mara-tech`:
       # `${{ github.repository_owner }}` used as is would make the push fail
@@ -45,3 +51,36 @@ jobs:
           # links the package to this repository on ghcr.io
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+  # Production runs the version just pushed — never `latest`, which says nothing about what runs
+  # (JRD-26). A separate job, so that a deployment Railway refuses leaves the image published and
+  # the refusal on its own line. server/deploy.sh is the same command a workstation runs; it waits
+  # for the deployment, checks the digest Railway runs, and probes /jordan/hello.
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    # one deployment at a time: two tags pushed together queue instead of racing
+    concurrency:
+      group: railway-production
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # pinned: server/deploy.sh drives Railway through `railway api`, and was run with this version
+      - name: Install the Railway CLI
+        run: npm install -g @railway/cli@5.41.2
+
+      - name: Deploy the version to production
+        env:
+          # project token of the `production` environment, read by the CLI — never by the script
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          VERSION: ${{ needs.build-and-push.outputs.version }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "::error::RAILWAY_TOKEN is not set: ${VERSION} is published, production was not deployed"
+            exit 1
+          fi
+          bash server/deploy.sh "$VERSION"
