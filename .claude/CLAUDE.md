@@ -363,6 +363,13 @@ is *unconfirmed*, not refused: the server may have recorded it. Only a failed *r
 follows the same contract: `received()` no longer throws, `isReceiptConfirmed()` and `getReceiptError()` say how the
 last attempt went (JRD-27).
 
+A `200` that `jordan_py` cannot decode is just as consumed: `read_message` raises
+`UndecodableMessageError` (a `ValueError`, raw answer in `body`) and logs that body at ERROR on
+`jordan_py.jordan` first, since nobody catches the exception on the asynchronous path (JRD-29).
+`action.placeholders` is optional on the way in; the server always answers it, `{}` when absent, and
+`jordan_py` reads a missing one as no parameter. `jordan-client` still lets a decoding error escape
+— JRD-33.
+
 ### Task states
 
 `STARTED → RUNNING → PAUSED → COMPLETE | ERROR | TIME_OUT`
