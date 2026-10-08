@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import threading
 import unittest
@@ -508,6 +509,102 @@ class TestReceiptAtBestEffort(unittest.TestCase):
         )
         with self.assertRaises(requests.exceptions.Timeout):
             self._make_instance().read_message(timeout=1)
+
+
+class TestUndecodableMessage(unittest.TestCase):
+    """A message the server handed out is off its queue: one the library cannot decode is
+    raised with its raw body and logged first, never dropped without a trace (JRD-29)."""
+
+    MESSAGE_URL = _url(f"client/{TASK_ID}/message")
+
+    def _make_instance(self) -> jordan.JordanInstance:
+        return jordan.JordanInstance(BASE_URL, TASK_ID, AUTH_TOKEN, "test-client")
+
+    def _serve(self, body: str) -> None:
+        responses_lib.add(responses_lib.GET, self.MESSAGE_URL, body=body, status=200)
+        responses_lib.add(
+            responses_lib.PUT, _url(f"client/{TASK_ID}/{MSG_ID}/{jordan.MESSAGE_CLIENT_RECEIVED}"), status=202
+        )
+
+    @responses_lib.activate
+    def test_an_action_without_placeholders_has_no_parameter(self):
+        for action in ({"actionName": "stop"}, {"actionName": "stop", "placeholders": None}):
+            with self.subTest(action=action):
+                responses_lib.reset()
+                self._serve(json.dumps({"messageId": MSG_ID, "action": action}))
+                msg = self._make_instance().read_message()
+                self.assertEqual(msg.action_name, "stop")
+                self.assertFalse(msg.placeholders.has_key("anything"))
+                self.assertTrue(msg.receipt_confirmed)
+
+    @responses_lib.activate
+    def test_a_body_cut_short_is_raised_with_its_raw_content(self):
+        body = '{"messageId": "msg-001", "action": {"actionName": "sto'
+        self._serve(body)
+        with self.assertLogs("jordan_py.jordan", level="ERROR") as logs:
+            with self.assertRaises(jordan.UndecodableMessageError) as raised:
+                self._make_instance().read_message()
+        self.assertEqual(raised.exception.body, body)
+        self.assertEqual(raised.exception.status_code, 200)
+        self.assertIsInstance(raised.exception.__cause__, json.JSONDecodeError)
+        self.assertIn(body, logs.output[0])
+        # nothing to acknowledge: the library holds no message id
+        self.assertEqual(len(responses_lib.calls), 1)
+
+    @responses_lib.activate
+    def test_it_stays_a_value_error(self):
+        # what a caller catching the former JSONDecodeError already catches
+        self._serve("<html>Bad gateway</html>")
+        with self.assertLogs("jordan_py.jordan", level="ERROR"):
+            with self.assertRaises(ValueError):
+                self._make_instance().read_message()
+
+    @responses_lib.activate
+    def test_a_message_missing_a_field_is_raised_with_its_raw_content(self):
+        for payload in ({"action": {"actionName": "stop"}}, {"messageId": MSG_ID}, ["not", "a", "message"],
+                        {"messageId": MSG_ID, "action": {"actionName": "stop", "placeholders": ["x"]}}):
+            with self.subTest(payload=payload):
+                responses_lib.reset()
+                body = json.dumps(payload)
+                self._serve(body)
+                with self.assertLogs("jordan_py.jordan", level="ERROR") as logs:
+                    with self.assertRaises(jordan.UndecodableMessageError) as raised:
+                        self._make_instance().read_message()
+                self.assertEqual(raised.exception.body, body)
+                self.assertIn(body, logs.output[0])
+
+    @responses_lib.activate
+    def test_the_async_path_logs_the_raw_body(self):
+        # no caller is there to catch the exception: the log is the trace left
+        body = '{"messageId": "msg-001", "act'
+        self._serve(body)
+        logged = threading.Event()
+        records = []
+
+        class _Capture(logging.Handler):
+            def emit(self, record):
+                records.append(record.getMessage())
+                logged.set()
+
+        logger = logging.getLogger("jordan_py.jordan")
+        handler = _Capture(level=logging.ERROR)
+        logger.addHandler(handler)
+        raised = []
+        thread_ended = threading.Event()
+        previous_hook = threading.excepthook
+        # the thread dies on the exception, as it would in a program: keep its traceback quiet
+        threading.excepthook = lambda args: (raised.append(args.exc_type), thread_ended.set())
+        try:
+            delivered = []
+            self._make_instance().read_message(async_callback=delivered.append)
+            self.assertTrue(logged.wait(5))
+            self.assertTrue(thread_ended.wait(5))
+        finally:
+            logger.removeHandler(handler)
+            threading.excepthook = previous_hook
+        self.assertIn(body, records[0])
+        self.assertEqual(raised, [jordan.UndecodableMessageError])
+        self.assertEqual(delivered, [])
 
 
 class TestContextManager(unittest.TestCase):

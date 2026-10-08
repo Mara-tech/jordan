@@ -1,6 +1,7 @@
 from time import time
 from typing import Any, Callable, Dict, List, Optional, Union
 import json
+import logging
 import math
 import os
 import requests
@@ -49,6 +50,22 @@ MESSAGE_STATE_PROCESSED = 'MESSAGE_PROCESSED'
 MESSAGE_CLIENT_RECEIVED = 'CLIENT_RECEIVED'
 MESSAGE_OVERRIDDEN = 'MESSAGE_OVERRIDDEN'
 CANNOT_PROCESS_MESSAGE = 'ERROR_CANNOT_PROCESS_MESSAGE'
+
+logger = logging.getLogger(__name__)
+
+
+class UndecodableMessageError(ValueError):
+    """The server answered a read with a message the library could not decode — a body cut
+    short, not JSON, or missing a field. The server took that message off the queue when it
+    answered, so the raw ``body`` is the only copy left: it is kept here, and logged before this
+    is raised (JRD-29). A ``ValueError``, as the ``JSONDecodeError`` it replaces."""
+
+    def __init__(self, task_id: str, status_code: int, body: str, cause: Exception) -> None:
+        super().__init__(f"Could not decode the message read for task {task_id} "
+                         f"(HTTP {status_code}, {type(cause).__name__}: {cause}); raw body: {body!r}")
+        self.task_id = task_id
+        self.status_code = status_code
+        self.body = body
 
 
 def with_action(action_name: str) -> 'ActionBuilder':
@@ -111,7 +128,8 @@ class JordanMessage:
         self.auth_token = auth_token
         self.message_id = msg['messageId']
         self.action_name = msg['action']['actionName']
-        self.placeholders = JordanMessagePlaceholders(msg['action']['placeholders'])
+        # optional in the contract: an action without them is an action without parameters
+        self.placeholders = JordanMessagePlaceholders(msg['action'].get('placeholders') or {})
         # whether the server confirmed CLIENT_RECEIVED, and the request error of the last attempt
         # if it raised one — both written by received() alone
         self.receipt_confirmed = False
@@ -265,8 +283,14 @@ class JordanInstance:
         MESSAGE_ENDPOINT = self.base_url + MESSAGE_RESOURCE.format(self.task_id)
         r = requests.get(MESSAGE_ENDPOINT, headers=self._auth_headers(), **kwargs)
         if r.status_code == 200:
-            message_output = json.loads(r.text)
-            msg = JordanMessage(self.base_url, self.task_id, message_output, self.auth_token)
+            try:
+                msg = JordanMessage(self.base_url, self.task_id, json.loads(r.text), self.auth_token)
+            except (ValueError, KeyError, TypeError, AttributeError) as error:
+                # the server already took the message off the queue: its body is the only copy
+                # left. Logged as well as raised, since nobody catches it on the async path
+                logger.error("Could not decode the message read for task %s (HTTP %s, %s: %s); raw body: %r",
+                             self.task_id, r.status_code, type(error).__name__, error, r.text)
+                raise UndecodableMessageError(self.task_id, r.status_code, r.text, error) from error
             if send_receipt:
                 # a request too, bounded by the same arguments; it never raises, since the
                 # server took the message off the queue when it answered the read (JRD-19)
@@ -289,7 +313,11 @@ class JordanInstance:
         the request error if there was one, and ``msg.received()`` sends it again.
 
         ``send_receipt=False`` leaves the acknowledgement to the caller, for one that bounds it
-        differently from the read: ``msg.received(timeout=...)``."""
+        differently from the read: ``msg.received(timeout=...)``.
+
+        A message handed out that the library cannot decode raises ``UndecodableMessageError``,
+        whose ``body`` holds the raw answer, and is logged at ERROR on the ``jordan_py.jordan``
+        logger first — on the asynchronous path the log is the only trace left."""
         if async_call or async_callback:
             threading.Thread(target=self._exec_read_message, args=[async_callback, send_receipt], kwargs=kwargs).start()
             return None

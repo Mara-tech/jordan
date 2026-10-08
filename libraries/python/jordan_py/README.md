@@ -56,6 +56,12 @@ Actions are generic, as much as the App GUI. Therefore, you already have an App 
         leaves the acknowledgement to you, to bound it apart from the read. Only a read that
         fails raises — and then no message was handed out.
 
+        One exception: an answer the library cannot decode — a body cut short by a proxy, not
+        JSON, a field missing. That message is off the server's queue too, so `read_message`
+        raises `jordan.UndecodableMessageError` (a `ValueError`) whose `body` holds the raw
+        answer, and logs it at ERROR on the `jordan_py.jordan` logger first — on the asynchronous
+        path, where nobody catches the exception, that log line is the trace left.
+
 4. If the server closed registration (`JORDAN_REGISTRATION_KEY` set on its side), present the key
 
         jordan_instance = jordan.register('<jordan_server_url>', registration_key='<key>')

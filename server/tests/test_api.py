@@ -477,6 +477,21 @@ def test_read_message_body_has_expected_fields(
     assert 'action' in data
 
 
+@pytest.mark.parametrize('stored_action', [
+    {'actionName': 'stop'},
+    {'actionName': 'stop', 'placeholders': None},
+    {'actionName': 'stop', 'placeholders': {}},
+])
+def test_read_message_always_carries_placeholders(
+    client, allow_auth, auth_headers, monkeypatch, stored_action
+):
+    # placeholders are optional when an operator sends a message; the read still answers
+    # an object, empty for an action without parameters — what the libraries rely on (JRD-29)
+    monkeypatch.setattr('api.read_message', lambda task_id: {'messageId': MESSAGE_ID, 'action': stored_action})
+    r = client.get(f'/jordan/client/{TASK_ID}/message', headers=auth_headers)
+    assert r.get_json()['action'] == {'actionName': 'stop', 'placeholders': {}}
+
+
 def test_read_message_returns_204_when_empty(
     client, allow_auth, mock_read_message_empty, auth_headers
 ):

@@ -112,6 +112,10 @@ at best effort — when that acknowledgement fails, `read_message` still returns
 on it (`receipt_confirmed`, `receipt_error` in `jordan_py`; `isReceiptConfirmed()`, `getReceiptError()` in
 `jordan-client`) rather than raising and losing it; sending
 it again (`received()`) never raises either. A receipt that timed out may still have been recorded.
+The answer always carries `action.placeholders`, an empty object for an action sent without
+parameters. A `200` the library cannot decode — a body cut short, not JSON, a field missing — is
+off the queue all the same: `jordan_py` raises `UndecodableMessageError`, which holds the raw body
+(`body`), and logs that body at ERROR first, the only trace on the asynchronous path.
 Developers should use 'Acknowledge Message' and 'Processed Message' functions to update Message workflow.
 
 ## Acknowledge Message
