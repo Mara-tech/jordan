@@ -109,7 +109,8 @@ from JordanInstance or JordanTask
 When a message is received here, status on server-side becomes MESSAGE_DELIVERED.
 The read takes the message off the queue: it is handed out once. The library then sends CLIENT_RECEIVED
 at best effort — when that acknowledgement fails, `read_message` still returns the message and says so
-on it (`receipt_confirmed`, `receipt_error` in `jordan_py`) rather than raising and losing it; sending
+on it (`receipt_confirmed`, `receipt_error` in `jordan_py`; `isReceiptConfirmed()`, `getReceiptError()` in
+`jordan-client`) rather than raising and losing it; sending
 it again (`received()`) never raises either. A receipt that timed out may still have been recorded.
 Developers should use 'Acknowledge Message' and 'Processed Message' functions to update Message workflow.
 

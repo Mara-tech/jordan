@@ -50,8 +50,8 @@ Commands start from the repository root, in Git Bash, with `python` meaning the 
 | Compose stack | `Dockerfile`, `docker-compose.yml`, `server/` | see [Compose stack](#compose-stack) | `ci-python` / `compose-stack` |
 | `jordan_py` | `libraries/python/` | `python -m pytest libraries/python/` | `ci-python` / `test-library` |
 | `jordan_cli` | `libraries/cli/`, and `libraries/python/` (it runs on `jordan_py`) | `python -m pytest libraries/cli/tests/` | `ci-python` / `test-cli` |
-| Java libraries | `libraries/java/` | `cd libraries/java && ./gradlew test` | `ci-java` / `build-java` |
-| Android app | `app/android/`, `libraries/java/jordan-core/` (included as a Gradle project) | `cd app/android && ./gradlew lint testDebugUnitTest assembleDebug` | `ci-android` / `build-android` |
+| Java libraries | `libraries/java/` | `cd libraries/java && bash gradlew test` | `ci-java` / `build-java` |
+| Android app | `app/android/`, `libraries/java/jordan-core/` (included as a Gradle project) | `cd app/android && bash gradlew lint testDebugUnitTest assembleDebug` | `ci-android` / `build-android` |
 
 A change to `libraries/java/jordan-core/` therefore runs both Java rows, and a change to
 `libraries/prototype/contract.md` runs none — but a contract change is never alone: the modules that
@@ -127,7 +127,8 @@ limit, not a failure of the stack.
 ### Java toolchain
 
 Both Gradle builds use the wrapper, which finds the JDK through `JAVA_HOME` — `java` need not be on
-the `PATH`. CI uses Temurin 17; any JDK from 17 on builds locally. The Android build also reads
+the `PATH`. The `gradlew` scripts are committed without the executable bit (mode `100644`), so `./gradlew`
+answers `Permission denied` outside Git Bash; `bash gradlew` runs everywhere, and CI does a `chmod +x` instead. CI uses Temurin 17; any JDK from 17 on builds locally. The Android build also reads
 `app/android/local.properties` (`sdk.dir`, git-ignored), which Android Studio writes.
 
 ### Server image
