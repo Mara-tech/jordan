@@ -1,17 +1,22 @@
 package com.mara.jordan.client;
 
+import com.google.gson.Gson;
 import com.mara.jordan.core.JordanConstants;
+import okhttp3.OkHttpClient;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
+import okhttp3.mockwebserver.SocketPolicy;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.*;
 
@@ -371,6 +376,8 @@ public class JordanClientTest {
             assertEquals(10L, msg.getMessageId());
             assertEquals("doWork", msg.getActionName());
             assertEquals("report.csv", msg.getPlaceholder("file"));
+            assertTrue(msg.isReceiptConfirmed());
+            assertNull(msg.getReceiptError());
         }
 
         server.takeRequest(); // register
@@ -393,6 +400,58 @@ public class JordanClientTest {
         try (JordanInstance instance = Jordan.register(baseUrl(), "test")) {
             assertNull(instance.readMessage());
         }
+    }
+
+    // The read takes the message off the queue, so an acknowledgement of receipt that fails must not lose it (JRD-27)
+
+    @Test
+    public void testReadMessageReturnsTheMessageWhenTheReceiptTimesOut() throws IOException {
+        enqueueMessage(10);
+        server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE)); // received()
+
+        JordanMessage msg = instanceWithReadTimeout().readMessage();
+
+        assertNotNull(msg);
+        assertEquals("doWork", msg.getActionName());
+        assertFalse(msg.isReceiptConfirmed());
+        assertTrue(msg.getReceiptError() instanceof SocketTimeoutException);
+    }
+
+    @Test
+    public void testReadMessageReturnsTheMessageWhenTheReceiptIsRefused() throws IOException {
+        enqueueMessage(10);
+        server.enqueue(new MockResponse().setResponseCode(500)); // received()
+
+        JordanMessage msg = instanceWithReadTimeout().readMessage();
+
+        assertNotNull(msg);
+        assertFalse(msg.isReceiptConfirmed());
+        assertNull("an answer, even a refusal, is not an error", msg.getReceiptError());
+    }
+
+    @Test
+    public void testReceivedRetriesAnUnconfirmedReceipt() throws IOException, InterruptedException {
+        enqueueMessage(10);
+        server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE)); // received(), from readMessage()
+        server.enqueue(new MockResponse().setResponseCode(202)); // received(), retried
+
+        JordanMessage msg = instanceWithReadTimeout().readMessage();
+        assertTrue(msg.received());
+
+        assertTrue(msg.isReceiptConfirmed());
+        assertNull("the error of an earlier attempt does not outlive a successful one", msg.getReceiptError());
+        server.takeRequest(); // read
+        assertEquals("/jordan/client/1/10/CLIENT_RECEIVED", server.takeRequest().getPath());
+        assertEquals("/jordan/client/1/10/CLIENT_RECEIVED", server.takeRequest().getPath());
+    }
+
+    @Test
+    public void testReadMessageThrowsWhenTheReadItselfFails() {
+        server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE)); // the read
+
+        JordanInstance instance = instanceWithReadTimeout();
+
+        assertThrows(SocketTimeoutException.class, instance::readMessage);
     }
 
     // -------------------------------------------------------------------------
@@ -597,6 +656,19 @@ public class JordanClientTest {
                 .setResponseCode(200)
                 .setBody(String.format("{\"statusId\":%d}", statusId))
                 .addHeader("Content-Type", "application/json"));
+    }
+
+    private void enqueueMessage(long messageId) {
+        server.enqueue(new MockResponse()
+                .setResponseCode(200)
+                .setBody(String.format("{\"messageId\":%d,\"action\":{\"actionName\":\"doWork\",\"placeholders\":{}}}", messageId))
+                .addHeader("Content-Type", "application/json"));
+    }
+
+    /** An instance of task 1 that gives up on an unanswered request after a fraction of a second, without registering. */
+    private JordanInstance instanceWithReadTimeout() {
+        OkHttpClient httpClient = new OkHttpClient.Builder().readTimeout(300, TimeUnit.MILLISECONDS).build();
+        return new JordanInstance(baseUrl(), 1, "tok", "test", httpClient, new Gson());
     }
 
     private void enqueueUnregister() {

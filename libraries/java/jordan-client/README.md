@@ -133,7 +133,7 @@ try (JordanInstance j = Jordan.register("http://localhost:5000/jordan/", "job"))
 | `sendFailureStatus(msg)` | Send a failure status |
 | `sendMetric(name, value)` | Send a named value, drawn as a curve against time; `null` (nothing sent) when the value is NaN or infinite |
 | `sendMetric(name, value, step)` | Same, placed at a progress point (epoch, iteration) — the curve can be drawn against steps |
-| `readMessage()` | Read next message (null if none); auto-calls `received()` |
+| `readMessage()` | Read next message (null if none); auto-calls `received()`. The read takes the message off the server's queue, so it is returned even when that receipt fails; only a failed read throws |
 | `createTask(name)` | Create a sub-task |
 | `complete()` | Mark task as COMPLETE |
 | `updateTask(state)` | Transition task to arbitrary state |
@@ -150,7 +150,9 @@ try (JordanInstance j = Jordan.register("http://localhost:5000/jordan/", "job"))
 | `getActionName()` | Name of the triggered action |
 | `getPlaceholder(key)` | Value of a specific placeholder |
 | `getPlaceholders()` | All placeholders as an unmodifiable map |
-| `received()` | Mark as CLIENT_RECEIVED (called automatically by `readMessage()`) |
+| `received()` | Mark as CLIENT_RECEIVED (called automatically by `readMessage()`), at best effort: never throws, returns `isReceiptConfirmed()`; call it again to retry an unconfirmed receipt |
+| `isReceiptConfirmed()` | Whether the server answered the last `received()` with 202. After a timeout the receipt may still have been recorded |
+| `getReceiptError()` | The `IOException` the last `received()` raised, or `null` when the server answered |
 | `acknowledge()` | Mark as MESSAGE_ACKNOWLEDGED |
 | `processed()` | Mark as MESSAGE_PROCESSED |
 | `acknowledgeAndProcessed()` | Shortcut for acknowledge then processed |

@@ -359,8 +359,9 @@ The read hands the message out once — the server takes it off the queue — so
 sent at **best effort**: `JordanMessage.received()` never raises — it sets `receipt_confirmed` and
 `receipt_error` (the last attempt's request error) — so `read_message` still returns the message,
 and `jordan action` prints it with a warning instead of dropping it (JRD-19). A timed-out receipt
-is *unconfirmed*, not refused: the server may have recorded it. Only a failed *read* raises. `jordan-client` (Java) does not do
-this yet.
+is *unconfirmed*, not refused: the server may have recorded it. Only a failed *read* raises. `jordan-client` (Java)
+follows the same contract: `received()` no longer throws, `isReceiptConfirmed()` and `getReceiptError()` say how the
+last attempt went (JRD-27).
 
 ### Task states
 

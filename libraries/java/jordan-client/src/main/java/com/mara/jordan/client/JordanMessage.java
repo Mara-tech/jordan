@@ -19,6 +19,10 @@ public class JordanMessage {
     private final String actionName;
     private final Map<String, Object> placeholders;
     private final OkHttpClient httpClient;
+    // whether the server confirmed CLIENT_RECEIVED, and the error of the last attempt if it raised one —
+    // both written by received() alone
+    private boolean receiptConfirmed;
+    private IOException receiptError;
 
     @SuppressWarnings("unchecked")
     JordanMessage(String baseUrl, long taskId, String authToken, Map data, OkHttpClient httpClient, Gson gson) {
@@ -45,8 +49,26 @@ public class JordanMessage {
         }
     }
 
-    public boolean received() throws IOException {
-        return updateState(JordanConstants.MESSAGE_STATE_CLIENT_RECEIVED);
+    /**
+     * Tells the server the message reached the program, at best effort: an {@link IOException} is kept in
+     * {@link #getReceiptError()} rather than thrown, since the message is already in the program's hands —
+     * the server took it off the queue when it answered the read (JRD-27). {@link JordanInstance#readMessage()}
+     * sends it; calling it again retries one that was not confirmed.
+     *
+     * <p>After a timeout the outcome is unknown, not negative: the server may have recorded the receipt and only
+     * its answer was lost — a retry then records it twice in the message's history.
+     *
+     * @return {@link #isReceiptConfirmed()}
+     */
+    public boolean received() {
+        receiptError = null;
+        try {
+            receiptConfirmed = updateState(JordanConstants.MESSAGE_STATE_CLIENT_RECEIVED);
+        } catch (IOException e) {
+            receiptConfirmed = false;
+            receiptError = e;
+        }
+        return receiptConfirmed;
     }
 
     public boolean acknowledge() throws IOException {
@@ -74,4 +96,8 @@ public class JordanMessage {
     public String getActionName() { return actionName; }
     public Map<String, Object> getPlaceholders() { return Collections.unmodifiableMap(placeholders); }
     public Object getPlaceholder(String key) { return placeholders.get(key); }
+    /** Whether the server answered the last {@link #received()} with 202. */
+    public boolean isReceiptConfirmed() { return receiptConfirmed; }
+    /** The error the last {@link #received()} raised, or null when it got an answer — 202 or not. */
+    public IOException getReceiptError() { return receiptError; }
 }

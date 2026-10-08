@@ -181,6 +181,16 @@ public class JordanInstance implements Closeable {
         return sendStatus(status, JordanConstants.STATUS_TYPE_FAILURE);
     }
 
+    /**
+     * Reads the next message, or returns null when there is none.
+     *
+     * <p>The server hands a message out once: reading it takes it off the queue. So a message the server handed
+     * out is returned even when its acknowledgement of receipt then fails — {@link JordanMessage#isReceiptConfirmed()}
+     * is false, {@link JordanMessage#getReceiptError()} holds the error if there was one, and
+     * {@link JordanMessage#received()} sends it again.
+     *
+     * @throws IOException when the read itself fails
+     */
     public JordanMessage readMessage() throws IOException {
         String url = String.format("%sclient/%d/message", baseUrl, taskId);
         Request request = new Request.Builder()
@@ -193,6 +203,7 @@ public class JordanInstance implements Closeable {
             if (response.code() == 200) {
                 Map data = gson.fromJson(response.body().string(), Map.class);
                 JordanMessage msg = new JordanMessage(baseUrl, taskId, authToken, data, httpClient, gson);
+                // never throws: the server took the message off the queue when it answered the read (JRD-27)
                 msg.received();
                 return msg;
             }
