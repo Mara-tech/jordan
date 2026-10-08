@@ -1,6 +1,7 @@
 package com.mara.jordan.client;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
 import com.mara.jordan.core.JordanConstants;
 import com.mara.jordan.core.MetricUtils;
 import okhttp3.MediaType;
@@ -15,8 +16,12 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class JordanInstance implements Closeable {
+
+    private static final Logger LOGGER = Logger.getLogger(JordanInstance.class.getName());
 
     protected static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
     protected static final RequestBody EMPTY_BODY = RequestBody.create(new byte[0], null);
@@ -189,6 +194,11 @@ public class JordanInstance implements Closeable {
      * is false, {@link JordanMessage#getReceiptError()} holds the error if there was one, and
      * {@link JordanMessage#received()} sends it again.
      *
+     * <p>A message handed out that the library cannot decode throws {@link UndecodableMessageException}, whose
+     * {@link UndecodableMessageException#getBody() body} holds the raw answer, and is logged at SEVERE on the
+     * {@code com.mara.jordan.client.JordanInstance} logger first — no receipt is sent for it.
+     *
+     * @throws UndecodableMessageException when the server handed out a message the library cannot decode
      * @throws IOException when the read itself fails
      */
     public JordanMessage readMessage() throws IOException {
@@ -201,8 +211,17 @@ public class JordanInstance implements Closeable {
 
         try (Response response = httpClient.newCall(request).execute()) {
             if (response.code() == 200) {
-                Map data = gson.fromJson(response.body().string(), Map.class);
-                JordanMessage msg = new JordanMessage(baseUrl, taskId, authToken, data, httpClient, gson);
+                String body = response.body().string();
+                JordanMessage msg;
+                try {
+                    msg = new JordanMessage(baseUrl, taskId, authToken, gson.fromJson(body, Map.class), httpClient, gson);
+                } catch (JsonParseException | IllegalArgumentException e) {
+                    // the server already took the message off the queue: its body is the only copy left.
+                    // Logged as well as thrown, as jordan_py does, for a caller that swallows IOException (JRD-33)
+                    UndecodableMessageException error = new UndecodableMessageException(taskId, response.code(), body, e);
+                    LOGGER.log(Level.SEVERE, error.getMessage());
+                    throw error;
+                }
                 // never throws: the server took the message off the queue when it answered the read (JRD-27)
                 msg.received();
                 return msg;

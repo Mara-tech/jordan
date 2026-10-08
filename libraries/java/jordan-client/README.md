@@ -133,7 +133,7 @@ try (JordanInstance j = Jordan.register("http://localhost:5000/jordan/", "job"))
 | `sendFailureStatus(msg)` | Send a failure status |
 | `sendMetric(name, value)` | Send a named value, drawn as a curve against time; `null` (nothing sent) when the value is NaN or infinite |
 | `sendMetric(name, value, step)` | Same, placed at a progress point (epoch, iteration) — the curve can be drawn against steps |
-| `readMessage()` | Read next message (null if none); auto-calls `received()`. The read takes the message off the server's queue, so it is returned even when that receipt fails; only a failed read throws |
+| `readMessage()` | Read next message (null if none); auto-calls `received()`. The read takes the message off the server's queue, so it is returned even when that receipt fails; only a failed read throws — or a message the library cannot decode, see below |
 | `createTask(name)` | Create a sub-task |
 | `complete()` | Mark task as COMPLETE |
 | `updateTask(state)` | Transition task to arbitrary state |
@@ -158,6 +158,24 @@ try (JordanInstance j = Jordan.register("http://localhost:5000/jordan/", "job"))
 | `acknowledgeAndProcessed()` | Shortcut for acknowledge then processed |
 | `cannotProcess()` | Mark as ERROR_CANNOT_PROCESS_MESSAGE |
 | `overridden()` | Mark as MESSAGE_OVERRIDDEN |
+
+### `UndecodableMessageException`
+
+What `readMessage()` throws when the server handed out a message the library cannot decode — a body
+cut short, not JSON, `messageId`, `action` or `action.actionName` missing or of the wrong type. The
+server took that message off its queue when it answered, so the exception keeps the only copy left,
+and the library logs it at `SEVERE` on the `com.mara.jordan.client.JordanInstance` logger before
+throwing. No receipt is sent for it. It is an `IOException`, the one `readMessage()` already declares.
+
+| Method | Description |
+|---|---|
+| `getBody()` | The raw body of the answer, as received |
+| `getStatusCode()` | The HTTP status of the read (`200`) |
+| `getTaskId()` | The task the message was read for |
+| `getCause()` | The decoding error |
+
+An action without `placeholders` (absent or `null`) is not undecodable: it is an action without
+parameters.
 
 ### `ActionBuilder`
 

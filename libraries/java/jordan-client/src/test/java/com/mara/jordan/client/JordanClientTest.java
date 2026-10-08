@@ -1,6 +1,7 @@
 package com.mara.jordan.client;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
 import com.mara.jordan.core.JordanConstants;
 import okhttp3.OkHttpClient;
 import okhttp3.mockwebserver.MockResponse;
@@ -13,16 +14,22 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 import static org.junit.Assert.*;
 
 public class JordanClientTest {
 
     private MockWebServer server;
+    private final List<Handler> logHandlers = new ArrayList<Handler>();
 
     @Before
     public void setUp() throws IOException {
@@ -33,6 +40,11 @@ public class JordanClientTest {
     @After
     public void tearDown() throws IOException {
         server.shutdown();
+        Logger logger = Logger.getLogger(JordanInstance.class.getName());
+        for (Handler handler : logHandlers) {
+            logger.removeHandler(handler);
+        }
+        logger.setUseParentHandlers(true);
     }
 
     private String baseUrl() {
@@ -454,6 +466,70 @@ public class JordanClientTest {
         assertThrows(SocketTimeoutException.class, instance::readMessage);
     }
 
+    // A message the library cannot decode is off the queue all the same: its raw body must not be lost (JRD-33)
+
+    @Test
+    public void testReadMessageReadsAnActionWithoutPlaceholdersAsAnActionWithoutParameters() throws IOException {
+        for (String action : new String[]{"{\"actionName\":\"doWork\"}", "{\"actionName\":\"doWork\",\"placeholders\":null}"}) {
+            enqueueMessageBody("{\"messageId\":10,\"action\":" + action + "}");
+            server.enqueue(new MockResponse().setResponseCode(202)); // received()
+
+            JordanMessage msg = instanceWithReadTimeout().readMessage();
+
+            assertEquals(action, "doWork", msg.getActionName());
+            assertTrue(action, msg.getPlaceholders().isEmpty());
+        }
+    }
+
+    @Test
+    public void testReadMessageThrowsTheRawBodyOfATruncatedMessage() throws InterruptedException {
+        String body = "{\"messageId\":10,\"action\":{\"actionName\":\"doW";
+        enqueueMessageBody(body);
+        List<LogRecord> logged = captureLog();
+
+        UndecodableMessageException error = assertThrows(UndecodableMessageException.class, instanceWithReadTimeout()::readMessage);
+
+        assertTrue("readMessage() declares IOException alone", error instanceof IOException);
+        assertEquals(body, error.getBody());
+        assertEquals(200, error.getStatusCode());
+        assertEquals(1L, error.getTaskId());
+        assertTrue(error.getCause() instanceof JsonParseException);
+        assertTrue(error.getMessage().contains(body));
+        assertEquals(1, logged.size());
+        assertEquals(Level.SEVERE, logged.get(0).getLevel());
+        assertTrue("the log line carries the raw body", logged.get(0).getMessage().contains(body));
+        server.takeRequest(); // the read
+        assertEquals("no receipt for a message without an id", 1, server.getRequestCount());
+    }
+
+    @Test
+    public void testReadMessageThrowsTheRawBodyOfAMessageMissingAField() throws InterruptedException {
+        String[] bodies = {
+                "",
+                "null",
+                "[]",
+                "\"doWork\"",
+                "{\"action\":{\"actionName\":\"doWork\",\"placeholders\":{}}}",
+                "{\"messageId\":\"ten\",\"action\":{\"actionName\":\"doWork\",\"placeholders\":{}}}",
+                "{\"messageId\":10}",
+                "{\"messageId\":10,\"action\":\"doWork\"}",
+                "{\"messageId\":10,\"action\":{\"placeholders\":{}}}",
+                "{\"messageId\":10,\"action\":{\"actionName\":42,\"placeholders\":{}}}",
+                "{\"messageId\":10,\"action\":{\"actionName\":\"doWork\",\"placeholders\":[\"file\"]}}",
+        };
+        List<LogRecord> logged = captureLog();
+        for (String body : bodies) {
+            enqueueMessageBody(body);
+
+            UndecodableMessageException error = assertThrows(body, UndecodableMessageException.class, instanceWithReadTimeout()::readMessage);
+
+            assertEquals(body, error.getBody());
+            assertNotNull(body, error.getCause());
+        }
+        assertEquals(bodies.length, logged.size());
+        assertEquals("no receipt for a message the library could not decode", bodies.length, server.getRequestCount());
+    }
+
     // -------------------------------------------------------------------------
     // complete / unregister
     // -------------------------------------------------------------------------
@@ -663,6 +739,28 @@ public class JordanClientTest {
                 .setResponseCode(200)
                 .setBody(String.format("{\"messageId\":%d,\"action\":{\"actionName\":\"doWork\",\"placeholders\":{}}}", messageId))
                 .addHeader("Content-Type", "application/json"));
+    }
+
+    private void enqueueMessageBody(String body) {
+        server.enqueue(new MockResponse()
+                .setResponseCode(200)
+                .setBody(body)
+                .addHeader("Content-Type", "application/json"));
+    }
+
+    /** The records the client logs from now until the end of the test. */
+    private List<LogRecord> captureLog() {
+        final List<LogRecord> records = new ArrayList<LogRecord>();
+        final Logger logger = Logger.getLogger(JordanInstance.class.getName());
+        final Handler handler = new Handler() {
+            @Override public void publish(LogRecord record) { records.add(record); }
+            @Override public void flush() { }
+            @Override public void close() { }
+        };
+        logger.addHandler(handler);
+        logger.setUseParentHandlers(false); // kept off the console; restored by tearDown()
+        logHandlers.add(handler);
+        return records;
     }
 
     /** An instance of task 1 that gives up on an unanswered request after a fraction of a second, without registering. */

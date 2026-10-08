@@ -115,7 +115,9 @@ it again (`received()`) never raises either. A receipt that timed out may still 
 The answer always carries `action.placeholders`, an empty object for an action sent without
 parameters. A `200` the library cannot decode — a body cut short, not JSON, a field missing — is
 off the queue all the same: `jordan_py` raises `UndecodableMessageError`, which holds the raw body
-(`body`), and logs that body at ERROR first, the only trace on the asynchronous path.
+(`body`), and logs that body at ERROR first, the only trace on the asynchronous path; `jordan-client`
+throws `UndecodableMessageException` (an `IOException`, raw body in `getBody()`) and logs it at
+SEVERE first. Neither sends a receipt for it.
 Developers should use 'Acknowledge Message' and 'Processed Message' functions to update Message workflow.
 
 ## Acknowledge Message

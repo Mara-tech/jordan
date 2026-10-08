@@ -367,8 +367,10 @@ A `200` that `jordan_py` cannot decode is just as consumed: `read_message` raise
 `UndecodableMessageError` (a `ValueError`, raw answer in `body`) and logs that body at ERROR on
 `jordan_py.jordan` first, since nobody catches the exception on the asynchronous path (JRD-29).
 `action.placeholders` is optional on the way in; the server always answers it, `{}` when absent, and
-`jordan_py` reads a missing one as no parameter. `jordan-client` still lets a decoding error escape
-— JRD-33.
+`jordan_py` reads a missing one as no parameter. `jordan-client` (Java) follows the same contract:
+`readMessage()` throws `UndecodableMessageException` (an `IOException`, raw answer in `getBody()`)
+and logs that body at SEVERE on `com.mara.jordan.client.JordanInstance` first; the decoding
+exceptions of Gson and casts no longer escape as unchecked ones (JRD-33).
 
 ### Task states
 
