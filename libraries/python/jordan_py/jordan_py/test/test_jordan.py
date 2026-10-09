@@ -839,5 +839,103 @@ class TestRequestArguments(unittest.TestCase):
                 self._assert_every_request_bounded(1)
 
 
+class TestDefaultRequestTimeout(unittest.TestCase):
+    """A call that passes no timeout still gets one: 30 s, or JORDAN_REQUEST_TIMEOUT. Without
+    it, a server that accepts the connection and never answers holds the call forever (JRD-18)."""
+
+    def setUp(self):
+        self._saved = os.environ.pop(jordan.REQUEST_TIMEOUT_ENV_VAR, None)
+
+    def tearDown(self):
+        os.environ.pop(jordan.REQUEST_TIMEOUT_ENV_VAR, None)
+        if self._saved is not None:
+            os.environ[jordan.REQUEST_TIMEOUT_ENV_VAR] = self._saved
+
+    def _make_instance(self) -> jordan.JordanInstance:
+        return jordan.JordanInstance(BASE_URL, TASK_ID, AUTH_TOKEN, "test-client")
+
+    def _serve_a_message(self) -> None:
+        msg_payload = {"messageId": MSG_ID, "action": {"actionName": "stop", "placeholders": {}}}
+        responses_lib.add(responses_lib.GET, _url(f"client/{TASK_ID}/message"), json=msg_payload, status=200)
+        responses_lib.add(responses_lib.PUT, _url(f"client/{TASK_ID}/{MSG_ID}/{jordan.MESSAGE_CLIENT_RECEIVED}"), status=202)
+
+    def _timeouts(self):
+        return [call.request.req_kwargs["timeout"] for call in responses_lib.calls]
+
+    @responses_lib.activate
+    def test_every_call_without_a_timeout_gets_the_default(self):
+        responses_lib.add(responses_lib.POST, _url("client/register"), json={"taskId": TASK_ID, "authToken": AUTH_TOKEN}, status=200)
+        responses_lib.add(responses_lib.POST, _url(f"client/{TASK_ID}/task"), json={"taskId": "sub-1"}, status=201)
+        responses_lib.add(responses_lib.POST, _url(f"client/{TASK_ID}/status"), json={"statusId": "s"}, status=200)
+        self._serve_a_message()
+        responses_lib.add(responses_lib.PUT, _url(f"client/{TASK_ID}/{MSG_ID}/{jordan.MESSAGE_STATE_ACKNOWLEDGED}"), status=202)
+        responses_lib.add(responses_lib.PUT, _url(f"client/{TASK_ID}/{jordan.TASK_STATE_COMPLETE}"), status=202)
+        responses_lib.add(responses_lib.POST, _url(f"client/{TASK_ID}/unregister"), status=200)
+
+        instance = jordan.register(BASE_URL)
+        instance.create_task("sub")
+        instance.send_status("epoch 3")
+        instance.read_message().acknowledge()
+        instance.complete()
+        instance.unregister()
+
+        self.assertEqual(len(responses_lib.calls), 8)
+        self.assertEqual(self._timeouts(), [jordan.DEFAULT_REQUEST_TIMEOUT] * 8)
+        self.assertEqual(jordan.DEFAULT_REQUEST_TIMEOUT, 30.0)
+
+    @responses_lib.activate
+    def test_the_asynchronous_path_gets_the_default_too(self):
+        self._serve_a_message()
+        delivered = threading.Event()
+        self._make_instance().read_message(async_callback=lambda _msg: delivered.set())
+        self.assertTrue(delivered.wait(5))
+        self.assertEqual(self._timeouts(), [jordan.DEFAULT_REQUEST_TIMEOUT] * 2)
+
+    @responses_lib.activate
+    def test_the_environment_variable_replaces_the_default(self):
+        os.environ[jordan.REQUEST_TIMEOUT_ENV_VAR] = " 4.5 "
+        self._serve_a_message()
+        self._make_instance().read_message()
+        self.assertEqual(self._timeouts(), [4.5, 4.5])
+
+    @responses_lib.activate
+    def test_an_explicit_timeout_wins_over_the_environment(self):
+        os.environ[jordan.REQUEST_TIMEOUT_ENV_VAR] = "4.5"
+        self._serve_a_message()
+        self._make_instance().read_message(timeout=(2, 9))
+        self.assertEqual(self._timeouts(), [(2, 9), (2, 9)])
+
+    @responses_lib.activate
+    def test_timeout_none_still_waits_forever(self):
+        self._serve_a_message()
+        self._make_instance().read_message(timeout=None)
+        self.assertEqual(self._timeouts(), [None, None])
+
+    @responses_lib.activate
+    def test_an_empty_variable_means_the_default(self):
+        os.environ[jordan.REQUEST_TIMEOUT_ENV_VAR] = ""
+        self._serve_a_message()
+        self._make_instance().read_message()
+        self.assertEqual(self._timeouts(), [jordan.DEFAULT_REQUEST_TIMEOUT] * 2)
+
+    @responses_lib.activate
+    def test_an_unusable_variable_raises_before_any_request(self):
+        for value in ["abc", "0", "-1", "nan", "inf"]:
+            with self.subTest(value=value):
+                responses_lib.reset()
+                os.environ[jordan.REQUEST_TIMEOUT_ENV_VAR] = value
+                with self.assertRaisesRegex(ValueError, jordan.REQUEST_TIMEOUT_ENV_VAR):
+                    self._make_instance().send_status("epoch 3")
+                self.assertEqual(len(responses_lib.calls), 0)
+
+    @responses_lib.activate
+    def test_the_caller_arguments_are_left_untouched(self):
+        self._serve_a_message()
+        arguments = {"verify": False}
+        self._make_instance().read_message(**arguments)
+        self.assertEqual(arguments, {"verify": False})
+        self.assertEqual(self._timeouts(), [jordan.DEFAULT_REQUEST_TIMEOUT] * 2)
+
+
 if __name__ == '__main__':
     unittest.main()

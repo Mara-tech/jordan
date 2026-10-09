@@ -264,9 +264,13 @@ Key rules:
 Every call of `jordan_py` that talks to the server takes `**kwargs` and hands them to `requests`
 for **each** request it makes — `read_message` for the read and the `CLIENT_RECEIVED` receipt it
 sends, `fatal` for its three requests, `acknowledge_and_processed` for its two. That is how a caller
-bounds a call: `read_message(timeout=5)`. `requests` has no default timeout, and the library sets
-none on purpose — a behaviour change for every client, arbitration JRD-18: a call that drops its
-`kwargs` can hang forever on a server that accepts the connection and stops answering. The
+bounds a call: `read_message(timeout=5)`. `requests` has no default timeout, so since jordan_py 2.5.0
+(arbitration JRD-18) a call that passes none gets `default_request_timeout()`: `$JORDAN_REQUEST_TIMEOUT`
+— the variable `jordan_cli` reads — or `DEFAULT_REQUEST_TIMEOUT`, 30 s. An explicit `timeout=` wins,
+`None` included (the unbounded wait); an unusable variable raises `ValueError` before any request.
+Every `requests` call of the library goes through `_with_default_timeout(kwargs)`, and a new one
+does too — `TestDefaultRequestTimeout` checks the default on each. A call that drops its `kwargs`
+still loses the caller's bound, and gets the default instead of it. The
 asynchronous paths (`async_call` / `async_callback`) carry them onto their thread as well —
 `read_message` since JRD-15, `send_status` and its variants, `send_metric` included, since JRD-17.
 A new call forwards them too, and gets a case in `TestRequestArguments`
