@@ -24,17 +24,39 @@ public class JordanMessage {
     private boolean receiptConfirmed;
     private IOException receiptError;
 
+    /**
+     * @param data the message as read, decoded from JSON
+     * @throws IllegalArgumentException when {@code data} is not a message: {@code messageId}, {@code action} or
+     *         {@code action.actionName} missing or of the wrong type, {@code action.placeholders} not an object
+     */
     @SuppressWarnings("unchecked")
     JordanMessage(String baseUrl, long taskId, String authToken, Map data, OkHttpClient httpClient, Gson gson) {
         this.baseUrl = baseUrl;
         this.taskId = taskId;
         this.authToken = authToken;
         this.httpClient = httpClient;
-        this.messageId = ((Number) data.get("messageId")).longValue();
-        Map action = (Map) data.get("action");
-        this.actionName = (String) action.get("actionName");
-        Map ph = (Map) action.get("placeholders");
+        if (data == null) {
+            throw new IllegalArgumentException("the message is not a JSON object");
+        }
+        this.messageId = field(data, "messageId", Number.class).longValue();
+        Map action = field(data, "action", Map.class);
+        this.actionName = field(action, "actionName", String.class);
+        // optional in the contract: an action without them is an action without parameters
+        Object ph = action.get("placeholders");
+        if (ph != null && !(ph instanceof Map)) {
+            throw new IllegalArgumentException("'placeholders' is not an object: " + ph);
+        }
         this.placeholders = ph != null ? (Map<String, Object>) ph : Collections.<String, Object>emptyMap();
+    }
+
+    private static <T> T field(Map data, String name, Class<T> type) {
+        Object value = data.get(name);
+        if (!type.isInstance(value)) {
+            throw new IllegalArgumentException(value == null
+                    ? "'" + name + "' is missing"
+                    : "'" + name + "' is not a " + type.getSimpleName() + ": " + value);
+        }
+        return type.cast(value);
     }
 
     private boolean updateState(String state) throws IOException {
