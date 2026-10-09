@@ -1,5 +1,6 @@
 from time import time
-from typing import Any, Callable, Dict, List, Optional, Union
+from collections.abc import Callable
+from typing import Any
 import json
 import logging
 import math
@@ -10,8 +11,8 @@ import types
 
 
 DEFAULT_CLIENT_NAME = "default-client"
-DEFAULT_NO_ACTION: List[Any] = []
-DEFAULT_NO_PASSWORD: Optional[str] = None
+DEFAULT_NO_ACTION: list[Any] = []
+DEFAULT_NO_PASSWORD: str | None = None
 
 # Servers that closed registration expect this key; the variable lets a program
 # register without passing it explicitly through the code.
@@ -81,30 +82,30 @@ def with_action(action_name: str) -> 'ActionBuilder':
 class ActionBuilder:
 
     def __init__(self) -> None:
-        self.actions: Dict[str, Dict[str, Any]] = {}
-        self.current_action_name: Optional[str] = None
+        self.actions: dict[str, dict[str, Any]] = {}
+        self.current_action_name: str | None = None
 
     def with_action(self, action_name: str) -> 'ActionBuilder':
         self.actions[action_name] = {}
         self.current_action_name = action_name
         return self
 
-    def with_parameter(self, parameter_name: str, parameter_type: str = PARAMETER_TYPE_STRING, default_value: Optional[str] = None) -> 'ActionBuilder':
+    def with_parameter(self, parameter_name: str, parameter_type: str = PARAMETER_TYPE_STRING, default_value: str | None = None) -> 'ActionBuilder':
         valid_parameter_types = [PARAMETER_TYPE_STRING, PARAMETER_TYPE_INT, PARAMETER_TYPE_FLOAT]
         if parameter_type not in valid_parameter_types:
             raise ValueError(f"Parameter {parameter_name} of type {parameter_type} must be one of {valid_parameter_types}")
         self.actions[self.current_action_name][parameter_name] = parameter_type, default_value
         return self
 
-    def build(self) -> List[Dict[str, Any]]:
+    def build(self) -> list[dict[str, Any]]:
         self.current_action_name = None
         actions = []
         for action_name, parameters in self.actions.items():
-            action_definition: Dict[str, Any] = {'actionName': action_name}
+            action_definition: dict[str, Any] = {'actionName': action_name}
             if len(parameters) > 0:
                 action_definition['parameters'] = []
                 for param_name, (param_type, param_default_value) in parameters.items():
-                    action_parameter_definition: Dict[str, Any] = {'name': param_name, 'type': param_type}
+                    action_parameter_definition: dict[str, Any] = {'name': param_name, 'type': param_type}
                     if param_default_value:
                         action_parameter_definition['defaultValue'] = param_default_value
                     action_definition['parameters'].append(action_parameter_definition)
@@ -113,7 +114,7 @@ class ActionBuilder:
 
 
 class JordanMessagePlaceholders:
-    def __init__(self, placeholders_dict: Dict[str, Any]) -> None:
+    def __init__(self, placeholders_dict: dict[str, Any]) -> None:
         for k, v in placeholders_dict.items():
             setattr(self, k, v)
         self.placehoders = placeholders_dict
@@ -126,7 +127,7 @@ class JordanMessagePlaceholders:
 
 
 class JordanMessage:
-    def __init__(self, base_url: str, task_id: str, msg: Dict[str, Any], auth_token: Optional[str] = None) -> None:
+    def __init__(self, base_url: str, task_id: str, msg: dict[str, Any], auth_token: str | None = None) -> None:
         self.base_url = base_url
         if not self.base_url.endswith('/'):
             self.base_url += '/'
@@ -139,9 +140,9 @@ class JordanMessage:
         # whether the server confirmed CLIENT_RECEIVED, and the request error of the last attempt
         # if it raised one — both written by received() alone
         self.receipt_confirmed = False
-        self.receipt_error: Optional[requests.exceptions.RequestException] = None
+        self.receipt_error: requests.exceptions.RequestException | None = None
 
-    def _auth_headers(self) -> Dict[str, str]:
+    def _auth_headers(self) -> dict[str, str]:
         if self.auth_token:
             return {'Authorization': f'Bearer {self.auth_token}'}
         return {}
@@ -198,18 +199,18 @@ class JordanInstance:
     def __enter__(self) -> 'JordanInstance':
         return self
 
-    def __exit__(self, exc_type: Optional[type], exc_val: Optional[BaseException], exc_tb: Optional[types.TracebackType]) -> None:
+    def __exit__(self, exc_type: type | None, exc_val: BaseException | None, exc_tb: types.TracebackType | None) -> None:
         self.unregister()
 
-    def _auth_headers(self) -> Dict[str, str]:
+    def _auth_headers(self) -> dict[str, str]:
         return {'Authorization': f'Bearer {self.auth_token}'}
 
-    def create_task(self, task_name: str, actions: Optional[List[Any]] = None, password: Optional[str] = DEFAULT_NO_PASSWORD, **kwargs: Any) -> Optional['JordanTaskInstance']:
+    def create_task(self, task_name: str, actions: list[Any] | None = None, password: str | None = DEFAULT_NO_PASSWORD, **kwargs: Any) -> 'JordanTaskInstance | None':
         if actions is None:
             actions = []
         NEW_TASK_ENDPOINT = self.base_url + NEW_TASK_RESOURCE.format(self.task_id)
 
-        payload: Dict[str, Any] = {'name': task_name}
+        payload: dict[str, Any] = {'name': task_name}
         if password:
             payload['password'] = password
         if len(actions) > 0:
@@ -222,11 +223,11 @@ class JordanInstance:
             return JordanTaskInstance(self.base_url, new_task_output['taskId'], self.auth_token, task_name)
         return None
 
-    def send_status(self, status: str, status_type: str = DEFAULT_STATUS_TYPE, **kwargs: Any) -> Optional[str]:
+    def send_status(self, status: str, status_type: str = DEFAULT_STATUS_TYPE, **kwargs: Any) -> str | None:
         """Equivalent to send_typed_status(status_type, status)"""
         return self.send_typed_status(status_type, status, **kwargs)
 
-    def send_progress(self, percent: Union[int, float, str], **kwargs: Any) -> Optional[str]:
+    def send_progress(self, percent: int | float | str, **kwargs: Any) -> str | None:
         """Send how far the task is, from 0 to 100: the task's progress bar in active clients.
 
         ``percent`` is a number, or a text holding one (``'42'``, ``'42%'``); it is sent as an
@@ -234,13 +235,13 @@ class JordanInstance:
         anything else — a fraction such as ``0.65`` is read as 0.65 %, not 65 %."""
         return self.send_typed_status(PROGRESS_STATUS_TYPE, percent, **kwargs)
 
-    def send_success_status(self, status: str, **kwargs: Any) -> Optional[str]:
+    def send_success_status(self, status: str, **kwargs: Any) -> str | None:
         return self.send_typed_status(SUCCESS_STATUS_TYPE, status, **kwargs)
 
-    def send_failure_status(self, status: str, **kwargs: Any) -> Optional[str]:
+    def send_failure_status(self, status: str, **kwargs: Any) -> str | None:
         return self.send_typed_status(FAILURE_STATUS_TYPE, status, **kwargs)
 
-    def send_metric(self, name: str, value: float, step: Optional[float] = None, async_call: bool = False, async_callback: Optional[Callable[[str], None]] = None, **kwargs: Any) -> Optional[str]:
+    def send_metric(self, name: str, value: float, step: float | None = None, async_call: bool = False, async_callback: Callable[[str], None] | None = None, **kwargs: Any) -> str | None:
         """Send a named value, which an active client draws as a curve: one curve per name.
 
         ``step`` is the progress point the value belongs to (the epoch, the iteration). It is
@@ -251,7 +252,7 @@ class JordanInstance:
         step that is not a finite number (NaN, infinity — what a diverging training reports) is
         not sent at all: no curve can hold it, and JSON cannot carry it, so the request would
         raise in the middle of the loop that sends it."""
-        metric: Dict[str, Any] = {'name': name, 'value': _json_number(value)}
+        metric: dict[str, Any] = {'name': name, 'value': _json_number(value)}
         if step is not None:
             metric['step'] = _json_number(step)
         if not all(math.isfinite(number) for number in (metric['value'], metric.get('step', 0))):
@@ -260,19 +261,19 @@ class JordanInstance:
         payload = {'type': METRIC_STATUS_TYPE, 'status': text, 'metric': metric}
         return self._send_status_payload(payload, async_call, async_callback, **kwargs)
 
-    def send_typed_status(self, status_type: str, status: Any, async_call: bool = False, async_callback: Optional[Callable[[str], None]] = None, **kwargs: Any) -> Optional[str]:
+    def send_typed_status(self, status_type: str, status: Any, async_call: bool = False, async_callback: Callable[[str], None] | None = None, **kwargs: Any) -> str | None:
         if status_type == PROGRESS_STATUS_TYPE:
             # the server moves the task's progress on an integer only, and logs anything else
             status = _progress_percent(status)
         return self._send_status_payload({'type': status_type, 'status': status}, async_call, async_callback, **kwargs)
 
-    def _send_status_payload(self, payload: Dict[str, Any], async_call: bool, async_callback: Optional[Callable[[str], None]], **kwargs: Any) -> Optional[str]:
+    def _send_status_payload(self, payload: dict[str, Any], async_call: bool, async_callback: Callable[[str], None] | None, **kwargs: Any) -> str | None:
         if async_call or async_callback:
             threading.Thread(target=self._exec_send_status, args=[payload, async_callback], kwargs=kwargs).start()
             return None
         return self._exec_send_status(payload, **kwargs)
 
-    def _exec_send_status(self, payload: Dict[str, Any], async_callback: Optional[Callable[[str], None]] = None, **kwargs: Any) -> Optional[str]:
+    def _exec_send_status(self, payload: dict[str, Any], async_callback: Callable[[str], None] | None = None, **kwargs: Any) -> str | None:
         STATUS_ENDPOINT = self.base_url + STATUS_RESOURCE.format(self.task_id)
         payload = dict(payload, timestamp=int(time()))
         r = requests.post(STATUS_ENDPOINT, json=payload, headers=self._auth_headers(), **_with_default_timeout(kwargs))
@@ -285,7 +286,7 @@ class JordanInstance:
 
         return None
 
-    def _exec_read_message(self, async_callback: Optional[Callable[['JordanMessage'], None]] = None, send_receipt: bool = True, **kwargs: Any) -> Optional['JordanMessage']:
+    def _exec_read_message(self, async_callback: Callable[['JordanMessage'], None] | None = None, send_receipt: bool = True, **kwargs: Any) -> 'JordanMessage | None':
         MESSAGE_ENDPOINT = self.base_url + MESSAGE_RESOURCE.format(self.task_id)
         r = requests.get(MESSAGE_ENDPOINT, headers=self._auth_headers(), **_with_default_timeout(kwargs))
         if r.status_code == 200:
@@ -307,7 +308,7 @@ class JordanInstance:
 
         return None
 
-    def read_message(self, async_call: bool = False, async_callback: Optional[Callable[['JordanMessage'], None]] = None, send_receipt: bool = True, **kwargs: Any) -> Optional['JordanMessage']:
+    def read_message(self, async_call: bool = False, async_callback: Callable[['JordanMessage'], None] | None = None, send_receipt: bool = True, **kwargs: Any) -> 'JordanMessage | None':
         """Read the next message, if any. ``kwargs`` go to ``requests``, for the read and for the
         acknowledgement of receipt it sends: ``read_message(timeout=5)`` never waits more than
         five seconds per request on a server that stopped answering — and raises
@@ -369,7 +370,7 @@ def _json_number(value: Any) -> Any:
 def _progress_percent(value: Any) -> int:
     """The progress the server stores: an integer from 0 to 100. Numbers, numpy scalars and
     texts such as '42' or '42%' are read; the value is truncated, not rounded, so 99.6 stays 99."""
-    number: Optional[float] = None
+    number: float | None = None
     if isinstance(value, str):
         text = value.strip()
         try:
@@ -403,14 +404,14 @@ def default_request_timeout() -> float:
     return value
 
 
-def _with_default_timeout(kwargs: Dict[str, Any]) -> Dict[str, Any]:
+def _with_default_timeout(kwargs: dict[str, Any]) -> dict[str, Any]:
     """The ``requests`` arguments of a call, with the default timeout when it set none."""
     if 'timeout' in kwargs:
         return kwargs
     return {**kwargs, 'timeout': default_request_timeout()}
 
 
-def _registration_headers(registration_key: Optional[str]) -> Dict[str, str]:
+def _registration_headers(registration_key: str | None) -> dict[str, str]:
     """Registration is open unless the server sets JORDAN_REGISTRATION_KEY, in
     which case it expects that key as a bearer token. Sending it when the server
     asks for nothing is harmless, so the environment variable is used as a
@@ -419,10 +420,10 @@ def _registration_headers(registration_key: Optional[str]) -> Dict[str, str]:
     return {'Authorization': f'Bearer {key}'} if key else {}
 
 
-def register(server_base_url: str, client_name: str = DEFAULT_CLIENT_NAME, actions: List[Any] = DEFAULT_NO_ACTION, password: Optional[str] = DEFAULT_NO_PASSWORD, registration_key: Optional[str] = None, **kwargs: Any) -> Optional[JordanInstance]:
+def register(server_base_url: str, client_name: str = DEFAULT_CLIENT_NAME, actions: list[Any] = DEFAULT_NO_ACTION, password: str | None = DEFAULT_NO_PASSWORD, registration_key: str | None = None, **kwargs: Any) -> JordanInstance | None:
     REGISTER_ENDPOINT = server_base_url + REGISTER_RESOURCE
 
-    payload: Dict[str, Any] = {'name': client_name}
+    payload: dict[str, Any] = {'name': client_name}
     if password:
         payload['password'] = password
     if len(actions) > 0:

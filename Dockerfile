@@ -1,7 +1,7 @@
 # Image of the local development stack (docker-compose.yml). Production is
 # server/Dockerfile, which runs gunicorn; this one runs the Flask development
 # server, so that JORDAN_DEBUG keeps a meaning here.
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 

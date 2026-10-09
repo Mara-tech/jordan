@@ -83,10 +83,10 @@ Coverage is not a CI check: `coverage` is installed locally only, and no thresho
 ### Python environment
 
 The three Python modules share one virtual environment at the repository root, `.venv`
-(git-ignored). Created once:
+(git-ignored), on Python 3.14 — the interpreter the project targets (JRD-7). Created once:
 
 ```bash
-python -m venv .venv
+py -3.14 -m venv .venv        # elsewhere: python3.14 -m venv .venv, or uv venv -p 3.14 .venv
 .venv/Scripts/python -m pip install -r server/requirements.txt pytest coverage ruff==0.15.22 \
   -e "libraries/python/jordan_py[test]" -e "libraries/cli[dev]"
 ```
@@ -97,8 +97,21 @@ an activation. The global interpreter lacks the server's dependencies: `server/t
 collection with `ModuleNotFoundError: No module named 'werkzeug'`.
 
 `ruff` is pinned to the version `ci-python.yml` installs; bump both together. `ruff.toml` at the root
-is its configuration. CI runs Python 3.11; a local 3.14 passes too, but a failure that only shows in
-CI may be the version.
+is its configuration; its `target-version` is the libraries' floor, and its `UP` rules flag any
+construct that floor makes obsolete (`typing.Optional`, `typing.List`, `socket.timeout`…).
+
+CI runs everything on Python 3.14, and `test-library` / `test-cli` a second time on 3.10, the
+`requires-python` floor of `jordan_py` and `jordan_cli`: the libraries are published, so a construct
+newer than 3.10 has to fail somewhere. To replay that leg locally, a throwaway environment on 3.10:
+
+```bash
+uv venv -p 3.10 .venv310 && uv pip install -p .venv310/bin/python \
+  -e "libraries/python/jordan_py[test]" -e "libraries/cli[dev]"
+.venv310/bin/python -m pytest libraries/python/ libraries/cli/tests/
+```
+
+Raising the floor moves four places together: both `pyproject.toml`, `target-version` in `ruff.toml`,
+and the matrix of `ci-python.yml`.
 
 ### Compose stack
 

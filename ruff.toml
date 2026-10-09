@@ -1,4 +1,12 @@
+# The oldest interpreter any of the three modules supports: jordan_py and
+# jordan_cli declare requires-python >=3.10 (the server runs 3.14). Bump it with
+# them, so that `UP` keeps rewriting what the floor makes obsolete (JRD-7).
+target-version = "py310"
+
 [lint]
+extend-select = [
+    "UP",    # pyupgrade — no construct kept only for an interpreter below target-version
+]
 ignore = [
     "E501",  # line too long — not enforced in this codebase
     "F403",  # star imports — used intentionally in server/api.py

@@ -11,7 +11,7 @@ license = { text = "MIT License (see LICENSE)" }
 authors = [
     { name = "Pierrick Baudet", email = "pbaudet.enseirb@gmail.com" }
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = ["requests"]
 
 [project.optional-dependencies]
