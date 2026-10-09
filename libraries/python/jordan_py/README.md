@@ -29,7 +29,7 @@ Actions are generic, as much as the App GUI. Therefore, you already have an App 
                     if jordan_message.action_name == 'BREAK_LOOP':
                         break
 
-    3. Bound each call with a timeout, when the program must not wait on the server
+    3. Choose the bound on each call, when 30 seconds is not the right wait
 
             import requests
 
@@ -41,10 +41,19 @@ Actions are generic, as much as the App GUI. Therefore, you already have an App 
         Every call forwards its extra keyword arguments to `requests` — `timeout`, `verify`,
         `proxies`… — for each request it makes: `read_message` for the read *and* the
         acknowledgement of receipt it sends, `fatal` for its three requests, a message's
-        `acknowledge()` / `processed()` for theirs. `requests` has no default timeout: without one,
-        a server that accepts the connection and never answers holds the call, and the program,
-        forever. A call that times out raises `requests.exceptions.Timeout`. The asynchronous
-        calls (`async_call` / `async_callback`) forward them too, onto their thread.
+        `acknowledge()` / `processed()` for theirs. The asynchronous calls (`async_call` /
+        `async_callback`) forward them too, onto their thread.
+
+        A call that passes no `timeout` gets one: **30 seconds** per request, or the value of the
+        environment variable `JORDAN_REQUEST_TIMEOUT` (seconds, the same variable and default as
+        `jordan_cli`). `requests` has none of its own, so without it a server that accepts the
+        connection and never answers would hold the call, and the program, forever. A request
+        that times out raises `requests.exceptions.Timeout` — the same family as the
+        `requests.exceptions.ConnectionError` an unreachable server already raises, so a loop
+        that must survive the server catches `requests.exceptions.RequestException`, as above.
+        `timeout=None` on a call restores the unbounded wait. A `JORDAN_REQUEST_TIMEOUT` that is
+        not a number of seconds greater than 0 raises `ValueError` on the first call, before any
+        request: `0` would make `requests` fail at once rather than wait forever.
 
         The acknowledgement of receipt is the one request that never raises: the server took the
         message off the queue when it answered the read, so raising would lose it for good. A

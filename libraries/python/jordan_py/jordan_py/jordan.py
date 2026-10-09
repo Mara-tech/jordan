@@ -17,6 +17,12 @@ DEFAULT_NO_PASSWORD: Optional[str] = None
 # register without passing it explicitly through the code.
 REGISTRATION_KEY_ENV_VAR = 'JORDAN_REGISTRATION_KEY'
 
+# requests has no default timeout, so a server that accepts the connection and stops
+# answering would hold a call forever (JRD-18). A call's own ``timeout=`` wins, ``None``
+# included; otherwise the variable, then this default — the same name and value as jordan_cli.
+REQUEST_TIMEOUT_ENV_VAR = 'JORDAN_REQUEST_TIMEOUT'
+DEFAULT_REQUEST_TIMEOUT = 30.0
+
 PARAMETER_TYPE_STRING = 'string'
 PARAMETER_TYPE_INT = 'int'
 PARAMETER_TYPE_FLOAT = 'float'
@@ -175,9 +181,9 @@ class JordanMessage:
 
     def update_message(self, message_state: str, **kwargs: Any) -> bool:
         """``kwargs`` go to ``requests`` as they are — ``timeout=5`` bounds the call, which
-        otherwise waits as long as the server keeps the connection open."""
+        otherwise gets ``default_request_timeout()``."""
         UPDATE_MESSAGE_STATE_ENDPOINT = self.base_url + UPDATE_MESSAGE_STATE_RESOURCE.format(self.task_id, self.message_id, message_state)
-        r = requests.put(UPDATE_MESSAGE_STATE_ENDPOINT, headers=self._auth_headers(), **kwargs)
+        r = requests.put(UPDATE_MESSAGE_STATE_ENDPOINT, headers=self._auth_headers(), **_with_default_timeout(kwargs))
         return r.status_code == 202
 
 
@@ -209,7 +215,7 @@ class JordanInstance:
         if len(actions) > 0:
             payload['actions'] = actions
 
-        r = requests.post(NEW_TASK_ENDPOINT, json=payload, headers=self._auth_headers(), **kwargs)
+        r = requests.post(NEW_TASK_ENDPOINT, json=payload, headers=self._auth_headers(), **_with_default_timeout(kwargs))
 
         if r.status_code == 201:
             new_task_output = json.loads(r.text)
@@ -269,7 +275,7 @@ class JordanInstance:
     def _exec_send_status(self, payload: Dict[str, Any], async_callback: Optional[Callable[[str], None]] = None, **kwargs: Any) -> Optional[str]:
         STATUS_ENDPOINT = self.base_url + STATUS_RESOURCE.format(self.task_id)
         payload = dict(payload, timestamp=int(time()))
-        r = requests.post(STATUS_ENDPOINT, json=payload, headers=self._auth_headers(), **kwargs)
+        r = requests.post(STATUS_ENDPOINT, json=payload, headers=self._auth_headers(), **_with_default_timeout(kwargs))
 
         if r.status_code == 200:
             status_output = json.loads(r.text)
@@ -281,7 +287,7 @@ class JordanInstance:
 
     def _exec_read_message(self, async_callback: Optional[Callable[['JordanMessage'], None]] = None, send_receipt: bool = True, **kwargs: Any) -> Optional['JordanMessage']:
         MESSAGE_ENDPOINT = self.base_url + MESSAGE_RESOURCE.format(self.task_id)
-        r = requests.get(MESSAGE_ENDPOINT, headers=self._auth_headers(), **kwargs)
+        r = requests.get(MESSAGE_ENDPOINT, headers=self._auth_headers(), **_with_default_timeout(kwargs))
         if r.status_code == 200:
             try:
                 msg = JordanMessage(self.base_url, self.task_id, json.loads(r.text), self.auth_token)
@@ -305,7 +311,8 @@ class JordanInstance:
         """Read the next message, if any. ``kwargs`` go to ``requests``, for the read and for the
         acknowledgement of receipt it sends: ``read_message(timeout=5)`` never waits more than
         five seconds per request on a server that stopped answering — and raises
-        ``requests.exceptions.Timeout`` when the read does. Without it, ``requests`` waits forever.
+        ``requests.exceptions.Timeout`` when the read does. Without it, each request gets
+        ``default_request_timeout()``; ``timeout=None`` waits forever.
 
         The server hands a message out once: reading it takes it off the queue. So a message the
         server handed out and the library could decode is returned even when its acknowledgement
@@ -325,7 +332,7 @@ class JordanInstance:
 
     def unregister(self, **kwargs: Any) -> bool:
         UNREGISTER_ENDPOINT = self.base_url + UNREGISTER_RESOURCE.format(self.task_id)
-        r = requests.post(UNREGISTER_ENDPOINT, headers=self._auth_headers(), **kwargs)
+        r = requests.post(UNREGISTER_ENDPOINT, headers=self._auth_headers(), **_with_default_timeout(kwargs))
         return r.status_code == 200
 
     def fatal(self, exception: Exception, **kwargs: Any) -> None:
@@ -337,7 +344,7 @@ class JordanInstance:
 
     def update_task(self, task_state: str, **kwargs: Any) -> bool:
         UPDATE_TASK_STATE_ENDPOINT = self.base_url + UPDATE_TASK_STATE_RESOURCE.format(self.task_id, task_state)
-        r = requests.put(UPDATE_TASK_STATE_ENDPOINT, headers=self._auth_headers(), **kwargs)
+        r = requests.put(UPDATE_TASK_STATE_ENDPOINT, headers=self._auth_headers(), **_with_default_timeout(kwargs))
         return r.status_code == 202
 
     def complete(self, **kwargs: Any) -> bool:
@@ -379,6 +386,30 @@ def _progress_percent(value: Any) -> int:
     return int(number)
 
 
+def default_request_timeout() -> float:
+    """The timeout a call gets when it passes none: ``JORDAN_REQUEST_TIMEOUT`` in seconds if
+    set, ``DEFAULT_REQUEST_TIMEOUT`` otherwise. Read on each call, like the registration key.
+    A value that is not a finite number greater than 0 raises ``ValueError`` rather than being
+    ignored: 0 would make requests fail at once, not wait forever."""
+    raw = os.environ.get(REQUEST_TIMEOUT_ENV_VAR, '').strip()
+    if not raw:
+        return DEFAULT_REQUEST_TIMEOUT
+    try:
+        value = float(raw)
+    except ValueError:
+        value = math.nan
+    if not math.isfinite(value) or value <= 0:
+        raise ValueError(f'{REQUEST_TIMEOUT_ENV_VAR}={raw!r}: expected a number of seconds greater than 0')
+    return value
+
+
+def _with_default_timeout(kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """The ``requests`` arguments of a call, with the default timeout when it set none."""
+    if 'timeout' in kwargs:
+        return kwargs
+    return {**kwargs, 'timeout': default_request_timeout()}
+
+
 def _registration_headers(registration_key: Optional[str]) -> Dict[str, str]:
     """Registration is open unless the server sets JORDAN_REGISTRATION_KEY, in
     which case it expects that key as a bearer token. Sending it when the server
@@ -397,7 +428,7 @@ def register(server_base_url: str, client_name: str = DEFAULT_CLIENT_NAME, actio
     if len(actions) > 0:
         payload['actions'] = actions
 
-    r = requests.post(REGISTER_ENDPOINT, json=payload, headers=_registration_headers(registration_key), **kwargs)
+    r = requests.post(REGISTER_ENDPOINT, json=payload, headers=_registration_headers(registration_key), **_with_default_timeout(kwargs))
 
     if r.status_code == 200:
         register_output = json.loads(r.text)

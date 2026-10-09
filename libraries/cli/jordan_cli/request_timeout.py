@@ -2,7 +2,8 @@
 
 ``requests`` has no default timeout: a server that accepts the connection and then
 stops answering holds a call forever, and a script waiting on ``jordan`` with it.
-jordan_py sets none either (its callers choose theirs), so the CLI chooses here.
+jordan_py has a default since 2.5.0 (the same variable and value, JRD-18), but the CLI
+passes its own on every request, so ``--request-timeout`` stays what decides here.
 """
 import functools
 from typing import Any, Callable, TypeVar, cast
