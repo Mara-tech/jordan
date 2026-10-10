@@ -122,6 +122,10 @@
     <string name="status_refresh_failure">An error occurred while reading status</string>
     <string name="status_refresh_failure_details_dialog">Error while reading status</string>
     <string name="no_status_to_display">No status to display</string>
+    <plurals name="statuses_hidden_by_filters">
+        <item quantity="one">The status read is hidden by the filters</item>
+        <item quantity="other">The %1$d statuses read are all hidden by the filters</item>
+    </plurals>
     <string name="status_type">Type</string>
     <string name="status_task">Task</string>
     <string name="status_text">Text</string>

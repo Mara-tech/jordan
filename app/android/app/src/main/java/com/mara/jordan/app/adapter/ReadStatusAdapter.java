@@ -118,8 +118,12 @@ public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
 
     }
 
+    /**
+     * Reads the statuses, then selects the ones to display <em>before</em> {@code callback} is
+     * told : the callbacks are called in order, and the caller reads what the list kept.
+     */
     public void refresh(String query, StatusTextFilter textFilter, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter, int depth, JordanReadStatusCallback callback) {
-        model.readStatus(depth, callback, new JordanReadStatusCallback() {
+        model.readStatus(depth, new JordanReadStatusCallback() {
             @Override
             public void onStatusLoaded(JordanStatusDTO[] statuses) {
                 select(query, textFilter, typeFilter, taskFilter, statuses);
@@ -129,7 +133,7 @@ public class ReadStatusAdapter extends ArrayAdapter<JordanStatusDTO> {
             public void onStatusLoadingError(String errorMessage) {
                 Log.e(TAG, errorMessage);
             }
-        });
+        }, callback);
     }
 
     public void select(String query, StatusTextFilter textFilter, Map<String, Boolean> typeFilter, Map<String, Boolean> taskFilter) {
