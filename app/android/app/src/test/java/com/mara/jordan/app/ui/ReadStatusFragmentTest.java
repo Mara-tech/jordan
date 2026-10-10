@@ -43,8 +43,9 @@ import static org.robolectric.Shadows.shadowOf;
 
 /**
  * The text field of the filter dialog of the Status tab (JRD-10), driven the way a user does :
- * typed, applied, refused when the regular expression is invalid, kept across a refresh. The
- * statuses come from a model that serves them without a server.
+ * typed, applied, refused when the regular expression is invalid, kept across a refresh. And the
+ * message shown in place of an empty list, which tells « nothing was read » from « the filters
+ * hide everything » (JRD-32). The statuses come from a model that serves them without a server.
  */
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 34)
@@ -232,6 +233,70 @@ public class ReadStatusFragmentTest {
         assertDisplayed("epoch 3 loss = 0.22", "checkpoint saved", "epoch 2 loss = 0.43", "epoch 1 loss = 0.91");
     }
 
+    @Test
+    public void noMessageWhileStatusesAreDisplayed() {
+        assertEquals(View.GONE, emptyView().getVisibility());
+    }
+
+    @Test
+    public void filtersHidingEveryStatusSaySoInsteadOfABlankScreen() {
+        applyText("no status contains this", false);
+
+        assertDisplayed();
+        assertHiddenByFilters(4);
+    }
+
+    @Test
+    public void serverWithoutStatusStillSaysThereIsNone() {
+        applyText("no status contains this", false);
+
+        served = statuses();
+        tab().refreshContent();
+        idle();
+
+        assertDisplayed();
+        assertEquals(View.VISIBLE, emptyView().getVisibility());
+        assertEquals(string(R.string.no_status_to_display), emptyView().getText().toString());
+    }
+
+    @Test
+    public void messageFollowsTheSearch() {
+        tab().setCurrentSearchQuery("no status contains this");
+        idle();
+        assertHiddenByFilters(4);
+
+        tab().setCurrentSearchQuery("checkpoint");
+        idle();
+        assertDisplayed("checkpoint saved");
+        assertEquals(View.GONE, emptyView().getVisibility());
+    }
+
+    @Test
+    public void messageFollowsTheDialog() {
+        applyText("^evaluation", true);
+        assertHiddenByFilters(4);
+
+        applyText("", false);
+        assertEquals(View.GONE, emptyView().getVisibility());
+    }
+
+    @Test
+    public void messageFollowsEachRefresh() {
+        applyText("checkpoint", false);
+        assertEquals(View.GONE, emptyView().getVisibility());
+
+        served = statuses("epoch 4 loss = 0.19");
+        tab().refreshContent();
+        idle();
+        assertHiddenByFilters(1);
+
+        served = statuses("epoch 5 loss = 0.17", "checkpoint saved");
+        tab().refreshContent();
+        idle();
+        assertDisplayed("checkpoint saved");
+        assertEquals(View.GONE, emptyView().getVisibility());
+    }
+
     private void applyText(String text, boolean regex) {
         AlertDialog dialog = openFilterDialog();
         textField(dialog).setText(text);
@@ -274,6 +339,20 @@ public class ReadStatusFragmentTest {
             displayed.add(((JordanStatusDTO) adapter.getItem(i)).getStatus());
         }
         assertEquals(Arrays.asList(texts), displayed);
+    }
+
+    private void assertHiddenByFilters(int read) {
+        assertEquals(View.VISIBLE, emptyView().getVisibility());
+        String expected = tab().getResources().getQuantityString(R.plurals.statuses_hidden_by_filters, read, read);
+        assertEquals(expected, emptyView().getText().toString());
+    }
+
+    private TextView emptyView() {
+        return tab().requireView().findViewById(R.id.empty_view);
+    }
+
+    private String string(int id) {
+        return tab().getString(id);
     }
 
     /**

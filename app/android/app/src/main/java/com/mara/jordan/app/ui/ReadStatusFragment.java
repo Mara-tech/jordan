@@ -22,6 +22,7 @@ import android.widget.NumberPicker;
 import android.widget.PopupWindow;
 import android.widget.SeekBar;
 
+import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.SearchView;
 import androidx.fragment.app.Fragment;
@@ -163,7 +164,11 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
         refreshStatus();
     }
 
-    private void setCurrentSearchQuery(String query) {
+    /**
+     * What the search of the toolbar calls on each keystroke.
+     */
+    @VisibleForTesting
+    void setCurrentSearchQuery(String query) {
         currentSearchQuery = query;
         updateStatusAdapter();
     }
