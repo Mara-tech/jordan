@@ -113,6 +113,21 @@ uv venv -p 3.10 .venv310 && uv pip install -p .venv310/bin/python \
 Raising the floor moves four places together: both `pyproject.toml`, `target-version` in `ruff.toml`,
 and the matrix of `ci-python.yml`.
 
+`test-cli` also reruns the CLI tests on the **`typer` floor** declared in `libraries/cli/pyproject.toml`,
+installed exactly (`pip install typer==<floor>`): a user who already has that version gets no upgrade
+from pip. typer 0.9–0.15.3 resolve a click 8.2+ that breaks them (JRD-35), so lowering the floor fails
+there. To replay it after a change to the CLI's dependencies, in either environment above:
+
+```bash
+python -m pip install "typer==$(python -c "import re; print(re.search(r'\"typer>=([^\",;]+)\"', open('libraries/cli/pyproject.toml').read()).group(1))")"
+python -m pytest libraries/cli/tests/
+python -m pip install --upgrade typer   # back to the latest
+```
+
+Start it from an environment holding the latest typer, as CI does: that one vendors click, so the floor
+resolves the newest click it accepts. An older click already installed is kept, and can hide a broken
+floor.
+
 ### Compose stack
 
 What `ci-python` / `compose-stack` checks — the local development stack of `docker-compose.yml`,
