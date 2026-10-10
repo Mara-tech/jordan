@@ -126,3 +126,6 @@ manager and read the model from it (`ClientInteractionsFragment.taskModelOf`): a
 `newInstance` would be lost when the system recreates the tab. `ReadStatusFragmentTest` drives the
 *Filter* dialog of the Status tab the same way, on statuses served by a model that overrides
 `readStatus` instead of calling a server.
+`MainActivityInsetsTest` dispatches the insets of the system bars to the main screen and checks that
+the toolbar starts below the status bar and the content stops above the navigation bar: from API 35
+the app is drawn edge to edge, and `SystemBarInsets` is what keeps it clear of them (JRD-14).
