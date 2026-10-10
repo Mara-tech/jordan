@@ -111,6 +111,10 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
     private JordanTaskModel model;
     private ReadStatusAdapter statusAdapter;
     /**
+     * How many statuses the last reading returned, before any filter ; -1 until one arrives.
+     */
+    private int readStatusCount = -1;
+    /**
      * element selected by user in {@link ReadStatusFragment#DEPTH_CHOICES}
      */
     private int statusDepth = DEFAULT_DEPTH;
@@ -187,6 +191,27 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
 
     private void updateStatusAdapter() {
         statusAdapter.select(currentSearchQuery, textFilter, typeFilter, taskFilter);
+        updateEmptyView();
+    }
+
+    /**
+     * Says why the list is empty, when it is : nothing was read, or the filters hide all that was
+     * (JRD-32). Called after every selection of the adapter, since any filter can empty it.
+     */
+    private void updateEmptyView() {
+        if (emptyView == null || readStatusCount < 0) {
+            return;
+        }
+        if (readStatusCount == 0) {
+            emptyView.setText(R.string.no_status_to_display);
+            emptyView.setVisibility(View.VISIBLE);
+        } else if (statusAdapter.getCount() == 0) {
+            emptyView.setText(getResources().getQuantityString(R.plurals.statuses_hidden_by_filters,
+                    readStatusCount, readStatusCount));
+            emptyView.setVisibility(View.VISIBLE);
+        } else {
+            emptyView.setVisibility(View.GONE);
+        }
     }
 
     @Override
@@ -435,9 +460,9 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
         statusListRefreshLayout.setRefreshing(false);
         statusFilterTypeAdapter.onItemsLoaded(statuses);
         statusFilterTaskAdapter.onItemsLoaded(statuses);
-        if (emptyView != null) {
-            emptyView.setVisibility(statuses.length == 0 ? View.VISIBLE : View.GONE);
-        }
+        // the adapter has already selected from these statuses : see ReadStatusAdapter#refresh
+        readStatusCount = statuses.length;
+        updateEmptyView();
         Log.i(TAG, "status loaded success");
         setupAutoRefresh();
     }
