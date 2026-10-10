@@ -160,3 +160,13 @@ jobs:
         run: pip install -e "libraries/cli[dev]"
       - name: Run CLI tests
         run: pytest libraries/cli/tests/
+      # A user who already has an old typer gets no upgrade from pip: the floor
+      # declared in pyproject.toml is what they run. typer 0.9-0.15.3 resolve a
+      # click 8.2+ that breaks them (JRD-35); lowering the floor below a broken
+      # version fails here.
+      - name: Run CLI tests on the declared typer floor
+        run: |
+          floor=$(python -c "import re; print(re.search(r'\"typer>=([^\",;]+)\"', open('libraries/cli/pyproject.toml').read()).group(1))")
+          pip install "typer==$floor"
+          python -c "import typer; print('typer', typer.__version__)"
+          pytest libraries/cli/tests/

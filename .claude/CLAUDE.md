@@ -422,6 +422,9 @@ Each component has its own prefixed tag. Only the matching workflow fires.
    `send_receipt`, which `jordan action`
    relies on — JRD-19):
    publish that `jordan_py` first, or the new CLI installs against nothing.
+   Its `typer` floor (`typer>=0.15.4`, JRD-35) is the lowest version the CLI tests pass on, and
+   `ci-python` / `test-cli` reruns them on it: raising a dependency floor means checking it there, not
+   guessing it.
 
 **To release `server`:** nothing to bump — the version is the tag. `Api(version='1')` in
 [server/api.py](server/api.py) is the version of the REST API, not of the release, and does not move
