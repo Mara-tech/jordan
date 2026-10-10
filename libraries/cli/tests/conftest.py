@@ -30,7 +30,7 @@ def silent_server():
         while not stop.is_set():
             try:
                 connection, _ = listener.accept()
-            except socket.timeout:
+            except TimeoutError:
                 continue
             except OSError:
                 return

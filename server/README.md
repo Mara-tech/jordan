@@ -4,7 +4,7 @@ Flask-RESTX server that acts as the central hub between passive clients (executi
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.14 (the interpreter of the server image and of CI)
 - A Redis instance (local, Redis Cloud, Upstash, etc.) with JSON module enabled
 
 ## Setup

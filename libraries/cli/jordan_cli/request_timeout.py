@@ -6,7 +6,8 @@ jordan_py has a default since 2.5.0 (the same variable and value, JRD-18), but t
 passes its own on every request, so ``--request-timeout`` stays what decides here.
 """
 import functools
-from typing import Any, Callable, TypeVar, cast
+from collections.abc import Callable
+from typing import Any, TypeVar, cast
 
 import requests
 import typer

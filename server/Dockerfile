@@ -1,7 +1,7 @@
 # Image of the Jordan server, built from the server/ directory as context —
 # which is why server/.dockerignore, and not the one at the repository root, is
 # what keeps server/.env out of the layers.
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 

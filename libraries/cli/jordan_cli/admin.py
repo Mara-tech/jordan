@@ -3,7 +3,6 @@ import os
 import stat
 import time as _time
 from pathlib import Path
-from typing import List, Optional
 
 import requests
 import typer
@@ -96,7 +95,7 @@ def _forget_session(base: str) -> None:
     _write_sessions(sessions)
 
 
-def _session_for(base: str) -> Optional[dict]:
+def _session_for(base: str) -> dict | None:
     """Session opened against this server, if one is still valid.
 
     Sessions are kept per server URL for the same reason the Android app does
@@ -113,7 +112,7 @@ def _session_for(base: str) -> Optional[dict]:
     return session
 
 
-def _default_server() -> Optional[str]:
+def _default_server() -> str | None:
     default = _read_sessions().get("default")
     return default if isinstance(default, str) else None
 
@@ -121,7 +120,7 @@ def _default_server() -> Optional[str]:
 # ── requests ───────────────────────────────────────────────────────────────────
 
 
-def _base(server: Optional[str]) -> str:
+def _base(server: str | None) -> str:
     server = server or _default_server()
     if not server:
         typer.echo(
@@ -136,7 +135,7 @@ def _headers(token: str) -> dict:
     return {"Authorization": "Bearer " + token}
 
 
-def _auth(base: str, token: Optional[str]) -> str:
+def _auth(base: str, token: str | None) -> str:
     """Token to send on an admin call: the one given on the command line (or in
     JORDAN_ADMIN_TOKEN), else the session opened against this very server."""
     if token:
@@ -183,14 +182,14 @@ def _describe(session: dict) -> str:
 @bounded
 def login_command(
     login: str = typer.Option(..., "--login", prompt=True, help="Operator login declared in JORDAN_ADMIN_USERS"),
-    password: Optional[str] = typer.Option(
+    password: str | None = typer.Option(
         None,
         "--password",
         envvar=ADMIN_PASSWORD_ENV_VAR,
         help=f"Operator password. Prompted for when absent, which keeps it out of the shell "
              f"history and the process list; ${ADMIN_PASSWORD_ENV_VAR} covers scripts",
     ),
-    server: Optional[str] = _SERVER_OPTION,
+    server: str | None = _SERVER_OPTION,
     request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """Open an operator session and store its token for the other commands."""
@@ -213,8 +212,8 @@ def login_command(
 @admin_app.command("logout")
 @bounded
 def logout(
-    server: Optional[str] = _SERVER_OPTION,
-    token: Optional[str] = _TOKEN_OPTION,
+    server: str | None = _SERVER_OPTION,
+    token: str | None = _TOKEN_OPTION,
     request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """Close the session on the server and drop the local token."""
@@ -232,8 +231,8 @@ def logout(
 @admin_app.command("whoami")
 @bounded
 def whoami(
-    server: Optional[str] = _SERVER_OPTION,
-    token: Optional[str] = _TOKEN_OPTION,
+    server: str | None = _SERVER_OPTION,
+    token: str | None = _TOKEN_OPTION,
     request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """Show the identity and permissions the server grants the current token."""
@@ -250,8 +249,8 @@ def whoami(
 @admin_app.command("list")
 @bounded
 def list_clients(
-    server: Optional[str] = _SERVER_OPTION,
-    token: Optional[str] = _TOKEN_OPTION,
+    server: str | None = _SERVER_OPTION,
+    token: str | None = _TOKEN_OPTION,
     request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """List registered passive clients and their current state."""
@@ -278,11 +277,11 @@ def list_clients(
 def send(
     client_id: int = typer.Argument(..., help="Client or task ID to send the action to"),
     action_name: str = typer.Argument(..., help="Action name (must match one declared at registration)"),
-    param: Optional[List[str]] = typer.Option(
+    param: list[str] | None = typer.Option(
         None, "--param", "-p", help="Action parameter as key=value (repeatable)"
     ),
-    server: Optional[str] = _SERVER_OPTION,
-    token: Optional[str] = _TOKEN_OPTION,
+    server: str | None = _SERVER_OPTION,
+    token: str | None = _TOKEN_OPTION,
     request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """Send a message (action) to a passive client."""
@@ -312,8 +311,8 @@ def watch(
     client_id: int = typer.Argument(..., help="Client or task ID to watch"),
     interval: float = typer.Option(3.0, help="Polling interval in seconds"),
     lines: int = typer.Option(10, help="Number of status lines to fetch per poll"),
-    server: Optional[str] = _SERVER_OPTION,
-    token: Optional[str] = _TOKEN_OPTION,
+    server: str | None = _SERVER_OPTION,
+    token: str | None = _TOKEN_OPTION,
     request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """Stream status updates from a passive client (polling loop). Press Ctrl+C to stop."""
@@ -351,8 +350,8 @@ def watch(
 @bounded
 def message_status(
     message_id: int = typer.Argument(..., help="Message ID"),
-    server: Optional[str] = _SERVER_OPTION,
-    token: Optional[str] = _TOKEN_OPTION,
+    server: str | None = _SERVER_OPTION,
+    token: str | None = _TOKEN_OPTION,
     request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """Display the state machine audit trail for a message."""

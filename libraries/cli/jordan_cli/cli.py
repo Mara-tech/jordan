@@ -1,7 +1,6 @@
 import json
 import time
 from pathlib import Path
-from typing import Optional
 
 import requests
 import typer
@@ -35,7 +34,7 @@ def _make_instance(session: dict) -> jordan.JordanInstance:
     )
 
 
-def _make_instance_for(session: dict, task_id: Optional[int]) -> jordan.JordanInstance:
+def _make_instance_for(session: dict, task_id: int | None) -> jordan.JordanInstance:
     effective_task_id = task_id if task_id is not None else session["taskId"]
     return jordan.JordanInstance(
         base_url=session["server"],
@@ -50,7 +49,7 @@ def _make_instance_for(session: dict, task_id: Optional[int]) -> jordan.JordanIn
 def register(
     server: str = typer.Option(..., help="Jordan server base URL (e.g. http://localhost:5000/jordan/)"),
     name: str = typer.Option("default-client", help="Client name"),
-    registration_key: Optional[str] = typer.Option(
+    registration_key: str | None = typer.Option(
         None,
         "--registration-key",
         envvar=jordan.REGISTRATION_KEY_ENV_VAR,
@@ -84,7 +83,7 @@ def register(
 @bounded
 def task_create(
     name: str = typer.Argument(..., help="Name of the sub-task"),
-    task_id: Optional[int] = typer.Option(
+    task_id: int | None = typer.Option(
         None, "--task-id", help="Parent task ID (defaults to root task from session)"
     ),
     request_timeout: float = REQUEST_TIMEOUT_OPTION,
@@ -104,7 +103,7 @@ def task_create(
 def status(
     message: str = typer.Argument(..., help="Status message"),
     type: str = typer.Option("general", help="Status type: general, progress, success, failure"),
-    task_id: Optional[int] = _TASK_ID_OPTION,
+    task_id: int | None = _TASK_ID_OPTION,
     request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """Send a status update to the Jordan server."""
@@ -125,7 +124,7 @@ def status(
 @bounded
 def progress(
     value: str = typer.Argument(..., help="Percentage from 0 to 100 (e.g. 42 or '42%'), sent as an integer"),
-    task_id: Optional[int] = _TASK_ID_OPTION,
+    task_id: int | None = _TASK_ID_OPTION,
     request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """Send a progress status update: the task's progress bar in active clients."""
@@ -159,10 +158,10 @@ def _number(text: str) -> float:
 def metric(
     name: str = typer.Argument(..., help="Metric name, one curve per name (e.g. 'held-out loss')"),
     value: str = typer.Argument(..., help="The value (a negative one goes after --: jordan metric -- delta -0.5)"),
-    step: Optional[str] = typer.Option(
+    step: str | None = typer.Option(
         None, "--step", help="Progress point the value belongs to (an epoch, an iteration); placed in time when omitted"
     ),
-    task_id: Optional[int] = _TASK_ID_OPTION,
+    task_id: int | None = _TASK_ID_OPTION,
     request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """Send a named value, drawn as a curve by active clients."""
@@ -213,7 +212,7 @@ def action(
     wait: bool = typer.Option(False, "--wait", help="Block until an action is received"),
     timeout: int = typer.Option(60, help="Timeout in seconds when --wait is used"),
     interval: float = typer.Option(2.0, help="Polling interval in seconds when --wait is used"),
-    task_id: Optional[int] = _TASK_ID_OPTION,
+    task_id: int | None = _TASK_ID_OPTION,
     request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """Read a pending action and print it as JSON. Tells the server it was received, at best effort."""
@@ -252,7 +251,7 @@ def action(
 @app.command()
 @bounded
 def complete(
-    task_id: Optional[int] = _TASK_ID_OPTION,
+    task_id: int | None = _TASK_ID_OPTION,
     request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """Mark a task as complete.
@@ -274,8 +273,8 @@ def complete(
 @app.command()
 @bounded
 def error(
-    message: Optional[str] = typer.Argument(None, help="Optional error message"),
-    task_id: Optional[int] = _TASK_ID_OPTION,
+    message: str | None = typer.Argument(None, help="Optional error message"),
+    task_id: int | None = _TASK_ID_OPTION,
     request_timeout: float = REQUEST_TIMEOUT_OPTION,
 ) -> None:
     """Mark a task as failed.
