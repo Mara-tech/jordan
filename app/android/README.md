@@ -72,6 +72,10 @@ length of the status whatever the pattern: no backreferences (`\1`) and no looka
 invalid pattern keeps the dialog open with the reason, and the filters in place stay as they were.
 The dialog's text is kept across refreshes, and shown again when the dialog reopens.
 
+Both filters survive a rotation of the device: the list stays filtered, the dialog reopens on the
+text and checkboxes you applied, and the search of the toolbar comes back open on its text. They are
+kept while you stay on the client, not when you leave it.
+
 ### Actions
 This is the central part of Interactions in Jordan.
 The user is able to send a message back to the client so the program may act in consequence.
@@ -125,7 +129,8 @@ only one held, is the one its menu shows checked. The tabs live in the screen's 
 manager and read the model from it (`ClientInteractionsFragment.taskModelOf`): a field set by
 `newInstance` would be lost when the system recreates the tab. `ReadStatusFragmentTest` drives the
 *Filter* dialog of the Status tab the same way, on statuses served by a model that overrides
-`readStatus` instead of calling a server.
+`readStatus` instead of calling a server, and rotates it with filters applied (JRD-31): the tab
+saves them in `onSaveInstanceState`, since the model of the screen is recreated with it.
 `MainActivityInsetsTest` dispatches the insets of the system bars to the main screen and checks that
 the toolbar starts below the status bar and the content stops above the navigation bar: from API 35
 the app is drawn edge to edge, and `SystemBarInsets` is what keeps it clear of them (JRD-14).

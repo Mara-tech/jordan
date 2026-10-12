@@ -22,6 +22,7 @@ import android.widget.NumberPicker;
 import android.widget.PopupWindow;
 import android.widget.SeekBar;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.SearchView;
@@ -41,6 +42,8 @@ import com.mara.jordan.app.model.JordanTaskModel;
 import com.mara.jordan.app.model.StatusTextFilter;
 import com.mara.jordan.core.dto.JordanStatusDTO;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 
 public class ReadStatusFragment extends Fragment implements JordanReadStatusCallback, JordanRefreshable {
@@ -82,6 +85,14 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
      * default element selected in {@link ReadStatusFragment#PERIOD_CHOICES}
      */
     private static final int DEFAULT_PERIOD = 2;
+    /**
+     * Keys of the filters in the saved state, which a rotation would otherwise lose (JRD-31).
+     */
+    private static final String STATE_SEARCH = "status.search";
+    private static final String STATE_TEXT = "status.text";
+    private static final String STATE_TEXT_REGEX = "status.text.regex";
+    private static final String STATE_TYPE_FILTER = "status.type";
+    private static final String STATE_TASK_FILTER = "status.task";
 
     static {
         //Ensure choices are valid integers
@@ -145,6 +156,79 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
         statusAdapter = new ReadStatusAdapter(getContext(), model);
         statusFilterTypeAdapter = new StatusFilterTypeAdapter(getContext());
         statusFilterTaskAdapter = new StatusFilterTaskAdapter(getContext());
+        if (savedInstanceState != null) {
+            restoreFilters(savedInstanceState);
+        }
+    }
+
+    @Override
+    public void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(STATE_SEARCH, currentSearchQuery);
+        outState.putString(STATE_TEXT, textFilter.getText());
+        outState.putBoolean(STATE_TEXT_REGEX, textFilter.isRegex());
+        putFilterMapping(outState, STATE_TYPE_FILTER, typeFilter);
+        putFilterMapping(outState, STATE_TASK_FILTER, taskFilter);
+    }
+
+    /**
+     * Puts back the filters {@link #onSaveInstanceState} saved, before the first reading applies
+     * them : the toolbar search (shown again by {@link #onCreateOptionsMenu}), the text of the
+     * dialog, and its type and task checkboxes.
+     */
+    private void restoreFilters(Bundle savedState) {
+        currentSearchQuery = savedState.getString(STATE_SEARCH);
+        try {
+            textFilter = StatusTextFilter.of(savedState.getString(STATE_TEXT),
+                    savedState.getBoolean(STATE_TEXT_REGEX));
+        } catch (PatternSyntaxException e) {
+            // cannot happen : only a text that compiled was applied, hence saved
+            Log.e(TAG, "Saved text filter no longer compiles, dropped", e);
+            textFilter = StatusTextFilter.NONE;
+        }
+        Map<String, Boolean> savedTypes = getFilterMapping(savedState, STATE_TYPE_FILTER);
+        if (savedTypes != null) {
+            statusFilterTypeAdapter.restoreFilterMapping(savedTypes);
+            typeFilter = statusFilterTypeAdapter.getFilterMapping();
+        }
+        Map<String, Boolean> savedTasks = getFilterMapping(savedState, STATE_TASK_FILTER);
+        if (savedTasks != null) {
+            statusFilterTaskAdapter.restoreFilterMapping(savedTasks);
+            taskFilter = statusFilterTaskAdapter.getFilterMapping();
+        }
+    }
+
+    /**
+     * @param mapping checkbox name → checked ; nothing is saved when it is {@code null}, no
+     *                checkbox having been applied yet
+     */
+    private static void putFilterMapping(Bundle outState, String key, Map<String, Boolean> mapping) {
+        if (mapping == null) {
+            return;
+        }
+        ArrayList<String> names = new ArrayList<>(mapping.keySet());
+        boolean[] checked = new boolean[names.size()];
+        for (int i = 0; i < checked.length; i++) {
+            checked[i] = Boolean.TRUE.equals(mapping.get(names.get(i)));
+        }
+        outState.putStringArrayList(key + ".names", names);
+        outState.putBooleanArray(key + ".checked", checked);
+    }
+
+    /**
+     * @return what {@link #putFilterMapping} saved under {@code key}, or {@code null} if nothing
+     */
+    private static Map<String, Boolean> getFilterMapping(Bundle savedState, String key) {
+        ArrayList<String> names = savedState.getStringArrayList(key + ".names");
+        boolean[] checked = savedState.getBooleanArray(key + ".checked");
+        if (names == null || checked == null || names.size() != checked.length) {
+            return null;
+        }
+        Map<String, Boolean> mapping = new HashMap<>();
+        for (int i = 0; i < checked.length; i++) {
+            mapping.put(names.get(i), checked[i]);
+        }
+        return mapping;
     }
 
     @Override
@@ -221,6 +305,16 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
 
         MenuItem searchItem = menu.findItem(R.id.status_search);
         SearchView searchView = (SearchView) searchItem.getActionView();
+        // A menu built anew — after a rotation, or whenever it is invalidated — starts collapsed and
+        // empty : show the search that filters the list, never an empty field over a filtered list
+        // (JRD-31). Before the listeners, since expanding empties the field.
+        if (currentSearchQuery != null && !currentSearchQuery.isEmpty()) {
+            String search = currentSearchQuery;
+            searchItem.expandActionView();
+            searchView.setQuery(search, false);
+            // expanding asks for the keyboard : the list is what a rotated screen is for
+            searchView.clearFocus();
+        }
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {

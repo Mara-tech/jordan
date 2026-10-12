@@ -67,6 +67,14 @@ public abstract class ACheckBoxFilterAdapter<T> extends ArrayAdapter<String> {
         return itemsChecked;
     }
 
+    /**
+     * Puts back the checkboxes of a previous instance of the screen (JRD-31) : the items it names
+     * stay checked or unchecked as they were when the next reading lists them again.
+     */
+    public void restoreFilterMapping(Map<String, Boolean> mapping) {
+        itemsChecked = new HashMap<>(mapping);
+    }
+
     abstract String getTag();
 
     public void onItemsLoaded(T[] dtos) {
