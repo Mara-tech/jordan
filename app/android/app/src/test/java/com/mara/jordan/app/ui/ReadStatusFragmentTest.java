@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.os.Looper;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -13,6 +14,8 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SearchView;
+import androidx.appcompat.widget.Toolbar;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.mara.jordan.app.R;
@@ -39,13 +42,16 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.robolectric.Shadows.shadowOf;
 
 /**
  * The text field of the filter dialog of the Status tab (JRD-10), driven the way a user does :
  * typed, applied, refused when the regular expression is invalid, kept across a refresh. And the
  * message shown in place of an empty list, which tells « nothing was read » from « the filters
- * hide everything » (JRD-32). The statuses come from a model that serves them without a server.
+ * hide everything » (JRD-32). And every one of those filters through a rotation, which recreates
+ * the tab (JRD-31). The statuses come from a model that serves them without a server ; a rotation
+ * recreates that model too, which reads the same {@link ReadStatusFragmentTest#served}.
  */
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = 34)
@@ -53,6 +59,7 @@ public class ReadStatusFragmentTest {
 
     private static final String SCREEN_TAG = "task_screen";
     private static final JordanParentTaskDTO TRAINING = JordanParentTaskDTO.builder().taskId(1L).name("training").build();
+    private static final JordanParentTaskDTO EVALUATION = JordanParentTaskDTO.builder().taskId(2L).name("evaluation").build();
 
     /**
      * What the next reading of the statuses returns.
@@ -297,6 +304,129 @@ public class ReadStatusFragmentTest {
         assertEquals(View.GONE, emptyView().getVisibility());
     }
 
+    @Test
+    public void dialogKeywordSurvivesARotation() {
+        applyText("checkpoint", false);
+
+        rotate();
+
+        assertDisplayed("checkpoint saved");
+        AlertDialog dialog = openFilterDialog();
+        assertEquals("checkpoint", textField(dialog).getText().toString());
+        assertFalse(regexBox(dialog).isChecked());
+    }
+
+    @Test
+    public void dialogRegexSurvivesARotation() {
+        applyText("^epoch [12]", true);
+
+        rotate();
+
+        assertDisplayed("epoch 2 loss = 0.43", "epoch 1 loss = 0.91");
+        AlertDialog dialog = openFilterDialog();
+        assertEquals("^epoch [12]", textField(dialog).getText().toString());
+        assertTrue(regexBox(dialog).isChecked());
+    }
+
+    @Test
+    public void uncheckedTypesAndTasksSurviveRotations() {
+        served = new JordanStatusDTO[]{
+                status(1, "epoch 1 loss = 0.91", "metric", TRAINING),
+                status(2, "evaluation started", "general", EVALUATION),
+                status(3, "checkpoint saved", "general", TRAINING),
+                status(4, "held-out loss = 0.66", "metric", EVALUATION)};
+        tab().refreshContent();
+        idle();
+        AlertDialog dialog = openFilterDialog();
+        setChecked(dialog, R.id.status_filter_type_list, "metric", false);
+        setChecked(dialog, R.id.status_filter_task_list, "evaluation", false);
+        apply(dialog);
+        assertDisplayed("checkpoint saved");
+
+        rotate();
+        assertDisplayed("checkpoint saved");
+        rotate();
+        assertDisplayed("checkpoint saved");
+
+        AlertDialog reopened = openFilterDialog();
+        assertFalse(isChecked(reopened, R.id.status_filter_type_list, "metric"));
+        assertTrue(isChecked(reopened, R.id.status_filter_type_list, "general"));
+        assertFalse(isChecked(reopened, R.id.status_filter_task_list, "evaluation"));
+        assertTrue(isChecked(reopened, R.id.status_filter_task_list, "training"));
+    }
+
+    @Test
+    public void toolbarSearchSurvivesARotationAndStaysShown() {
+        searchItem().expandActionView();
+        idle();
+        searchView().setQuery("checkpoint", false);
+        idle();
+        assertDisplayed("checkpoint saved");
+
+        rotate();
+
+        assertDisplayed("checkpoint saved");
+        assertTrue(searchItem().isActionViewExpanded());
+        assertEquals("checkpoint", searchView().getQuery().toString());
+    }
+
+    @Test
+    public void closedToolbarSearchStaysClosedAfterARotation() {
+        searchItem().expandActionView();
+        idle();
+        searchView().setQuery("checkpoint", false);
+        idle();
+        searchItem().collapseActionView();
+        idle();
+        assertDisplayed("epoch 3 loss = 0.22", "checkpoint saved", "epoch 2 loss = 0.43", "epoch 1 loss = 0.91");
+
+        rotate();
+
+        assertDisplayed("epoch 3 loss = 0.22", "checkpoint saved", "epoch 2 loss = 0.43", "epoch 1 loss = 0.91");
+        assertFalse(searchItem().isActionViewExpanded());
+    }
+
+    private void rotate() {
+        controller.recreate();
+        idle();
+    }
+
+    /**
+     * The search of the toolbar, as the action bar of the activity holds it.
+     */
+    private MenuItem searchItem() {
+        Toolbar actionBar = controller.get().findViewById(androidx.appcompat.R.id.action_bar);
+        return actionBar.getMenu().findItem(R.id.status_search);
+    }
+
+    private SearchView searchView() {
+        return (SearchView) searchItem().getActionView();
+    }
+
+    /**
+     * Ticks or unticks a checkbox of the dialog the way a tap does, through the view its list
+     * adapter makes for it.
+     */
+    private static void setChecked(AlertDialog dialog, int listId, String name, boolean checked) {
+        checkBox(dialog, listId, name).setChecked(checked);
+    }
+
+    private static boolean isChecked(AlertDialog dialog, int listId, String name) {
+        return checkBox(dialog, listId, name).isChecked();
+    }
+
+    private static CheckBox checkBox(AlertDialog dialog, int listId, String name) {
+        ListView list = dialog.findViewById(listId);
+        ListAdapter adapter = list.getAdapter();
+        for (int i = 0; i < adapter.getCount(); i++) {
+            if (name.equals(adapter.getItem(i))) {
+                return adapter.getView(i, null, list).findViewById(R.id.filter_item_check);
+            }
+        }
+        fail("No checkbox " + name + " in the dialog");
+        return null;
+    }
+
     private void applyText(String text, boolean regex) {
         AlertDialog dialog = openFilterDialog();
         textField(dialog).setText(text);
@@ -365,6 +495,11 @@ public class ReadStatusFragmentTest {
                     .status(texts[i]).timestamp(1_000L + i).build();
         }
         return statuses;
+    }
+
+    private static JordanStatusDTO status(int id, String text, String type, JordanParentTaskDTO task) {
+        return JordanStatusDTO.builder().statusId(id).type(type).parentTask(task)
+                .status(text).timestamp(1_000L + id).build();
     }
 
     private ReadStatusFragment tab() {
