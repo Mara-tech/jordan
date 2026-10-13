@@ -22,6 +22,7 @@ import android.widget.NumberPicker;
 import android.widget.PopupWindow;
 import android.widget.SeekBar;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.SearchView;
@@ -41,6 +42,8 @@ import com.mara.jordan.app.model.JordanTaskModel;
 import com.mara.jordan.app.model.StatusTextFilter;
 import com.mara.jordan.core.dto.JordanStatusDTO;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 
 public class ReadStatusFragment extends Fragment implements JordanReadStatusCallback, JordanRefreshable {
@@ -82,6 +85,19 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
      * default element selected in {@link ReadStatusFragment#PERIOD_CHOICES}
      */
     private static final int DEFAULT_PERIOD = 2;
+    /**
+     * Keys of the filters (JRD-31) and settings (JRD-37) in the saved state, which a rotation would
+     * otherwise lose.
+     */
+    private static final String STATE_SEARCH = "status.search";
+    private static final String STATE_TEXT = "status.text";
+    private static final String STATE_TEXT_REGEX = "status.text.regex";
+    private static final String STATE_TYPE_FILTER = "status.type";
+    private static final String STATE_TASK_FILTER = "status.task";
+    private static final String STATE_DEPTH = "status.depth";
+    private static final String STATE_AUTO_REFRESH = "status.auto_refresh";
+    private static final String STATE_AUTO_REFRESH_PERIOD = "status.auto_refresh.period";
+    private static final String STATE_TEXT_SIZE = "status.text_size";
 
     static {
         //Ensure choices are valid integers
@@ -123,6 +139,10 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
      * element selected by user in {@link ReadStatusFragment#PERIOD_CHOICES}
      */
     private int autoRefreshPeriod = DEFAULT_PERIOD;
+    /**
+     * size in sp of the statuses, chosen with the bar of {@link #createTextSizePopup()}
+     */
+    private int statusTextSize = StatusTextSizeHelper.DEFAULT_TEXT_SIZE;
 
     private final Handler autoRefreshScheduler = new Handler();
     private Runnable autoRefreshRunnable = null;
@@ -145,6 +165,96 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
         statusAdapter = new ReadStatusAdapter(getContext(), model);
         statusFilterTypeAdapter = new StatusFilterTypeAdapter(getContext());
         statusFilterTaskAdapter = new StatusFilterTaskAdapter(getContext());
+        if (savedInstanceState != null) {
+            restoreFilters(savedInstanceState);
+            restoreSettings(savedInstanceState);
+        }
+    }
+
+    @Override
+    public void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(STATE_SEARCH, currentSearchQuery);
+        outState.putString(STATE_TEXT, textFilter.getText());
+        outState.putBoolean(STATE_TEXT_REGEX, textFilter.isRegex());
+        putFilterMapping(outState, STATE_TYPE_FILTER, typeFilter);
+        putFilterMapping(outState, STATE_TASK_FILTER, taskFilter);
+        outState.putInt(STATE_DEPTH, statusDepth);
+        outState.putBoolean(STATE_AUTO_REFRESH, autoRefreshEnabled);
+        outState.putInt(STATE_AUTO_REFRESH_PERIOD, autoRefreshPeriod);
+        outState.putInt(STATE_TEXT_SIZE, statusTextSize);
+    }
+
+    /**
+     * Puts back the settings {@link #onSaveInstanceState} saved (JRD-37) : the depth of the
+     * reading, the auto-refresh — which {@link #onStatusLoaded} schedules again after the first
+     * reading — and the text size.
+     */
+    private void restoreSettings(Bundle savedState) {
+        statusDepth = savedState.getInt(STATE_DEPTH, DEFAULT_DEPTH);
+        autoRefreshEnabled = savedState.getBoolean(STATE_AUTO_REFRESH, DEFAULT_AUTO_REFRESH);
+        autoRefreshPeriod = savedState.getInt(STATE_AUTO_REFRESH_PERIOD, DEFAULT_PERIOD);
+        setStatusTextSize(savedState.getInt(STATE_TEXT_SIZE, StatusTextSizeHelper.DEFAULT_TEXT_SIZE));
+    }
+
+    /**
+     * Puts back the filters {@link #onSaveInstanceState} saved, before the first reading applies
+     * them : the toolbar search (shown again by {@link #onCreateOptionsMenu}), the text of the
+     * dialog, and its type and task checkboxes.
+     */
+    private void restoreFilters(Bundle savedState) {
+        currentSearchQuery = savedState.getString(STATE_SEARCH);
+        try {
+            textFilter = StatusTextFilter.of(savedState.getString(STATE_TEXT),
+                    savedState.getBoolean(STATE_TEXT_REGEX));
+        } catch (PatternSyntaxException e) {
+            // cannot happen : only a text that compiled was applied, hence saved
+            Log.e(TAG, "Saved text filter no longer compiles, dropped", e);
+            textFilter = StatusTextFilter.NONE;
+        }
+        Map<String, Boolean> savedTypes = getFilterMapping(savedState, STATE_TYPE_FILTER);
+        if (savedTypes != null) {
+            statusFilterTypeAdapter.restoreFilterMapping(savedTypes);
+            typeFilter = statusFilterTypeAdapter.getFilterMapping();
+        }
+        Map<String, Boolean> savedTasks = getFilterMapping(savedState, STATE_TASK_FILTER);
+        if (savedTasks != null) {
+            statusFilterTaskAdapter.restoreFilterMapping(savedTasks);
+            taskFilter = statusFilterTaskAdapter.getFilterMapping();
+        }
+    }
+
+    /**
+     * @param mapping checkbox name → checked ; nothing is saved when it is {@code null}, no
+     *                checkbox having been applied yet
+     */
+    private static void putFilterMapping(Bundle outState, String key, Map<String, Boolean> mapping) {
+        if (mapping == null) {
+            return;
+        }
+        ArrayList<String> names = new ArrayList<>(mapping.keySet());
+        boolean[] checked = new boolean[names.size()];
+        for (int i = 0; i < checked.length; i++) {
+            checked[i] = Boolean.TRUE.equals(mapping.get(names.get(i)));
+        }
+        outState.putStringArrayList(key + ".names", names);
+        outState.putBooleanArray(key + ".checked", checked);
+    }
+
+    /**
+     * @return what {@link #putFilterMapping} saved under {@code key}, or {@code null} if nothing
+     */
+    private static Map<String, Boolean> getFilterMapping(Bundle savedState, String key) {
+        ArrayList<String> names = savedState.getStringArrayList(key + ".names");
+        boolean[] checked = savedState.getBooleanArray(key + ".checked");
+        if (names == null || checked == null || names.size() != checked.length) {
+            return null;
+        }
+        Map<String, Boolean> mapping = new HashMap<>();
+        for (int i = 0; i < checked.length; i++) {
+            mapping.put(names.get(i), checked[i]);
+        }
+        return mapping;
     }
 
     @Override
@@ -175,6 +285,17 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
     void setCurrentSearchQuery(String query) {
         currentSearchQuery = query;
         updateStatusAdapter();
+    }
+
+    /**
+     * What the bar of {@link #createTextSizePopup()} calls as it moves.
+     *
+     * @param textSizeSp size in sp of the statuses
+     */
+    @VisibleForTesting
+    void setStatusTextSize(int textSizeSp) {
+        statusTextSize = textSizeSp;
+        statusAdapter.changeTextSize(textSizeSp);
     }
 
     private void clearCurrentSearchQuery() {
@@ -221,6 +342,16 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
 
         MenuItem searchItem = menu.findItem(R.id.status_search);
         SearchView searchView = (SearchView) searchItem.getActionView();
+        // A menu built anew — after a rotation, or whenever it is invalidated — starts collapsed and
+        // empty : show the search that filters the list, never an empty field over a filtered list
+        // (JRD-31). Before the listeners, since expanding empties the field.
+        if (currentSearchQuery != null && !currentSearchQuery.isEmpty()) {
+            String search = currentSearchQuery;
+            searchItem.expandActionView();
+            searchView.setQuery(search, false);
+            // expanding asks for the keyboard : the list is what a rotated screen is for
+            searchView.clearFocus();
+        }
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
@@ -354,14 +485,12 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
             popupLayout.setOnClickListener(v -> {if(popup != null)popup.dismiss();});
             final SeekBar textSizeBar = popupLayout.findViewById(R.id.text_size_seek_bar);
             textSizeBar.setMax(StatusTextSizeHelper.getSeekbarMax());
-            textSizeBar.setProgress(StatusTextSizeHelper.getSeekbarInitialProgress());
+            textSizeBar.setProgress(StatusTextSizeHelper.convertTextSizeToProgress(statusTextSize));
 
             textSizeBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                 @Override
                 public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                    if(statusList != null && statusList.getAdapter() != null){
-                        ((ReadStatusAdapter)statusList.getAdapter()).changeTextSize(StatusTextSizeHelper.convertProgressToTextSize(progress));
-                    }
+                    setStatusTextSize(StatusTextSizeHelper.convertProgressToTextSize(progress));
                 }
                 @Override
                 public void onStartTrackingTouch(SeekBar seekBar) {}
@@ -504,14 +633,6 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
 
         /**
          * Because of {@link SeekBar#setMin(int)} exists from API 26 only, shift is done here.
-         * @return {@link StatusTextSizeHelper#DEFAULT_TEXT_SIZE} minus {@link StatusTextSizeHelper#MIN_TEXT_SIZE}
-         */
-        public static int getSeekbarInitialProgress() {
-            return DEFAULT_TEXT_SIZE - MIN_TEXT_SIZE;
-        }
-
-        /**
-         * Because of {@link SeekBar#setMin(int)} exists from API 26 only, shift is done here.
          * @return {@link StatusTextSizeHelper#MAX_TEXT_SIZE} minus {@link StatusTextSizeHelper#MIN_TEXT_SIZE}
          */
         public static int getSeekbarMax() {
@@ -524,6 +645,14 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
          */
         public static int convertProgressToTextSize(int seekBarProgress) {
             return seekBarProgress + MIN_TEXT_SIZE;
+        }
+
+        /**
+         * Because of {@link SeekBar#setMin(int)} exists from API 26 only, shift is done here.
+         * @return {@code textSizeSp} minus {@link StatusTextSizeHelper#MIN_TEXT_SIZE}
+         */
+        public static int convertTextSizeToProgress(int textSizeSp) {
+            return textSizeSp - MIN_TEXT_SIZE;
         }
     }
 
