@@ -7,7 +7,7 @@ by the work itself — a ticket that adds a linter adds its line here, in the sa
 | What | Command |
 |---|---|
 | before a push | the rows of [By module](#by-module) whose paths the branch touches — `git diff --name-only origin/main...HEAD` |
-| on every pull request | `ci-python.yml`, `ci-java.yml`, `ci-android.yml` — **path-filtered**: a pull request touching none of their paths (docs, `.claude/`, `sample/`) registers no check, and that is expected. `ci-python.yml` also watches the root `Dockerfile` and `docker-compose.yml` |
+| on every pull request | `ci-python.yml`, `ci-java.yml`, `ci-android.yml`, `ci-workflows.yml` — **path-filtered**: a pull request touching none of their paths (docs, `.claude/`, `sample/`) registers no check, and that is expected. `ci-python.yml` also watches the root `Dockerfile` and `docker-compose.yml`; `ci-workflows.yml` watches `.github/workflows/` |
 | coverage | Python modules only — see [Coverage](#coverage); Java and Android measure none |
 
 ## How to use it
@@ -52,6 +52,7 @@ Commands start from the repository root, in Git Bash, with `python` meaning the 
 | `jordan_cli` | `libraries/cli/`, and `libraries/python/` (it runs on `jordan_py`) | `python -m pytest libraries/cli/tests/` | `ci-python` / `test-cli` |
 | Java libraries | `libraries/java/` | `cd libraries/java && bash gradlew test` | `ci-java` / `build-java` |
 | Android app | `app/android/`, `libraries/java/jordan-core/` (included as a Gradle project) | `cd app/android && bash gradlew lint testDebugUnitTest assembleDebug` | `ci-android` / `build-android` |
+| Workflows | `.github/workflows/` | `.venv/bin/shellcheck --version > /dev/null && .venv/bin/actionlint -shellcheck=.venv/bin/shellcheck` — see [Workflows](#workflows) | `ci-workflows` / `actionlint` |
 
 A change to `libraries/java/jordan-core/` therefore runs both Java rows, and a change to
 `libraries/prototype/contract.md` runs none — but a contract change is never alone: the modules that
@@ -88,6 +89,7 @@ The three Python modules share one virtual environment at the repository root, `
 ```bash
 py -3.14 -m venv .venv        # elsewhere: python3.14 -m venv .venv, or uv venv -p 3.14 .venv
 .venv/Scripts/python -m pip install -r server/requirements.txt pytest coverage ruff==0.15.22 \
+  actionlint-py==1.7.12.25 shellcheck-py==0.11.0.1 \
   -e "libraries/python/jordan_py[test]" -e "libraries/cli[dev]"
 ```
 
@@ -174,12 +176,30 @@ The job then starts the container and probes `/jordan/hello`, `/jordan/admin/cli
 affect how the image is built or starts; a change inside `api.py` alone is covered by the server
 tests.
 
+### Workflows
+
+What `ci-workflows` / `actionlint` checks: every file of `.github/workflows/`, whichever one the
+branch touched — [actionlint](https://github.com/rhysd/actionlint) for the syntax and the `${{ }}`
+expressions, and shellcheck, which actionlint runs on each `run:` script. Both come from PyPI
+(`actionlint-py`, `shellcheck-py`), pinned in the [Python environment](#python-environment) and in
+`ci-workflows.yml`: bump both places together. The workflow builds its own `.venv` so that it runs the
+very command of the table; on Windows, it reads `.venv/Scripts/shellcheck.exe` and
+`.venv/Scripts/actionlint.exe`.
+
+The `shellcheck --version` in front is not decoration: actionlint skips shellcheck **without a word**
+when the path given to `-shellcheck` does not exist, or when no `shellcheck` is on the `PATH`, and then
+passes a script it never read. The probe turns a missing shellcheck into a failure.
+
+`info`-level shellcheck findings fail the check like the others — most are an unquoted
+`$GITHUB_ENV` or `$GITHUB_OUTPUT`, quote it.
+
 ### Release workflows
 
-The four `release-*.yml` run only on their tag, and no pull request check watches them: a change to
-one registers nothing and is first executed by the release it is meant to make. Before pushing one,
-check at least that it parses — `python -c "import yaml; yaml.safe_load(open('.github/workflows/<file>'))"`
-— and replay its shell steps locally with the variables Actions would give them (`GITHUB_REF_NAME`,
+The four `release-*.yml` run only on their tag. A change to one does register a check — the
+[Workflows](#workflows) row, which validates syntax, expressions and the shell of each `run:` — but
+nothing *executes* it before the release it is meant to make: a value only known at run time, such as
+the image name of JRD-22, passes the lint. Before pushing one, run the Workflows row, then replay its
+shell steps locally with the variables Actions would give them (`GITHUB_REF_NAME`,
 `GITHUB_REPOSITORY_OWNER`, a temporary `GITHUB_ENV`) under `bash -e`, the default shell of a `run:`
 step. For `release-server.yml`, the image name it computes must pass Docker's reference parser:
 `docker tag <any-local-image> <name>:<version>` rejects an invalid one with `invalid reference format`

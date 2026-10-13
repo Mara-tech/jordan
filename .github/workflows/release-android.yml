@@ -27,7 +27,7 @@ jobs:
       - name: Build release APK and AAB
         run: >
           ./gradlew assembleRelease bundleRelease
-          -PversionName=${GITHUB_REF_NAME#android/v}
+          -PversionName="${GITHUB_REF_NAME#android/v}"
           -PversionCode=${{ github.run_number }}
         working-directory: app/android
 

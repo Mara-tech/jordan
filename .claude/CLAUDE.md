@@ -392,7 +392,10 @@ PARAMETER_TYPE_FLOAT  = 'float'
 
 ## Release process
 
-Each component has its own prefixed tag. Only the matching workflow fires.
+Each component has its own prefixed tag. Only the matching workflow fires. A release workflow is
+otherwise only *linted*: `ci-workflows.yml` runs actionlint, shellcheck included, on every pull
+request touching `.github/workflows/` (JRD-30) — see the *Workflows* row of
+[.claude/rules/checks.md](rules/checks.md).
 
 | Component | Tag pattern | Workflow | Target |
 |---|---|---|---|

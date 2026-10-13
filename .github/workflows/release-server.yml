@@ -31,14 +31,14 @@ jobs:
       - name: Extract version from tag
         id: version
         run: |
-          echo "VERSION=${GITHUB_REF_NAME#server/v}" >> $GITHUB_ENV
-          echo "version=${GITHUB_REF_NAME#server/v}" >> $GITHUB_OUTPUT
+          echo "VERSION=${GITHUB_REF_NAME#server/v}" >> "$GITHUB_ENV"
+          echo "version=${GITHUB_REF_NAME#server/v}" >> "$GITHUB_OUTPUT"
 
       # A Docker repository name must be lowercase, and the owner is `Mara-tech`:
       # `${{ github.repository_owner }}` used as is would make the push fail
       # with "repository name must be lowercase" (JRD-22).
       - name: Compute the image name
-        run: echo "IMAGE=${REGISTRY}/${GITHUB_REPOSITORY_OWNER,,}/jordan-server" >> $GITHUB_ENV
+        run: echo "IMAGE=${REGISTRY}/${GITHUB_REPOSITORY_OWNER,,}/jordan-server" >> "$GITHUB_ENV"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
