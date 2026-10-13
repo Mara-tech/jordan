@@ -3,6 +3,7 @@ package com.mara.jordan.app.ui;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.Looper;
 import android.util.TypedValue;
 import android.view.MenuItem;
@@ -72,6 +73,12 @@ public class ReadStatusFragmentTest {
      * How many statuses the last reading asked for.
      */
     private static int lastLineCount;
+    /**
+     * Whether the readings answer later on the main looper, as the API does, rather than before
+     * {@code readStatus} returns. The auto-refresh needs it : a tab only schedules the next refresh
+     * once resumed, and {@code onResume} reads the statuses before the tab is.
+     */
+    private static boolean servedLater;
 
     /**
      * Reads {@link ReadStatusFragmentTest#served} in place of the server, calling back in the
@@ -85,10 +92,19 @@ public class ReadStatusFragmentTest {
         @Override
         public void readStatus(int lineCount, JordanReadStatusCallback... callbacks) {
             lastLineCount = lineCount;
-            for (JordanReadStatusCallback callback : callbacks) {
-                callback.onStatusLoaded(served);
+            if (servedLater) {
+                JordanStatusDTO[] answer = served;
+                new Handler(Looper.getMainLooper()).post(() -> answer(answer, callbacks));
+            } else {
+                answer(served, callbacks);
             }
-            onStatusLoaded(served);
+        }
+
+        private void answer(JordanStatusDTO[] statuses, JordanReadStatusCallback... callbacks) {
+            for (JordanReadStatusCallback callback : callbacks) {
+                callback.onStatusLoaded(statuses);
+            }
+            onStatusLoaded(statuses);
         }
     }
 
@@ -127,6 +143,7 @@ public class ReadStatusFragmentTest {
     @Before
     public void openStatusTab() {
         served = statuses("epoch 1 loss = 0.91", "epoch 2 loss = 0.43", "checkpoint saved", "epoch 3 loss = 0.22");
+        servedLater = false;
         controller = Robolectric.buildActivity(HostActivity.class).setup();
         idle();
         bottomMenu().setSelectedItemId(R.id.client_interaction_status);
@@ -397,11 +414,11 @@ public class ReadStatusFragmentTest {
     @Test
     public void settingsSurviveARotation() {
         applySettings(4, true, 0);
-        assertEquals(50, lastLineCount);
+        assertEquals(100, lastLineCount);
 
         rotate();
 
-        assertEquals(50, lastLineCount);
+        assertEquals(100, lastLineCount);
         AlertDialog dialog = openSettingsDialog();
         assertEquals(4, depthPicker(dialog).getValue());
         assertTrue(autoRefreshBox(dialog).isChecked());
@@ -411,6 +428,7 @@ public class ReadStatusFragmentTest {
     @Test
     public void autoRefreshKeepsRunningAfterARotation() {
         applySettings(1, true, 0);
+        servedLater = true;
 
         rotate();
         served = statuses("evaluation started", "epoch 4 loss = 0.19");
