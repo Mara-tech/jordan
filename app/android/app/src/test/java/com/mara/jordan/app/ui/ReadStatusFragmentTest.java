@@ -4,12 +4,14 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.os.Looper;
+import android.util.TypedValue;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ListAdapter;
 import android.widget.ListView;
+import android.widget.NumberPicker;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AlertDialog;
@@ -35,6 +37,7 @@ import org.robolectric.annotation.Config;
 import org.robolectric.fakes.RoboMenuItem;
 import org.robolectric.shadows.ShadowDialog;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -50,7 +53,7 @@ import static org.robolectric.Shadows.shadowOf;
  * typed, applied, refused when the regular expression is invalid, kept across a refresh. And the
  * message shown in place of an empty list, which tells « nothing was read » from « the filters
  * hide everything » (JRD-32). And every one of those filters through a rotation, which recreates
- * the tab (JRD-31). The statuses come from a model that serves them without a server ; a rotation
+ * the tab (JRD-31), as do the settings of the tab and its text size (JRD-37). The statuses come from a model that serves them without a server ; a rotation
  * recreates that model too, which reads the same {@link ReadStatusFragmentTest#served}.
  */
 @RunWith(RobolectricTestRunner.class)
@@ -65,6 +68,10 @@ public class ReadStatusFragmentTest {
      * What the next reading of the statuses returns.
      */
     private static JordanStatusDTO[] served;
+    /**
+     * How many statuses the last reading asked for.
+     */
+    private static int lastLineCount;
 
     /**
      * Reads {@link ReadStatusFragmentTest#served} in place of the server, calling back in the
@@ -77,6 +84,7 @@ public class ReadStatusFragmentTest {
 
         @Override
         public void readStatus(int lineCount, JordanReadStatusCallback... callbacks) {
+            lastLineCount = lineCount;
             for (JordanReadStatusCallback callback : callbacks) {
                 callback.onStatusLoaded(served);
             }
@@ -384,6 +392,75 @@ public class ReadStatusFragmentTest {
 
         assertDisplayed("epoch 3 loss = 0.22", "checkpoint saved", "epoch 2 loss = 0.43", "epoch 1 loss = 0.91");
         assertFalse(searchItem().isActionViewExpanded());
+    }
+
+    @Test
+    public void settingsSurviveARotation() {
+        applySettings(4, true, 0);
+        assertEquals(50, lastLineCount);
+
+        rotate();
+
+        assertEquals(50, lastLineCount);
+        AlertDialog dialog = openSettingsDialog();
+        assertEquals(4, depthPicker(dialog).getValue());
+        assertTrue(autoRefreshBox(dialog).isChecked());
+        assertEquals(0, periodPicker(dialog).getValue());
+    }
+
+    @Test
+    public void autoRefreshKeepsRunningAfterARotation() {
+        applySettings(1, true, 0);
+
+        rotate();
+        served = statuses("evaluation started", "epoch 4 loss = 0.19");
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2));
+
+        assertDisplayed("epoch 4 loss = 0.19", "evaluation started");
+    }
+
+    @Test
+    public void textSizeSurvivesARotation() {
+        tab().setStatusTextSize(22);
+
+        rotate();
+
+        ListView list = tab().requireView().findViewById(R.id.read_status_list);
+        TextView firstStatus = list.getAdapter().getView(0, null, list).findViewById(R.id.status_text);
+        float expected = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 22,
+                tab().getResources().getDisplayMetrics());
+        assertEquals(expected, firstStatus.getTextSize(), 0.01f);
+    }
+
+    /**
+     * @param depth  index of the depth in the picker of the dialog
+     * @param period index of the auto-refresh period in the picker of the dialog
+     */
+    private void applySettings(int depth, boolean autoRefresh, int period) {
+        AlertDialog dialog = openSettingsDialog();
+        depthPicker(dialog).setValue(depth);
+        autoRefreshBox(dialog).setChecked(autoRefresh);
+        periodPicker(dialog).setValue(period);
+        apply(dialog);
+        assertFalse(dialog.isShowing());
+    }
+
+    private AlertDialog openSettingsDialog() {
+        tab().onOptionsItemSelected(new RoboMenuItem(R.id.status_settings));
+        idle();
+        return (AlertDialog) ShadowDialog.getLatestDialog();
+    }
+
+    private static NumberPicker depthPicker(AlertDialog dialog) {
+        return dialog.findViewById(R.id.status_parameters_depth);
+    }
+
+    private static CheckBox autoRefreshBox(AlertDialog dialog) {
+        return dialog.findViewById(R.id.status_parameters_auto_refresh_cb);
+    }
+
+    private static NumberPicker periodPicker(AlertDialog dialog) {
+        return dialog.findViewById(R.id.status_parameters_auto_refresh_period);
     }
 
     private void rotate() {

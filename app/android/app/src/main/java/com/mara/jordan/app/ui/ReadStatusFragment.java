@@ -86,13 +86,18 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
      */
     private static final int DEFAULT_PERIOD = 2;
     /**
-     * Keys of the filters in the saved state, which a rotation would otherwise lose (JRD-31).
+     * Keys of the filters (JRD-31) and settings (JRD-37) in the saved state, which a rotation would
+     * otherwise lose.
      */
     private static final String STATE_SEARCH = "status.search";
     private static final String STATE_TEXT = "status.text";
     private static final String STATE_TEXT_REGEX = "status.text.regex";
     private static final String STATE_TYPE_FILTER = "status.type";
     private static final String STATE_TASK_FILTER = "status.task";
+    private static final String STATE_DEPTH = "status.depth";
+    private static final String STATE_AUTO_REFRESH = "status.auto_refresh";
+    private static final String STATE_AUTO_REFRESH_PERIOD = "status.auto_refresh.period";
+    private static final String STATE_TEXT_SIZE = "status.text_size";
 
     static {
         //Ensure choices are valid integers
@@ -134,6 +139,10 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
      * element selected by user in {@link ReadStatusFragment#PERIOD_CHOICES}
      */
     private int autoRefreshPeriod = DEFAULT_PERIOD;
+    /**
+     * size in sp of the statuses, chosen with the bar of {@link #createTextSizePopup()}
+     */
+    private int statusTextSize = StatusTextSizeHelper.DEFAULT_TEXT_SIZE;
 
     private final Handler autoRefreshScheduler = new Handler();
     private Runnable autoRefreshRunnable = null;
@@ -158,6 +167,7 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
         statusFilterTaskAdapter = new StatusFilterTaskAdapter(getContext());
         if (savedInstanceState != null) {
             restoreFilters(savedInstanceState);
+            restoreSettings(savedInstanceState);
         }
     }
 
@@ -169,6 +179,22 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
         outState.putBoolean(STATE_TEXT_REGEX, textFilter.isRegex());
         putFilterMapping(outState, STATE_TYPE_FILTER, typeFilter);
         putFilterMapping(outState, STATE_TASK_FILTER, taskFilter);
+        outState.putInt(STATE_DEPTH, statusDepth);
+        outState.putBoolean(STATE_AUTO_REFRESH, autoRefreshEnabled);
+        outState.putInt(STATE_AUTO_REFRESH_PERIOD, autoRefreshPeriod);
+        outState.putInt(STATE_TEXT_SIZE, statusTextSize);
+    }
+
+    /**
+     * Puts back the settings {@link #onSaveInstanceState} saved (JRD-37) : the depth of the
+     * reading, the auto-refresh — which {@link #onStatusLoaded} schedules again after the first
+     * reading — and the text size.
+     */
+    private void restoreSettings(Bundle savedState) {
+        statusDepth = savedState.getInt(STATE_DEPTH, DEFAULT_DEPTH);
+        autoRefreshEnabled = savedState.getBoolean(STATE_AUTO_REFRESH, DEFAULT_AUTO_REFRESH);
+        autoRefreshPeriod = savedState.getInt(STATE_AUTO_REFRESH_PERIOD, DEFAULT_PERIOD);
+        setStatusTextSize(savedState.getInt(STATE_TEXT_SIZE, StatusTextSizeHelper.DEFAULT_TEXT_SIZE));
     }
 
     /**
@@ -259,6 +285,17 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
     void setCurrentSearchQuery(String query) {
         currentSearchQuery = query;
         updateStatusAdapter();
+    }
+
+    /**
+     * What the bar of {@link #createTextSizePopup()} calls as it moves.
+     *
+     * @param textSizeSp size in sp of the statuses
+     */
+    @VisibleForTesting
+    void setStatusTextSize(int textSizeSp) {
+        statusTextSize = textSizeSp;
+        statusAdapter.changeTextSize(textSizeSp);
     }
 
     private void clearCurrentSearchQuery() {
@@ -448,14 +485,12 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
             popupLayout.setOnClickListener(v -> {if(popup != null)popup.dismiss();});
             final SeekBar textSizeBar = popupLayout.findViewById(R.id.text_size_seek_bar);
             textSizeBar.setMax(StatusTextSizeHelper.getSeekbarMax());
-            textSizeBar.setProgress(StatusTextSizeHelper.getSeekbarInitialProgress());
+            textSizeBar.setProgress(StatusTextSizeHelper.convertTextSizeToProgress(statusTextSize));
 
             textSizeBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                 @Override
                 public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                    if(statusList != null && statusList.getAdapter() != null){
-                        ((ReadStatusAdapter)statusList.getAdapter()).changeTextSize(StatusTextSizeHelper.convertProgressToTextSize(progress));
-                    }
+                    setStatusTextSize(StatusTextSizeHelper.convertProgressToTextSize(progress));
                 }
                 @Override
                 public void onStartTrackingTouch(SeekBar seekBar) {}
@@ -598,14 +633,6 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
 
         /**
          * Because of {@link SeekBar#setMin(int)} exists from API 26 only, shift is done here.
-         * @return {@link StatusTextSizeHelper#DEFAULT_TEXT_SIZE} minus {@link StatusTextSizeHelper#MIN_TEXT_SIZE}
-         */
-        public static int getSeekbarInitialProgress() {
-            return DEFAULT_TEXT_SIZE - MIN_TEXT_SIZE;
-        }
-
-        /**
-         * Because of {@link SeekBar#setMin(int)} exists from API 26 only, shift is done here.
          * @return {@link StatusTextSizeHelper#MAX_TEXT_SIZE} minus {@link StatusTextSizeHelper#MIN_TEXT_SIZE}
          */
         public static int getSeekbarMax() {
@@ -618,6 +645,14 @@ public class ReadStatusFragment extends Fragment implements JordanReadStatusCall
          */
         public static int convertProgressToTextSize(int seekBarProgress) {
             return seekBarProgress + MIN_TEXT_SIZE;
+        }
+
+        /**
+         * Because of {@link SeekBar#setMin(int)} exists from API 26 only, shift is done here.
+         * @return {@code textSizeSp} minus {@link StatusTextSizeHelper#MIN_TEXT_SIZE}
+         */
+        public static int convertTextSizeToProgress(int textSizeSp) {
+            return textSizeSp - MIN_TEXT_SIZE;
         }
     }
 
