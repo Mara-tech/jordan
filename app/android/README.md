@@ -136,3 +136,16 @@ it.
 `MainActivityInsetsTest` dispatches the insets of the system bars to the main screen and checks that
 the toolbar starts below the status bar and the content stops above the navigation bar: from API 35
 the app is drawn edge to edge, and `SystemBarInsets` is what keeps it clear of them (JRD-14).
+It fails, four cases out of five, when `MainActivity` no longer calls `SystemBarInsets.apply`. It runs
+on API 34, though — Robolectric needs a JDK 21 for API 35, and CI is on Temurin 17 — so it supplies
+the insets itself: that a real Android 15 delivers them to `main_root` was seen on a Pixel 8 API 35
+emulator instead (JRD-36), on the servers screen and on the four tabs of a client, error Snackbar
+included.
+
+To repeat such a check, the emulator reaches the host as `10.0.2.2`: start a local server
+(`docker compose up -d --build --wait` from the repository root), register a passive client — one
+of the `sample/` scripts — and add a server whose URL is `http://10.0.2.2:5000/jordan/admin`. The
+compose stack declares no operator account (`JORDAN_ADMIN_USERS=[]`) and the login dialog asks for
+one: build an entry with `python server/admin_identity.py <login> <password> viewer` and pass it in
+`JORDAN_ADMIN_USERS` when starting the stack. `adb shell uiautomator dump` gives the bounds of every
+view, which is how a toolbar is measured against the status bar rather than judged on a screenshot.
