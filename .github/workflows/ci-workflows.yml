@@ -1,0 +1,38 @@
+name: CI Workflows
+
+# The release-*.yml workflows run only on their tag, and the other CI workflows
+# do not watch this directory: without this one, a pull request touching a
+# workflow registers no check, and a broken release workflow is discovered
+# when publishing (JRD-30). actionlint checks every workflow of the directory:
+# syntax, ${{ }} expressions, and shellcheck on each `run:` script.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      # The same .venv and the same command as .claude/rules/checks.md, pins
+      # included. The runner image has its own shellcheck; the pinned one is
+      # used instead, so that CI and a workstation report the same findings.
+      - name: Install actionlint and shellcheck
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install actionlint-py==1.7.12.25 shellcheck-py==0.11.0.1
+
+      # actionlint skips shellcheck without a word when the path it is given
+      # does not exist: the probe makes that a failure instead.
+      - name: Lint the workflows
+        run: .venv/bin/shellcheck --version > /dev/null && .venv/bin/actionlint -shellcheck=.venv/bin/shellcheck
