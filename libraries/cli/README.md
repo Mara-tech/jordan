@@ -86,6 +86,11 @@ jordan complete
 
 Sub-tasks can themselves be parents: pass `--task-id PARENT_ID` to `jordan task-create` to nest tasks further.
 
+`--task-id` only reaches the tasks of the session's own client — its root task and what descends
+from it. The server authenticates every call with the session token against the root of the task
+it targets, and answers `401` for a task of another client, even one registered from the same
+machine; the command then exits `1`.
+
 ## Commands
 
 ### `jordan register`
@@ -258,6 +263,9 @@ Marks a task as complete.
 - **Without `--task-id`**: marks the root task complete, unregisters the client, and deletes `.jordan_session`.
 - **With `--task-id`**: marks only that sub-task complete. The session and root task are left untouched.
 
+When the server refuses the change — a task of another client, one that does not exist — the command
+exits `1` and says so, and nothing is unregistered: the session stays.
+
 ---
 
 ### `jordan error`
@@ -270,6 +278,9 @@ Marks a task as failed, optionally sending an error status message.
 
 - **Without `--task-id`**: marks the root task failed, unregisters the client, and deletes `.jordan_session`.
 - **With `--task-id`**: marks only that sub-task failed. The session and root task are left untouched.
+
+When the server refuses the change — a task of another client, one that does not exist — the command
+exits `1` and says so, and nothing is unregistered: the session stays.
 
 ```bash
 jordan error "Unexpected exit code from ffmpeg"

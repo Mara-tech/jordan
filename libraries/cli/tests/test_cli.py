@@ -540,6 +540,26 @@ class TestComplete:
         # Only one HTTP call (COMPLETE), no unregister
         assert len(responses_lib.calls) == 1
 
+    @responses_lib.activate
+    def test_refused_subtask_exits_1_instead_of_claiming_success(self):
+        # JRD-9: a task of another client answers 401; "Task <id> complete." was printed anyway
+        _write_session()
+        responses_lib.add(responses_lib.PUT, _url(f"client/{SUB_TASK_ID}/COMPLETE"), status=401)
+        result = split_runner.invoke(app, ["complete", "--task-id", SUB_TASK_ID])
+        assert result.exit_code == 1
+        assert "complete." not in result.stdout
+        assert f"Task {SUB_TASK_ID} was not marked complete" in result.stderr
+        assert Path(".jordan_session").exists()
+
+    @responses_lib.activate
+    def test_refused_root_task_keeps_session_and_does_not_unregister(self):
+        _write_session()
+        responses_lib.add(responses_lib.PUT, _url(f"client/{TASK_ID}/COMPLETE"), status=401)
+        result = runner.invoke(app, ["complete"])
+        assert result.exit_code == 1
+        assert Path(".jordan_session").exists()
+        assert len(responses_lib.calls) == 1
+
 
 # ── error ──────────────────────────────────────────────────────────────────────
 
@@ -578,6 +598,26 @@ class TestError:
         responses_lib.add(responses_lib.PUT, _url(f"client/{SUB_TASK_ID}/ERROR"), status=202)
         result = runner.invoke(app, ["error", "--task-id", SUB_TASK_ID])
         assert result.exit_code == 0
+        assert Path(".jordan_session").exists()
+        assert len(responses_lib.calls) == 1
+
+    @responses_lib.activate
+    def test_refused_subtask_exits_1_instead_of_claiming_failure(self):
+        # JRD-9: same as complete
+        _write_session()
+        responses_lib.add(responses_lib.PUT, _url(f"client/{SUB_TASK_ID}/ERROR"), status=401)
+        result = split_runner.invoke(app, ["error", "--task-id", SUB_TASK_ID])
+        assert result.exit_code == 1
+        assert "failed." not in result.stdout
+        assert f"Task {SUB_TASK_ID} was not marked failed" in result.stderr
+        assert Path(".jordan_session").exists()
+
+    @responses_lib.activate
+    def test_refused_root_task_keeps_session_and_does_not_unregister(self):
+        _write_session()
+        responses_lib.add(responses_lib.PUT, _url(f"client/{TASK_ID}/ERROR"), status=401)
+        result = runner.invoke(app, ["error"])
+        assert result.exit_code == 1
         assert Path(".jordan_session").exists()
         assert len(responses_lib.calls) == 1
 

@@ -258,6 +258,7 @@ Key rules:
 - Only the root task is unregistered at the end of a session; sub-tasks are simply marked COMPLETE or ERROR.
 - In the Python library, `JordanInstance.create_task()` returns a `JordanTaskInstance` (same API as `JordanInstance`, but `fatal()` does not unregister).
 - In the CLI, `jordan task-create NAME` creates a sub-task and prints its ID. All commands accept `--task-id` to target a sub-task; omitting it targets the root task.
+- A client only reaches its own tasks: `_require_client_auth` compares the token with the `authToken` of the root the target task descends from, so a task of another client answers `401` (arbitration of JRD-9 — no cross-client or admin bypass on `/client/*`). `jordan complete` and `jordan error` exit `1` on that refusal instead of reporting success.
 
 ### Request arguments (`jordan_py`)
 
