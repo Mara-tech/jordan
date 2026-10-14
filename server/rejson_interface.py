@@ -490,8 +490,23 @@ def delete_all(payload=None):
 
 
 def generic_query(id):
+    """Raw record behind any id, for GET /admin/{id} — minus every authToken.
+
+    The route marshals nothing, so the record goes out as stored, and a root task
+    stores its client's token: read access alone would hand a viewer the means to
+    act as that client on /client/* (JRD-39). Stripped at every depth, so that a
+    token copied into a nested object never leaks through here either.
+    """
     log_redis_op(f"generic query on {id}")
-    return rj.json().get(id)
+    return _without_auth_tokens(rj.json().get(id))
+
+
+def _without_auth_tokens(value):
+    if isinstance(value, dict):
+        return {key: _without_auth_tokens(item) for key, item in value.items() if key != 'authToken'}
+    if isinstance(value, list):
+        return [_without_auth_tokens(item) for item in value]
+    return value
 
 
 def validate_auth_token(task_id, token):
