@@ -487,6 +487,9 @@ Returns information stored for an ID.
 #### HTTP API v1
 GET {id}
 Success response : 200 OK, 204 No Content if ID does not exists
+
+The record is returned as stored, except that no `authToken` appears in it, at any depth: the
+token of a passive client is never readable on `/admin/*`, whatever the role (JRD-39).
 #### API function(s)
 from JordanClientInstance
 

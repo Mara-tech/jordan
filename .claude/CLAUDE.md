@@ -260,6 +260,7 @@ Key rules:
 - In the CLI, `jordan task-create NAME` creates a sub-task and prints its ID. All commands accept `--task-id` to target a sub-task; omitting it targets the root task.
 - `unregister` ends the token (JRD-38): the server drops `authToken` from the root, so every later `/client/*` call with it — on the root, on a sub-task, a second `unregister` — answers `401`; `validate_auth_token` also refuses a root already `UNREGISTERED`, which covers records unregistered before the token was dropped. The task and its history stay readable on `/admin/*`; a client that needs the server again registers anew. Tokens have no other end of life — no expiry, no rotation.
 - A client only reaches its own tasks: `_require_client_auth` compares the token with the `authToken` of the root the target task descends from, so a task of another client answers `401` (arbitration of JRD-9 — no cross-client or admin bypass on `/client/*`). `jordan complete` and `jordan error` exit `1` on that refusal instead of reporting success.
+- No `/admin/*` answer carries a client's `authToken` (JRD-39): the typed routes marshal through models without it, and `GET /admin/{id}` — the one route returning a stored record as is — goes through `generic_query`, which strips the key at every depth. Otherwise `read`, the `viewer` permission, would be enough to act as any client on `/client/*`.
 
 ### Request arguments (`jordan_py`)
 
