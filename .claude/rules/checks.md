@@ -172,7 +172,8 @@ docker run --rm jordan-server:ci sh -c 'test ! -e /app/.env'
 ```
 
 The job then starts the container and probes `/jordan/hello`, `/jordan/admin/clients` (`401`) and
-`/jordan/swagger.json` (`404`) — the full sequence is in the workflow. Run it when the change can
+`/jordan/swagger.json` (`404`), then fails if its logs carry an `[ERROR]` line (JRD-21) — the full
+sequence is in the workflow. Run it when the change can
 affect how the image is built or starts; a change inside `api.py` alone is covered by the server
 tests.
 

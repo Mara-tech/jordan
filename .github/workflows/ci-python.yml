@@ -87,6 +87,17 @@ jobs:
           test "$(status /jordan/swagger.json)" = 404
           test "$(status /jordan/swagger-ui)" = 404
 
+      # gunicorn's control socket once logged an ERROR at every start, which
+      # buried the real boot errors (JRD-21). The grace leaves its thread, which
+      # starts after the workers answer, the time to fail.
+      - name: It logs no error at startup
+        run: |
+          sleep 3
+          if docker logs jordan-ci 2>&1 | grep -F '[ERROR]'; then
+            echo "the server logged an error at startup"
+            exit 1
+          fi
+
       - name: Show what it reported at startup
         if: always()
         run: docker logs jordan-ci || true

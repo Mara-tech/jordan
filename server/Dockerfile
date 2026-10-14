@@ -36,4 +36,11 @@ EXPOSE 8080
 # killed; the shell is only there to expand $PORT, which the platform sets.
 # JORDAN_DEBUG has no meaning here — there is no development server to put a
 # debugger in.
-CMD ["sh", "-c", "exec gunicorn api:app --bind 0.0.0.0:${PORT:-8080} --workers 2 --access-logfile - --error-logfile -"]
+# --no-control-socket: gunicorn 25.1+ opens a Unix socket for its `gunicornc`
+# admin tool under $HOME/.gunicorn/, and `jordan` has no home to write it in —
+# hence an ERROR line at every start (JRD-21). The socket is switched off rather
+# than given a writable directory: nobody shells into the container to use it,
+# what it offers (reload, add or remove workers, shut down) is already reachable
+# through signals to PID 1, and a directory this user can write would break the
+# "owns nothing" rule above.
+CMD ["sh", "-c", "exec gunicorn api:app --bind 0.0.0.0:${PORT:-8080} --workers 2 --no-control-socket --access-logfile - --error-logfile -"]
