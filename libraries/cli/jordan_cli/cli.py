@@ -248,6 +248,17 @@ def action(
             raise typer.Exit(1)
 
 
+def _refused_state_change(task_id: int | str, state: str) -> None:
+    """The server answered, and not with 202: the state did not change. The session
+    stays, since nothing it designates is finished."""
+    typer.echo(
+        f"Task {task_id} was not marked {state}: the server refused it. "
+        "A client can only change the state of its own tasks.",
+        err=True,
+    )
+    raise typer.Exit(1)
+
+
 @app.command()
 @bounded
 def complete(
@@ -258,10 +269,12 @@ def complete(
 
     Without --task-id, marks the root task complete, unregisters the client,
     and deletes the session file. With --task-id, marks only that sub-task complete.
+    Exits 1 when the server refuses — a task of another client among others (JRD-9).
     """
     session = _load_session()
     instance = _make_instance_for(session, task_id)
-    instance.complete(timeout=request_timeout)
+    if not instance.complete(timeout=request_timeout):
+        _refused_state_change(instance.task_id, "complete")
     if task_id is None:
         instance.unregister(timeout=request_timeout)
         Path(SESSION_FILE).unlink(missing_ok=True)
@@ -281,12 +294,14 @@ def error(
 
     Without --task-id, marks the root task failed, unregisters the client,
     and deletes the session file. With --task-id, marks only that sub-task as failed.
+    Exits 1 when the server refuses — a task of another client among others (JRD-9).
     """
     session = _load_session()
     instance = _make_instance_for(session, task_id)
     if message:
         instance.send_failure_status(message, timeout=request_timeout)
-    instance.update_task(jordan.TASK_STATE_ERROR, timeout=request_timeout)
+    if not instance.update_task(jordan.TASK_STATE_ERROR, timeout=request_timeout):
+        _refused_state_change(instance.task_id, "failed")
     if task_id is None:
         instance.unregister(timeout=request_timeout)
         Path(SESSION_FILE).unlink(missing_ok=True)
