@@ -304,6 +304,12 @@ CMD ["sh", "-c", "exec gunicorn api:app --bind 0.0.0.0:${PORT:-8080} --workers 2
 - **`USER jordan`** — the process owns none of the files it serves: the code and the interpreter
   stay owned by `root`, read-only. A flaw in the server then buys a shell that cannot modify the
   image it runs from.
+- **`--no-control-socket`** — gunicorn 25.1+ opens a Unix socket for its `gunicornc` admin tool
+  under `$HOME/.gunicorn/`, and `jordan` has no home: the attempt logged
+  `[ERROR] Control server error: [Errno 13] Permission denied: '/home/jordan'` at every start
+  (JRD-21). It is switched off rather than given a writable directory — nobody shells into the
+  container to use it, its reload / worker / shutdown commands are what signals to PID 1 already
+  do, and a directory `jordan` can write would undo the line above.
 - **no start command on the service** — it would shadow the `CMD` without replacing it in the file
   you read. [deploy.sh](deploy.sh) sets none; leave the field empty in the dashboard too. One start
   command, in the `Dockerfile`, rather than two that diverge the day one of them is fixed.
