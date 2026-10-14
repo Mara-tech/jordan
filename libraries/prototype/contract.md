@@ -175,6 +175,12 @@ from JordanInstance
     ) : JordanSentUnregister
 #### Authentication
 `Authorization: Bearer <authToken>` — token issued at registration. 401 if missing or invalid.
+#### End of the token
+Unregistering is the end of life of the `authToken`: the server drops it from the client
+record, and every later `client/*` call made with it — on the client's root task or on any of
+its sub-tasks, `unregister` itself included — answers 401. The task and its history stay
+readable from the admin namespace, in state `UNREGISTERED`, until an admin deletes them.
+A program that needs the server again registers anew and gets a new token.
 
 
 ## DTOs
