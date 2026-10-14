@@ -408,8 +408,15 @@ def set_task_state(task_id, state):
 
 
 def unregister(client_id):
+    """End the registration: the task keeps its record and history, readable by
+    the admin side, but its token is dropped so that no `/client/*` call on it
+    or on a descendant is accepted any more (JRD-38)."""
     log_redis_op(f"unregister client {client_id}")
-    return set_task_state(client_id, CLIENT_STATE_UNREGISTERED)
+    rp = rj.pipeline()
+    rp.json().set(client_id, '.state', CLIENT_STATE_UNREGISTERED)
+    rp.json().delete(client_id, '.authToken')
+    state_set, _ = rp.execute()
+    return state_set
 
 
 def delete_task(task_id):
@@ -488,11 +495,16 @@ def generic_query(id):
 
 
 def validate_auth_token(task_id, token):
-    """Walk up from task_id to root client and compare authToken."""
+    """Walk up from task_id to root client and compare authToken.
+
+    An unregistered root no longer has a token; the state is checked as well for
+    roots unregistered before the token was dropped (JRD-38)."""
     obj = rj.json().get(task_id)
     if obj is None:
         return False
     if 'authToken' in obj:
+        if obj.get('state') == CLIENT_STATE_UNREGISTERED:
+            return False
         return obj['authToken'] == token
     parent_id = obj.get('parentTaskId')
     if parent_id is not None:
