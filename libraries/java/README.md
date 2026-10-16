@@ -31,7 +31,58 @@ Then for all subsequent builds:
 jordan-client  →  jordan-core
 ```
 
-`jordan-client` depends on `jordan-core` via a project reference (`project(':jordan-core')`). There is no published artifact yet — both modules must be built together from source.
+`jordan-client` depends on `jordan-core` via a project reference (`api project(':jordan-core')`). In
+the published POM it becomes a `compile` dependency on `com.mara.jordan:jordan-core` of the same version:
+`api` rather than `implementation`, because client code uses `jordan-core` types (`JordanConstants`).
+
+## Publishing
+
+Both modules publish to GitHub Packages, `https://maven.pkg.github.com/Mara-tech/jordan`:
+
+| Coordinates | |
+|---|---|
+| `com.mara.jordan:jordan-core:<version>` | jar, sources jar, POM, Gradle module metadata |
+| `com.mara.jordan:jordan-client:<version>` | same |
+
+The two are versioned together: `version` in [gradle.properties](gradle.properties), overridden for one
+build with `-Pversion=<x.y.z>`. The configuration shared by both modules is
+[publishing.gradle](publishing.gradle), which each `build.gradle` applies after the `maven-publish`
+plugin.
+
+```bash
+# from libraries/java/ — a token with the write:packages scope
+GITHUB_ACTOR=<github login> GITHUB_TOKEN=<token> bash gradlew publish
+```
+
+The credentials can also be the Gradle properties `gpr.user` and `gpr.key` (in
+`~/.gradle/gradle.properties`, never in the repository). They are only read by the publish tasks, so a
+build or a test run needs none. A version already published cannot be published again: bump it first.
+
+To check what would be published without credentials, publish to the local Maven repository:
+
+```bash
+bash gradlew publishToMavenLocal    # ~/.m2/repository/com/mara/jordan/
+```
+
+A consumer declares the repository — GitHub Packages asks for a token with `read:packages` even to read a
+public package — then the dependency:
+
+```groovy
+repositories {
+    maven {
+        url = uri('https://maven.pkg.github.com/Mara-tech/jordan')
+        credentials {
+            username = System.getenv('GITHUB_ACTOR')
+            password = System.getenv('GITHUB_TOKEN')
+        }
+    }
+}
+dependencies {
+    implementation 'com.mara.jordan:jordan-client:1.0.0'   // brings jordan-core
+}
+```
+
+A `java/v*` tag publishes nothing yet: the release workflow is JRD-5.
 
 ## Relation to the Android app
 

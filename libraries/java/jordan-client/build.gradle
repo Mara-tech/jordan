@@ -1,9 +1,10 @@
 plugins {
     id 'java-library'
+    id 'maven-publish'
 }
 
 group = 'com.mara.jordan'
-version = '1.0.0'
+// version: gradle.properties of libraries/java
 
 repositories {
     mavenCentral()
@@ -15,9 +16,11 @@ java {
 }
 
 dependencies {
-    implementation project(':jordan-core')
+    api project(':jordan-core')   // its types appear in client code (JordanConstants)
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
 }
+
+apply from: '../publishing.gradle'

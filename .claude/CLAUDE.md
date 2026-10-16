@@ -409,7 +409,7 @@ request touching `.github/workflows/` (JRD-30) — see the *Workflows* row of
 | `jordan_cli` | `jordan_cli/v*` | `release-cli-python.yml` | PyPI |
 | `server` | `server/v*` | `release-server.yml` | ghcr.io Docker image, then deployed to Railway production |
 | `app/android` | `android/v*` | `release-android.yml` | GitHub Release (signed APK + AAB) and Google Play *internal* track |
-| `jordan-core` + `jordan-client` | `java/v*` | *(planned)* | GitHub Packages |
+| `jordan-core` + `jordan-client` | `java/v*` | *(planned, JRD-5)* — `bash gradlew publish` by hand until then | GitHub Packages |
 
 **To release `jordan_py`:**
 1. Bump `version` in [`libraries/python/jordan_py/pyproject.toml`](libraries/python/jordan_py/pyproject.toml)
@@ -433,6 +433,14 @@ request touching `.github/workflows/` (JRD-30) — see the *Workflows* row of
    Its `typer` floor (`typer>=0.15.4`, JRD-35) is the lowest version the CLI tests pass on, and
    `ci-python` / `test-cli` reruns them on it: raising a dependency floor means checking it there, not
    guessing it.
+
+**To release `jordan-core` + `jordan-client`:** both are published together, under
+`com.mara.jordan`, to GitHub Packages (`https://maven.pkg.github.com/Mara-tech/jordan`) — set in
+[libraries/java/publishing.gradle](libraries/java/publishing.gradle), which both `build.gradle` apply.
+Their one version is `version` in [libraries/java/gradle.properties](libraries/java/gradle.properties)
+(`-Pversion=` overrides it for one build). Until the `java/v*` workflow exists (JRD-5), publish from
+`libraries/java` with `GITHUB_ACTOR` and `GITHUB_TOKEN` (`write:packages`) set: `bash gradlew publish`.
+See [libraries/java/README.md](libraries/java/README.md#publishing).
 
 **To release `server`:** nothing to bump — the version is the tag. `Api(version='1')` in
 [server/api.py](server/api.py) is the version of the REST API, not of the release, and does not move

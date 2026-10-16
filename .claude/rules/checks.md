@@ -161,6 +161,17 @@ the `PATH`. The `gradlew` scripts are committed without the executable bit (mode
 answers `Permission denied` outside Git Bash; `bash gradlew` runs everywhere, and CI does a `chmod +x` instead. CI uses Temurin 17; any JDK from 17 on builds locally. The Android build also reads
 `app/android/local.properties` (`sdk.dir`, git-ignored), which Android Studio writes.
 
+The publication of the Java libraries (`maven-publish`, [publishing.gradle](../../libraries/java/publishing.gradle))
+is checked without credentials by publishing to a throwaway local repository, then reading the POMs:
+
+```bash
+cd libraries/java && bash gradlew publishToMavenLocal -Dmaven.repo.local="$PWD/build/m2"
+ls build/m2/com/mara/jordan/*/*/
+```
+
+Run it when a `build.gradle`, `publishing.gradle` or `gradle.properties` of `libraries/java` changed;
+`bash gradlew publish` itself is a real release, never a check.
+
 ### Server image
 
 What `ci-python` / `build-image` checks, reproducible when Docker is running:
