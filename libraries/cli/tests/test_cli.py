@@ -366,6 +366,25 @@ class TestAction:
         assert result.exit_code == 1
         assert "Timeout" in result.output
 
+    @pytest.mark.parametrize("args", [["action"], ["action", "--wait", "--timeout", "10", "--interval", "0"]])
+    @responses_lib.activate
+    def test_undecodable_message_is_reported_on_one_line(self, args):
+        # JRD-34: the UndecodableMessageError of jordan_py went through unhandled, ending the
+        # command on a traceback; and the server already took the message off the queue, so
+        # --wait has nothing more to wait for
+        _write_session()
+        cut_short = '{"messageId": "x", "act'
+        responses_lib.add(responses_lib.GET, _url(f"client/{TASK_ID}/message"), body=cut_short, status=200)
+        result = split_runner.invoke(app, args)
+        assert result.exit_code == 1
+        assert isinstance(result.exception, SystemExit)
+        assert result.stdout == ""
+        stderr_lines = result.stderr.splitlines()
+        assert len(stderr_lines) == 1
+        assert repr(cut_short) in stderr_lines[0]
+        assert "off the queue" in stderr_lines[0]
+        assert len(responses_lib.calls) == 1
+
     def test_wait_returns_by_its_timeout_when_the_server_stops_answering(self, silent_server, invoke_within):
         # JRD-16: --timeout bounded the loop, not the reads inside it, so one read
         # held by a silent server held the command forever

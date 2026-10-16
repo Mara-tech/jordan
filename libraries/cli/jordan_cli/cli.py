@@ -1,4 +1,5 @@
 import json
+import logging
 import time
 from pathlib import Path
 
@@ -11,6 +12,12 @@ from jordan_cli.request_timeout import REQUEST_TIMEOUT_OPTION, bounded
 app = typer.Typer(help="Jordan CLI — use Jordan without writing Python code.")
 
 SESSION_FILE = ".jordan_session"
+
+# jordan_py logs an undecodable message before raising it, for the callers that never catch it;
+# this CLI catches it and prints that same body itself (JRD-34). Without a handler of its own,
+# the record would reach logging's last-resort handler and print the body a second time. A
+# handler configured on the root logger still receives it.
+logging.getLogger("jordan_py").addHandler(logging.NullHandler())
 
 _TASK_ID_OPTION = typer.Option(
     None, "--task-id", help="Sub-task ID to target (defaults to root task from session)"
@@ -206,6 +213,18 @@ def _deliver_action(msg: jordan.JordanMessage, request_timeout: float) -> None:
         )
 
 
+def _read_action(instance: jordan.JordanInstance, request_timeout: float) -> jordan.JordanMessage | None:
+    """Read one pending action, without its receipt. A message the library could not decode is
+    reported on one line, raw body included, and ends the command: the server took it off the
+    queue when it answered, so neither a retry nor --wait would see it again (JRD-34)."""
+    try:
+        return instance.read_message(timeout=request_timeout, send_receipt=False)
+    except jordan.UndecodableMessageError as error:
+        typer.echo(f"Error: {error}. The server took this message off the queue; it will not be read again.",
+                   err=True)
+        raise typer.Exit(1)
+
+
 @app.command()
 @bounded
 def action(
@@ -229,7 +248,7 @@ def action(
             if left <= 0:
                 break
             try:
-                msg = instance.read_message(timeout=min(request_timeout, left), send_receipt=False)
+                msg = _read_action(instance, min(request_timeout, left))
             except requests.exceptions.Timeout:
                 # a silent server is waited on like an empty queue, until the deadline
                 msg = None
@@ -240,7 +259,7 @@ def action(
         typer.echo("Timeout: no action received.", err=True)
         raise typer.Exit(1)
     else:
-        msg = instance.read_message(timeout=request_timeout, send_receipt=False)
+        msg = _read_action(instance, request_timeout)
         if msg:
             _deliver_action(msg, request_timeout)
         else:

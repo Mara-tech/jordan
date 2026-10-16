@@ -239,6 +239,11 @@ the server recorded action <messageId> as received…` when it did not answer in
 recorded it. Either way the operator's side may go on showing the action as delivered rather than
 received. With or without `--wait`, an action that was read is never dropped.
 
+A message the server hands out but the CLI cannot decode — a body cut short, not JSON — is consumed
+all the same: the command prints one line on stderr, `Error: Could not decode the message read for
+task <taskId> (…); raw body: '…'. The server took this message off the queue; it will not be read
+again.`, and exits 1. `--wait` stops there rather than waiting on: that message will not come back.
+
 **Shell script example — react on an action:**
 
 ```bash

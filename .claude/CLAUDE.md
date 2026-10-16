@@ -373,6 +373,9 @@ last attempt went (JRD-27).
 A `200` that `jordan_py` cannot decode is just as consumed: `read_message` raises
 `UndecodableMessageError` (a `ValueError`, raw answer in `body`) and logs that body at ERROR on
 `jordan_py.jordan` first, since nobody catches the exception on the asynchronous path (JRD-29).
+`jordan action` does catch it: one line on stderr with the raw body, exit `1`, and `--wait` stops
+there, since the message is gone (JRD-34). The CLI hangs a `NullHandler` on `jordan_py` so that
+logging's last-resort handler does not print that body a second time.
 `action.placeholders` is optional on the way in; the server always answers it, `{}` when absent, and
 `jordan_py` reads a missing one as no parameter. `jordan-client` (Java) follows the same contract:
 `readMessage()` throws `UndecodableMessageException` (an `IOException`, raw answer in `getBody()`)
@@ -423,10 +426,9 @@ request touching `.github/workflows/` (JRD-30) — see the *Workflows* row of
    ```bash
    git tag jordan_cli/v1.0.0 && git push origin jordan_cli/v1.0.0
    ```
-   `jordan_cli` declares the `jordan_py` version it needs (`jordan_py>=2.3.0`, the first to return a
-   message whose acknowledgement of receipt failed, with `receipt_confirmed` and
-   `send_receipt`, which `jordan action`
-   relies on — JRD-19):
+   `jordan_cli` declares the `jordan_py` version it needs (`jordan_py>=2.4.0`, the first to raise
+   `UndecodableMessageError`, which `jordan action` catches — JRD-34; 2.3.0 brought
+   `receipt_confirmed` and `send_receipt`, which it also relies on — JRD-19):
    publish that `jordan_py` first, or the new CLI installs against nothing.
    Its `typer` floor (`typer>=0.15.4`, JRD-35) is the lowest version the CLI tests pass on, and
    `ci-python` / `test-cli` reruns them on it: raising a dependency floor means checking it there, not
