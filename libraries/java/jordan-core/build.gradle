@@ -1,9 +1,10 @@
 plugins {
     id 'java-library'
+    id 'maven-publish'
 }
 
 group = 'com.mara.jordan'
-version = '1.0.0'
+// version: gradle.properties of libraries/java
 
 repositories { mavenCentral() }
 
@@ -18,3 +19,5 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok:1.18.30'
     testImplementation 'junit:junit:4.13.2'
 }
+
+apply from: '../publishing.gradle'

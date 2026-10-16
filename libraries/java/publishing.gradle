@@ -1,0 +1,31 @@
+// Publication shared by jordan-core and jordan-client. Each module applies the
+// maven-publish plugin, then this script by a path relative to its own directory,
+// so it also resolves when app/android includes jordan-core from another build.
+//
+// Credentials are read when a publish task runs, not when the build is configured:
+// a build without them (CI tests, the Android app) never needs them.
+//   username: $GITHUB_ACTOR, or the Gradle property gpr.user
+//   password: $GITHUB_TOKEN, or the Gradle property gpr.key (a token with write:packages)
+
+java {
+    withSourcesJar()
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifactId = project.name
+        }
+    }
+    repositories {
+        maven {
+            name = 'GitHubPackages'
+            url = uri('https://maven.pkg.github.com/Mara-tech/jordan')
+            credentials {
+                username = System.getenv('GITHUB_ACTOR') ?: findProperty('gpr.user')
+                password = System.getenv('GITHUB_TOKEN') ?: findProperty('gpr.key')
+            }
+        }
+    }
+}
